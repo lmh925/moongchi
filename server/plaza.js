@@ -37,7 +37,7 @@ export class PlazaHub {
       m.y = clamp(msg?.y, 0, PLAZA.worldH);
       m.dir = msg?.dir === -1 ? -1 : 1;
       m.moving = !!msg?.moving;
-      this.broadcast(m, 'plaza:pos', { userId, x: m.x, y: m.y, dir: m.dir, moving: m.moving }, true);
+      m.dirty = true; // 0.1초마다 모아서 한 번에 보내요 (tick → flushPositions)
     });
     socket.on('plaza:sticker', (msg) => {
       const m = this.member(socket);
@@ -268,9 +268,24 @@ export class PlazaHub {
     this.io.to(`plaza:${ch.id}`).emit('tag:end', { results });
   }
 
+  // 움직인 강아지들의 위치를 채널마다 한 묶음으로 보내요.
+  // 20마리가 다 움직여도 한 사람이 받는 메시지는 초당 10개예요 (묶지 않으면 190개).
+  flushPositions(ch) {
+    const moved = [...ch.members.values()].filter((m) => m.dirty);
+    if (!moved.length) return;
+    for (const m of moved) m.dirty = false;
+    const packed = moved.map((m) => [m.userId, Math.round(m.x * 10) / 10, Math.round(m.y * 10) / 10, m.dir, m.moving ? 1 : 0]);
+    for (const o of ch.members.values()) {
+      const list = packed.filter((p) => p[0] !== o.userId && !o.hidden.has(p[0]));
+      if (!list.length) continue;
+      this.io.sockets.sockets.get(o.socketId)?.volatile.emit('plaza:snap', list);
+    }
+  }
+
   tick() {
     const now = Date.now();
     for (const ch of this.channels.values()) {
+      this.flushPositions(ch);
       const t = ch.tag;
       if (!t) continue;
       if (t.status === 'waiting' && t.startsAt && now >= t.startsAt) {
@@ -289,7 +304,7 @@ export class PlazaHub {
       for (const pid of t.players) {
         if (pid === t.it) continue;
         const o = ch.members.get(pid);
-        if (!o || this.safety.isBlocked(pid, t.it)) continue;
+        if (!o || o.hidden.has(t.it)) continue;
         if (Math.hypot(o.x - it.x, (o.y - it.y) * 1.4) < TAG.radius) {
           t.scores.set(t.it, (t.scores.get(t.it) ?? 0) + 1);
           this.io.to(`plaza:${ch.id}`).emit('tag:tagged', { from: t.it, to: pid });

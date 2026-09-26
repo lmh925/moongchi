@@ -77,11 +77,11 @@ test('놀이터: 누구나 같은 채널에 들어와서 서로의 움직임을 
   const jb = await ask(b.socket, 'plaza:join', {});
   assert.equal(jb.channel, ja.channel);
   assert.equal((await entered).userId, b.id);
-  const moved = next(a.socket, 'plaza:pos');
+  const moved = next(a.socket, 'plaza:snap', (list) => list.some((p) => p[0] === b.id));
   await wait(120);
   b.socket.emit('plaza:pos', { x: 100, y: 120, dir: -1, moving: true });
-  const pos = await moved;
-  assert.deepEqual([pos.userId, pos.x, pos.y, pos.dir], [b.id, 100, 120, -1]);
+  const pos = (await moved).find((p) => p[0] === b.id);
+  assert.deepEqual(pos.slice(0, 4), [b.id, 100, 120, -1]);
   // 글자 채팅 대신 스티커만
   const bubble = next(a.socket, 'plaza:bubble');
   b.socket.emit('plaza:sticker', { id: 'heart' });

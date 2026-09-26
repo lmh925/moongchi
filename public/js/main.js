@@ -1208,7 +1208,11 @@ function bindPlazaSocket(socket) {
     state.plaza.count = Math.max(1, state.plaza.count - 1);
     renderPlazaHeader();
   });
-  socket.on('plaza:pos', ({ userId, x, y, dir, moving }) => state.plaza?.view.move(userId, x, y, dir, moving));
+  // 0.1초마다 오는 위치 묶음: [userId, x, y, dir, moving]
+  socket.on('plaza:snap', (list) => {
+    if (!state.plaza) return;
+    for (const [userId, x, y, dir, moving] of list) state.plaza.view.move(userId, x, y, dir, !!moving);
+  });
   socket.on('plaza:bubble', ({ userId, kind, value }) => {
     if (!state.plaza) return;
     state.plaza.view.bubble(userId, kind, value);
