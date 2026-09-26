@@ -1,6 +1,6 @@
 // 마이룸 장면: 픽셀 방 + 돌아다니는 강아지들 + 효과
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
-import { PERSONALITIES } from '/shared/data.js';
+import { PERSONALITIES } from '../shared/data.js';
 import { el } from './ui.js';
 
 export const SCENE_W = 192;

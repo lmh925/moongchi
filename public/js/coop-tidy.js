@@ -1,6 +1,6 @@
 // 장난감 방 정리 정돈 — 화면 (규칙은 shared/coop/tidy.js, 판정은 서버)
 // 두 사람 모두 장난감을 끌어다 놓을 수 있어요. 다 치우면 방이 아늑해지고 강아지들이 낮잠을 자요.
-import { TIDY } from '/shared/coop/tidy.js';
+import { TIDY } from '../shared/coop/tidy.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';

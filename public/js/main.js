@@ -2,8 +2,8 @@
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
   STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
-} from '/shared/data.js';
-import { applyDecay, quizResult } from '/shared/rules.js';
+} from '../shared/data.js';
+import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
 import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.js';
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
@@ -1726,9 +1726,28 @@ async function handlePendingCode() {
   } catch (err) { toast(err.message, 'bad'); }
 }
 
+// ---------- 새 버전 확인 ----------
+// 캐시 때문에 옛 화면이 남아 있어도, 서버 버전이 바뀌면 놀이 중이 아닐 때 알아서 새로고침해요.
+const MY_BUILD = document.querySelector('meta[name="build"]')?.content ?? null;
+async function checkVersion() {
+  if (!MY_BUILD) return;
+  try {
+    const res = await fetch('/api/version', { cache: 'no-store' });
+    const { build } = await res.json();
+    if (!build || build === MY_BUILD) return;
+    const busy = $('#modal-root').children.length || document.querySelector('.runner-screen') || state.plaza;
+    if (busy) { state.updateReady = build; return; }
+    location.replace(`/?v=${build}`);
+  } catch { /* 인터넷이 잠깐 끊겨도 괜찮아요 */ }
+}
+setInterval(checkVersion, 3 * 60_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
 // ---------- 시작 ----------
 async function boot() {
   stashCode();
+  if (new URLSearchParams(location.search).has('v')) history.replaceState(null, '', '/');
+  checkVersion();
   await document.fonts?.load('16px Galmuri11').catch(() => {});
   if (getToken()) {
     try { await afterLogin(); return; } catch (err) {

@@ -1,4 +1,6 @@
 import http from 'node:http';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -41,8 +43,25 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     res.set('Referrer-Policy', 'no-referrer');
     next();
   });
-  app.use(express.static(path.join(root, 'public')));
-  app.use('/shared', express.static(path.join(root, 'shared')));
+  // ---------- 게임 파일 캐시 관리 ----------
+  // 파일 내용으로 버전(BUILD)을 만들고, index.html이 /v/<BUILD>/... 주소로 게임 파일을 불러요.
+  // 업데이트되면 주소가 바뀌어서 브라우저·Cloudflare에 남은 옛 파일을 쓸 수 없어요.
+  const BUILD = buildId([path.join(root, 'public'), path.join(root, 'shared')]);
+  const indexHtml = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8')
+    .replace('<head>', `<head>\n  <meta name="build" content="${BUILD}">`)
+    .replace('/js/main.js', `/v/${BUILD}/js/main.js`)
+    .replace('/css/style.css', `/v/${BUILD}/css/style.css`);
+  const sendIndex = (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.type('html').send(indexHtml);
+  };
+  const noCache = { setHeaders: (res) => res.set('Cache-Control', 'no-cache') };
+  const forever = { immutable: true, maxAge: '365d' };
+  app.get(['/', '/index.html'], sendIndex);
+  app.use('/v/:build/shared', express.static(path.join(root, 'shared'), forever));
+  app.use('/v/:build', express.static(path.join(root, 'public'), forever));
+  app.use(express.static(path.join(root, 'public'), { ...noCache, index: false }));
+  app.use('/shared', express.static(path.join(root, 'shared'), noCache));
 
   // 간단한 IP별 요청 제한 (로그인/가입 무차별 시도 방지)
   const hits = new Map();
@@ -82,6 +101,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const api = express.Router();
 
   api.get('/config', wrap(() => ({ speed })));
+  api.get('/version', (req, res) => { res.set('Cache-Control', 'no-store'); res.json({ build: BUILD }); });
   api.post('/signup', limiter(10, 10 * 60_000), wrap((req) => auth.signup(req.body?.nickname, req.body?.pin)));
   api.post('/login', limiter(20, 10 * 60_000), wrap((req) => auth.login(req.body?.nickname, req.body?.pin)));
   api.post('/logout', authed, wrap((req) => { auth.logout(req.token); }));
@@ -195,9 +215,24 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
 
   app.use('/api', api);
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
-  app.get('/{*splat}', (req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
+  app.get('/{*splat}', sendIndex);
 
-  return { app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, rules: RULES };
+  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, rules: RULES };
+}
+
+// public/, shared/ 파일들의 경로·크기·수정 시각으로 짧은 버전 값을 만들어요
+function buildId(dirs) {
+  const h = crypto.createHash('sha1');
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir).sort()) {
+      const p = path.join(dir, name);
+      const st = fs.statSync(p);
+      if (st.isDirectory()) walk(p);
+      else h.update(`${p}:${st.size}:${st.mtimeMs}`);
+    }
+  };
+  dirs.forEach(walk);
+  return h.digest('hex').slice(0, 10);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

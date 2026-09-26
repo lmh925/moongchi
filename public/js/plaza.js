@@ -1,5 +1,5 @@
 // 멍뭉 놀이터 화면: 넓은 공원 맵 + 카메라 + 조이스틱/탭 이동 + 다른 강아지들
-import { PLAZA, PLAZA_SPOTS } from '/shared/data.js';
+import { PLAZA, PLAZA_SPOTS } from '../shared/data.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
 

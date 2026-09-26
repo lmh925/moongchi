@@ -1,5 +1,5 @@
 // 영차영차 쿠션 탑 쌓기 — 화면 그리기 (규칙은 shared/coop/cushion.js, 판정은 서버)
-import { CUSHION as C } from '/shared/coop/cushion.js';
+import { CUSHION as C } from '../shared/coop/cushion.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';

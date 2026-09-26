@@ -1,6 +1,6 @@
 // 으쌰으쌰 대왕 리본 풀기 — 화면 그리기 (규칙은 shared/coop/ribbon.js, 판정은 서버)
-import { COOP_GAMES } from '/shared/data.js';
-import { gaugeAt } from '/shared/coop/ribbon.js';
+import { COOP_GAMES } from '../shared/data.js';
+import { gaugeAt } from '../shared/coop/ribbon.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';

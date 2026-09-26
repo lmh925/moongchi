@@ -1,6 +1,6 @@
 // 우당탕탕 수제 간식 공장 — 화면 (규칙은 shared/coop/bakery.js, 판정은 서버)
 // 위: 주문서와 타이머 / 가운데: 오븐(방장) → 벨트 → 토핑 작업대(손님)
-import { BAKERY as B, ovenStatus, stars } from '/shared/coop/bakery.js';
+import { BAKERY as B, ovenStatus, stars } from '../shared/coop/bakery.js';
 import { iconURL } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';

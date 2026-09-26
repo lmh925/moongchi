@@ -1,6 +1,6 @@
 // 16비트 스타일 픽셀 아트를 코드로 그리는 스프라이트 엔진
 // 강아지는 오른쪽을 바라보는 옆모습(2등신)으로 그리고, 왼쪽을 볼 때는 좌우 반전해요.
-import { BREEDS } from '/shared/data.js';
+import { BREEDS } from '../shared/data.js';
 
 export const DOG_W = 48;
 export const DOG_H = 44;

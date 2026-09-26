@@ -1,6 +1,6 @@
 // 함께 등교: 교실에서 선생님 명령에 맞춰 강아지를 훈련해요.
 // 선생님이 "앉아!" 하면 맞는 그림 버튼을 빨리 눌러요. "기다려!"일 때는 아무것도 누르지 않아야 해요.
-import { TRICKS, TRAINING } from '/shared/data.js';
+import { TRICKS, TRAINING } from '../shared/data.js';
 import { Scene, SCENE_W, SCENE_H } from './scene.js';
 import { dogPortrait } from './sprites.js';
 import { el } from './ui.js';

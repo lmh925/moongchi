@@ -3,7 +3,7 @@
 import { el } from './ui.js';
 import { sfx, playBgm } from './audio.js';
 import { dogPortrait, iconURL } from './sprites.js';
-import { ITEMS, COOP_GAMES } from '/shared/data.js';
+import { ITEMS, COOP_GAMES } from '../shared/data.js';
 import { RibbonRenderer } from './coop-ribbon.js';
 import { JumpRopeRenderer } from './coop-jumprope.js';
 import { CushionRenderer } from './coop-cushion.js';

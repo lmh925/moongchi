@@ -116,3 +116,20 @@ test('간식 파티: 가까이 있는 강아지만 간식을 먹고, 끝나면 �
   const coinsAfter = (await call('/me', { token: b.token })).data.user.coins;
   assert.equal(coinsAfter - coinsBefore, results[0].coins);
 });
+
+test('게임 파일은 버전 주소로 불러와서 옛 캐시가 남지 않아요', async () => {
+  const res = await fetch(`${base}/`);
+  assert.equal(res.headers.get('cache-control'), 'no-store');
+  const html = await res.text();
+  const m = /\/v\/([0-9a-f]{10})\/js\/main\.js/.exec(html);
+  assert.ok(m, '버전이 들어간 main.js 주소');
+  const { build } = await (await fetch(`${base}/api/version`)).json();
+  assert.equal(build, m[1]);
+  const js = await fetch(`${base}/v/${build}/js/main.js`);
+  assert.equal(js.status, 200);
+  assert.match(js.headers.get('cache-control'), /immutable/);
+  const shared = await fetch(`${base}/v/${build}/shared/data.js`);
+  assert.equal(shared.status, 200);
+  const plain = await fetch(`${base}/js/main.js`);
+  assert.equal(plain.headers.get('cache-control'), 'no-cache');
+});

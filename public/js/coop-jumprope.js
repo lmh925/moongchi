@@ -1,6 +1,6 @@
 // 깡총깡총 실시간 줄넘기 — 화면 그리기 (규칙은 shared/coop/jumprope.js, 판정은 서버)
 // 내 강아지는 누르자마자 뛰고, 친구 강아지는 친구가 눌렀다는 소식(jump 이벤트)이 오면 뛰어요.
-import { ropePhase } from '/shared/coop/jumprope.js';
+import { ropePhase } from '../shared/coop/jumprope.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { drawField, drawRope, ROPE_W as W, ROPE_H as H, ROPE_FEET as FEET, ROPE_DOGS_X as DOGS_X } from './jumprope.js';
 import { el } from './ui.js';

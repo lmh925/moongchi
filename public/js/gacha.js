@@ -1,5 +1,5 @@
 // 캡슐 뽑기 기계 연출: 손잡이를 돌리면 캡슐이 떨어지고, 열면 아이템이 나와요.
-import { ITEMS, RARITY } from '/shared/data.js';
+import { ITEMS, RARITY } from '../shared/data.js';
 import { iconCanvas } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';

@@ -1,5 +1,5 @@
 // 미니게임: 간식 받아먹기 (30초, 벌칙 없이 받은 만큼 점수)
-import { RULES } from '/shared/data.js';
+import { RULES } from '../shared/data.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el, modal } from './ui.js';
 import { sfx, playBgm } from './audio.js';
