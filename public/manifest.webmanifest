@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "멍뭉고치",
+  "short_name": "멍뭉고치",
+  "description": "나만의 강아지를 돌보고, 친구와 함께 노는 포근한 힐링 게임",
+  "lang": "ko",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#3f8f3a",
+  "theme_color": "#8a5429",
+  "categories": ["games", "kids", "entertainment"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

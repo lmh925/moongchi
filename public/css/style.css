@@ -850,3 +850,7 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .qr-img { width: 200px; height: 200px; image-rendering: pixelated; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
 .photocard-modal { max-width: 400px; }
 .photocard { width: 100%; max-width: 320px; height: auto; border-radius: 12px; box-shadow: 0 4px 0 var(--ink); }
+
+/* 앱으로 설치 */
+.install-btn { margin-top: 14px; width: 100%; }
+.install-steps { text-align: left; padding-left: 20px; line-height: 1.8; margin: 0 0 10px; }

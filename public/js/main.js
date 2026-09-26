@@ -198,6 +198,7 @@ document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click'
 
 function showTitle() {
   renderQuickLogin();
+  renderInstallBtn();
   show('title');
   drawTitle();
 }
@@ -1868,7 +1869,8 @@ function openSettings() {
     body: el('div', { class: 'center' },
       el('p', {}, `닉네임: ${user.nickname}`),
       el('p', {}, `친구 코드: ${user.friendCode}`),
-      el('p', { class: 'help' }, '강아지는 방치해도 아프거나 떠나지 않아요. 대신 조금 시무룩해지니까 자주 놀러 와 주세요!')),
+      el('p', { class: 'help' }, '강아지는 방치해도 아프거나 떠나지 않아요. 대신 조금 시무룩해지니까 자주 놀러 와 주세요!'),
+      canInstall() ? el('button', { class: 'btn small primary', onclick: () => installApp() }, '📲 앱으로 설치하기') : null),
     buttons: [
       { label: '로그아웃', kind: 'secondary', onClick: logout },
       { label: '닫기' },
@@ -1937,6 +1939,54 @@ async function checkVersion() {
 }
 setInterval(checkVersion, 3 * 60_000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
+// ---------- 앱으로 설치 (PWA) ----------
+// 안드로이드(크롬·삼성 인터넷)는 설치 창을 바로 띄우고, 아이폰은 "홈 화면에 추가" 방법을 알려 줘요.
+let installPrompt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const canInstall = () => !isStandalone() && (!!installPrompt || isIOS());
+
+function renderInstallBtn() {
+  const btn = $('#install-btn');
+  if (btn) btn.hidden = !canInstall();
+}
+
+async function installApp() {
+  if (installPrompt) {
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice.catch(() => ({}));
+    if (outcome === 'accepted') installPrompt = null;
+    renderInstallBtn();
+    return;
+  }
+  modal({
+    title: '홈 화면에 추가하기',
+    className: 'install-guide',
+    body: el('div', {},
+      el('ol', { class: 'install-steps' },
+        el('li', {}, '사파리 아래쪽(또는 위쪽)의 ', el('b', {}, '공유 버튼 ⬆️'), '을 눌러요.'),
+        el('li', {}, '목록을 내려서 ', el('b', {}, '"홈 화면에 추가"'), '를 눌러요.'),
+        el('li', {}, '오른쪽 위 ', el('b', {}, '"추가"'), '를 누르면 홈 화면에 멍뭉고치 아이콘이 생겨요!')),
+      el('p', { class: 'help' }, '카카오톡이나 다른 앱 안에서 열었다면, 먼저 사파리로 열어 주세요.')),
+    buttons: [{ label: '알겠어요!' }],
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  renderInstallBtn();
+});
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+  renderInstallBtn();
+  toast('앱으로 설치했어요! 이제 홈 화면에서 바로 열 수 있어요.', 'good');
+});
+$('#install-btn')?.addEventListener('click', installApp);
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 
 // ---------- 시작 ----------
 async function boot() {
