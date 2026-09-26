@@ -33,6 +33,11 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const safety = new Safety(db, { now });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
+  // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
+  game.onGrowth = (userId, events) => {
+    hub.emitToUser(userId, 'growth', { events });
+    if (events.some((e) => e.type === 'grew' || e.type === 'levelUp')) { hub.dogChanged(userId); plaza.dogChanged(userId); }
+  };
   io.on('connection', (socket) => { plaza.bind(socket); coop.bind(socket); });
 
   app.disable('x-powered-by');
@@ -140,6 +145,14 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction } };
   }));
 
+  api.post('/dog/title', authed, wrap((req) => {
+    const id = req.body?.title ?? null;
+    game.setTitle(req.userId, id === null ? null : String(id));
+    hub.dogChanged(req.userId);
+    plaza.dogChanged(req.userId);
+    return me(req.userId);
+  }));
+
   api.post('/school', authed, wrap((req) => {
     const res = game.startSchool(req.userId, req.body?.course);
     hub.dogChanged(req.userId);
@@ -169,21 +182,22 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
 
   api.post('/gacha', authed, wrap((req) => {
     const result = game.gacha(req.userId);
-    return { ...me(req.userId), result };
+    return { ...me(req.userId, { events: result.events }), result };
   }));
 
   api.post('/equip', authed, wrap((req) => {
     const slot = req.body?.slot;
-    game.equip(req.userId, slot, req.body?.itemId ?? null);
+    const res = game.equip(req.userId, slot, req.body?.itemId ?? null);
     if (['head', 'neck', 'face'].includes(slot)) hub.dogChanged(req.userId);
     else hub.roomDecorChanged(req.userId);
-    return me(req.userId);
+    return me(req.userId, { events: res.events ?? [] });
   }));
 
   api.post('/minigame/start', authed, wrap((req) => game.startMinigame(req.userId, req.body?.type ?? 'catch')));
   api.post('/minigame/finish', authed, wrap((req) => {
     const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score);
-    return { ...me(req.userId), result: res };
+    if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
+    return { ...me(req.userId, { events: res.events }), result: res };
   }));
 
   api.get('/friends', authed, wrap((req) => {

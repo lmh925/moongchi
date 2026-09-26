@@ -8,6 +8,7 @@ const VH = 144;
 const WW = PLAZA.worldW;
 const WH = PLAZA.worldH;
 const OUT = '#4a3330';
+const LONG_EMOTES = ['roll', 'dance', 'bang', 'sing'];
 
 function rect(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
 function ellipse(ctx, cx, cy, rx, ry, c) {
@@ -185,7 +186,11 @@ export class PlazaView {
     Object.assign(e, { userId: info.userId, nickname: info.nickname, dog: info.dog, isMe: info.userId === this.meId, friend: !!info.friend });
     if (info.x !== undefined && info.userId !== this.meId) { e.tx = info.x; e.ty = info.y; }
     if (info.dir) e.dir = info.dir;
-    e.tag.textContent = info.nickname;
+    // 공개 놀이터에서는 레벨 숫자 대신 칭호와 이름표 테두리만 보여요
+    e.tag.replaceChildren(
+      info.dog?.titleName ? el('small', { class: 'plaza-title' }, info.dog.titleName) : '',
+      info.nickname);
+    e.tag.className = `name-tag plaza-name frame-${info.dog?.frame ?? 0}`;
     e.tag.classList.toggle('mine', e.isMe);
     e.tag.classList.toggle('friend', e.friend);
     return e;
@@ -213,6 +218,13 @@ export class PlazaView {
     if (kind === 'bark') this.bubble(userId, 'text', '멍!');
     if (kind === 'wave') this.burst(e, 'heart', 2);
     if (kind === 'jump') this.burst(e, 'sparkle', 1);
+    if (kind === 'dance' || kind === 'sing') this.burst(e, 'note', 2);
+    if (kind === 'bang') this.bubble(userId, 'text', '빵야!');
+  }
+
+  setDog(userId, dog) {
+    const e = this.entities.get(userId);
+    if (e) this.upsert({ userId, nickname: e.nickname, dog, friend: e.friend });
   }
 
   // 보물찾기: 땅 파는 모습 + 흙 튀기기
@@ -351,7 +363,7 @@ export class PlazaView {
     // 다른 강아지들은 받은 위치로 부드럽게 따라가요
     for (const e of this.entities.values()) {
       e.t += dt;
-      if (e.emote) { e.emoteT += dt; if (e.emoteT > 0.9) e.emote = null; }
+      if (e.emote) { e.emoteT += dt; if (e.emoteT > (LONG_EMOTES.includes(e.emote) ? 1.8 : 0.9)) e.emote = null; }
       if (e.isMe) continue;
       const dx = e.tx - e.x; const dy = e.ty - e.y;
       const d = Math.hypot(dx, dy);
@@ -455,6 +467,11 @@ export class PlazaView {
     if (e.emote === 'bark') { opts.mouth = 'open'; pose = 'stand'; }
     if (e.emote === 'wave') { pose = 'paw'; opts.eyes = 'happy'; }
     if (e.emote === 'spin') { facing = Math.floor(e.emoteT * 10) % 2 ? 1 : -1; }
+    const s = e.emoteT;
+    if (e.emote === 'roll') { pose = 'lie'; facing = Math.floor(s * 6) % 2 ? 1 : -1; opts.eyes = 'happy'; }
+    if (e.emote === 'dance') { pose = 'beg'; facing = Math.floor(s * 3) % 2 ? 1 : -1; dy = -Math.round(Math.abs(Math.sin(s * 6)) * 3); opts.mouth = 'open'; opts.eyes = 'happy'; }
+    if (e.emote === 'bang') { if (s < 0.5) pose = 'beg'; else { pose = 'lie'; opts.eyes = 'closed'; } }
+    if (e.emote === 'sing') { pose = 'front'; opts.mouth = Math.floor(s * 4) % 2 ? 'open' : 'closed'; opts.eyes = 'closed'; opts.headDy = -1; }
     if (e.emote === 'dig') { pose = 'bow'; dy = Math.floor(e.emoteT * 12) % 2; opts.eyes = 'closed'; }
     const it = this.tag?.status === 'play' && this.tag.it === e.userId;
     const team = this.soccer?.teams?.[e.userId];

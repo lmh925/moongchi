@@ -24,7 +24,7 @@ export class Bonds {
   }
 
   // 점수 추가. 쿨다운 중이거나 하루 최대치면 null, 아니면 { before, after }
-  add(x, y, kind) {
+  add(x, y, kind, { bonus = 0 } = {}) {
     if (x === y) return null;
     const [a, b] = pair(x, y);
     const now = this.now();
@@ -37,7 +37,7 @@ export class Bonds {
     const today = kstDate(now);
     const row = this.db.prepare('SELECT * FROM bonds WHERE a = ? AND b = ?').get(a, b);
     const dayPoints = row?.day === today ? row.day_points : 0;
-    const amount = Math.min(BOND_RULES[kind] ?? 1, BOND_RULES.dailyCap - dayPoints);
+    const amount = Math.min((BOND_RULES[kind] ?? 1) + bonus, BOND_RULES.dailyCap - dayPoints);
     if (amount <= 0) return null;
     const beforePoints = row?.points ?? 0;
     this.db.prepare(`INSERT INTO bonds (a, b, points, day, day_points) VALUES (?, ?, ?, ?, ?)

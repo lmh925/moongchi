@@ -2,7 +2,7 @@
 // 구조: 입력 수신(coop:input) → 게임 규칙이 상태(State) 갱신 → 두 사람에게 상태 방송(coop:state) → 각자 화면 렌더링
 // 역할: p1 = 먼저 기다린 사람(방장), p2 = 나중에 온 사람(손님)
 import crypto from 'node:crypto';
-import { COOP_GAMES, ITEMS } from '../../shared/data.js';
+import { COOP_GAMES, ITEMS, PLAY_EXP, TALENT_GAINS } from '../../shared/data.js';
 import { kstDate } from '../../shared/rules.js';
 import { ribbon } from '../../shared/coop/ribbon.js';
 import { jumprope } from '../../shared/coop/jumprope.js';
@@ -152,7 +152,11 @@ export class CoopHub {
       }
       results[role] = { coins, item };
     }
-    if (!reason) this.bonds.add(session.players.p1.userId, session.players.p2.userId, 'play');
+    if (!reason) {
+      const a = session.players.p1.userId; const b = session.players.p2.userId;
+      this.bonds.add(a, b, 'play', { bonus: this.game.bondBonus(a, b) });
+      for (const uid of [a, b]) this.game.grant(uid, { exp: PLAY_EXP.coop, talents: TALENT_GAINS.coop });
+    }
     const summary = GAMES[session.gameId].summary?.(session.state) ?? null;
     this.send(session, 'coop:end', { sid: session.sid, status: reason ?? session.state.status, results, summary });
   }

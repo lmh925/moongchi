@@ -161,6 +161,26 @@ test('협동 게임: 같은 놀이 장소에서 기다리던 두 명이 짝이 �
   const me = (await call('/me', { token: a.token })).data;
   assert.equal(me.user.coins - coinsBefore, end.results.p1.coins);
   assert.ok(me.user.owned.includes('clover'));
+  // 협동 게임은 경험치와 다정 재능도 줘요
+  assert.ok(me.dog.exp >= 8);
+  assert.ok(me.dog.talents.kind >= 4);
+});
+
+test('놀이터: 레벨 숫자는 숨기고 칭호만 보여요, 레벨이 모자란 몸짓은 막아요', async () => {
+  const a = await player(); const b = await player();
+  await ask(a.socket, 'plaza:join', {});
+  const join = await ask(b.socket, 'plaza:join', {});
+  const seenA = join.members.find((m) => m.userId === a.id);
+  assert.equal(seenA.dog.titleName, '새싹 멍뭉이');
+  assert.equal(seenA.dog.level, undefined);
+  assert.equal(seenA.dog.talents, undefined);
+  const got = [];
+  b.socket.on('plaza:emote', (p) => got.push(p.kind));
+  a.socket.emit('plaza:emote', { kind: 'dance' }); // Lv 10 몸짓
+  await wait(800);
+  a.socket.emit('plaza:emote', { kind: 'bark' });
+  await wait(300);
+  assert.deepEqual(got, ['bark']);
 });
 
 test('실시간 줄넘기 규칙: 둘 다 판정 범위 안에서 뛰어야 넘어가요', async () => {

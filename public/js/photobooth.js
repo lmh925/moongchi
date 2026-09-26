@@ -20,6 +20,9 @@ const PROPS = [
   'bunny_ears', 'cat_ears', 'santa', 'wizard', 'bowtie', 'bandana', 'medal', 'heart', 'sparkle', 'star', 'note',
 ];
 
+// 멋짐 재능이 자라면 늘어나는 소품
+const CHARM_PROPS = [{ stage: 3, ids: ['halo', 'pearl', 'sprout'] }, { stage: 6, ids: ['pirate', 'bear_hat', 'scarf'] }];
+
 const FACES = [
   { eyes: 'happy', mouth: 'tongue' },
   { eyes: 'open', mouth: 'closed' },
@@ -97,7 +100,7 @@ export function downloadPhoto(url, name = 'meongmung-4cut.png') {
 
 // ---------- 게임 ----------
 // dogs: [내 강아지, 친구 강아지] (publicDog 형태), names: [이름, 이름]
-export function playPhotobooth(dogs, names) {
+export function playPhotobooth(dogs, names, { charm = 1 } = {}) {
   return new Promise((resolve) => {
     const stageCanvas = el('canvas', { width: W, height: H, class: 'pixel pb-canvas' });
     const propLayer = el('div', { class: 'pb-props' });
@@ -264,7 +267,12 @@ export function playPhotobooth(dogs, names) {
     };
 
     // 소품 상자: 가로로 밀면 스크롤, 위로 끌면 소품을 집어요
-    for (const id of PROPS) {
+    for (const group of CHARM_PROPS) {
+      if (charm >= group.stage) continue;
+      tray.append(el('div', { class: 'pb-item pb-locked', title: `멋짐 ${group.stage}단계가 되면 생겨요` },
+        el('img', { class: 'pixel', src: propCanvas(group.ids[0], 4).toDataURL(), alt: '' }), el('small', {}, `멋짐 ${group.stage}`)));
+    }
+    for (const id of [...PROPS, ...CHARM_PROPS.filter((g) => charm >= g.stage).flatMap((g) => g.ids)]) {
       const item = el('button', { class: 'pb-item', type: 'button', 'aria-label': id },
         el('img', { class: 'pixel', src: propCanvas(id, 4).toDataURL(), alt: '', draggable: 'false' }));
       tray.append(item);

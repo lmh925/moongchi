@@ -1,6 +1,7 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -31,11 +32,78 @@ export function ageDays(dog, now, speed = 1) {
   return (Math.max(0, now - dog.bornAt) / DAY) * speed;
 }
 
+// ---------- 레벨 ----------
+// level → level+1 에 필요한 경험치
+export function expToNext(level) {
+  const extra = Math.max(0, level - LEVEL.needCurveFrom);
+  return Math.round(LEVEL.needBase + LEVEL.needPerLevel * level + LEVEL.needCurve * extra * extra);
+}
+
+// 누적 경험치 → { level, into(이번 레벨에서 모은 양), need(다음 레벨까지 필요한 양) }
+export function levelInfo(exp) {
+  let level = 1;
+  let rest = Math.max(0, Math.floor(exp || 0));
+  while (rest >= expToNext(level) && level < 999) { rest -= expToNext(level); level += 1; }
+  return { level, into: rest, need: expToNext(level) };
+}
+export const levelFromExp = (exp) => levelInfo(exp).level;
+
+// 이 레벨에 도달하면 받는 선물
+export function levelRewards(level) {
+  const emotes = Object.entries(EMOTES).filter(([, e]) => e.level === level && level > 1).map(([id]) => id);
+  const titles = Object.entries(TITLES).filter(([, t]) => t.level === level && level > 1).map(([id]) => id);
+  return {
+    coins: LEVEL.coinsBase + level,
+    tickets: level % LEVEL.ticketEvery === 0 ? 1 : 0,
+    emotes,
+    titles,
+    frame: level % LEVEL.frameEvery === 0 ? frameTier(level) : 0,
+  };
+}
+
+// 이름표 테두리 단계 (0~5)
+export const frameTier = (level) => Math.min(5, Math.floor(level / LEVEL.frameEvery));
+
+export const unlockedEmotes = (level) => Object.keys(EMOTES).filter((id) => EMOTES[id].level <= level);
+
+// ---------- 재능 ----------
+export function talentStage(points) {
+  let stage = 1;
+  TALENT_STEPS.forEach((min, i) => { if ((points ?? 0) >= min) stage = i + 1; });
+  return stage;
+}
+
+export function talentStages(talents = {}) {
+  return Object.fromEntries(Object.keys(TALENTS).map((k) => [k, talentStage(talents[k] ?? 0)]));
+}
+
+// 재능 단계에 따른 작은 효과 (혼자 하는 놀이 / 협동 놀이에만)
+export function talentEffects(talents = {}) {
+  const st = talentStages(talents);
+  return {
+    runnerHp: (st.strong >= 5 ? 25 : 0) + (st.strong >= 10 ? 25 : 0),
+    learnHits: st.smart >= 5 ? TRAINING.learnHits - 1 : TRAINING.learnHits,
+    bondBonus: st.kind >= 5 ? 1 : 0,
+    charmProps: st.charm,
+    warmRadius: TREASURE.warmRadius + (st.curious >= 5 ? 12 : 0) + (st.curious >= 10 ? 8 : 0),
+  };
+}
+
+// 지금 달 수 있는 칭호 목록
+export function unlockedTitles(level, talents = {}) {
+  const st = talentStages(talents);
+  return Object.keys(TITLES).filter((id) => {
+    const t = TITLES[id];
+    return t.talent ? st[t.talent] >= t.stage : level >= t.level;
+  });
+}
+
 export function computeStage(dog, now, speed = 1) {
   const days = ageDays(dog, now, speed);
+  const level = levelFromExp(dog.exp);
   let stage = 0;
   for (const s of STAGES) {
-    if (dog.exp >= s.minExp && days >= s.minDays) stage = s.id;
+    if (level >= s.minLevel && days >= s.minDays) stage = s.id;
   }
   // 한 번 자란 강아지는 다시 작아지지 않아요
   return Math.max(stage, dog.stage ?? 0);
@@ -46,11 +114,12 @@ export function growthProgress(dog, now, speed = 1) {
   const next = STAGES[dog.stage + 1];
   if (!next) return null;
   const days = ageDays(dog, now, speed);
+  const level = levelFromExp(dog.exp);
   return {
     next: next.name,
-    exp: dog.exp, needExp: next.minExp,
+    level, needLevel: next.minLevel,
     days: Math.floor(days), needDays: next.minDays,
-    ratio: Math.min(1, dog.exp / next.minExp) * 0.7 + Math.min(1, days / next.minDays) * 0.3,
+    ratio: Math.min(1, level / next.minLevel) * 0.7 + Math.min(1, days / next.minDays) * 0.3,
   };
 }
 

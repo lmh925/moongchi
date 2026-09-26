@@ -1,5 +1,5 @@
 // 실시간 마이룸: 방문, 이동, 스티커/문장/채팅, 개인기, 초대
-import { STICKERS, PHRASES, TRICKS, PARTY } from '../shared/data.js';
+import { STICKERS, PHRASES, TRICKS, PARTY, PLAY_EXP, TALENT_GAINS } from '../shared/data.js';
 import { kstDate } from '../shared/rules.js';
 import { checkText } from './filter.js';
 
@@ -194,6 +194,7 @@ export class RoomHub {
       const coins = Math.max(0, Math.min(Math.min(score, PARTY.maxCoins) + (winner ? PARTY.winnerBonus : 0), PARTY.dailyCoinCap - got));
       this.partyCoins.set(key, got + coins);
       this.game.addCoins(userId, coins);
+      if (score > 0) this.game.grant(userId, { exp: PLAY_EXP.party, talents: { kind: 1, strong: 1 } });
       return { userId, nickname: this.game.getUser(userId)?.nickname, score, coins, winner };
     }).sort((a, b) => b.score - a.score);
     if (this.partyCoins.size > 5000) this.partyCoins.clear();
@@ -208,7 +209,7 @@ export class RoomHub {
   }
 
   addBond(ownerId, a, b, kind) {
-    const res = this.bonds.add(a, b, kind);
+    const res = this.bonds.add(a, b, kind, { bonus: kind === 'together' ? 0 : this.game.bondBonus(a, b) });
     if (!res) return;
     this.io.to(this.channel(ownerId)).emit('bond', { a, b, bond: res.after, up: res.after.level > res.before });
   }
@@ -301,6 +302,8 @@ export class RoomHub {
     socket.data.room = ownerId;
     socket.join(this.channel(ownerId));
     socket.to(this.channel(ownerId)).emit('room:enter', this.memberView(m));
+    // 친구 집에 놀러 가면 다정 재능이 자라요 (하루 한도 안에서)
+    if (ownerId !== userId) this.game.grant(userId, { talents: TALENT_GAINS.visit });
     const others = [...new Set([ownerId, ...this.rooms.get(ownerId).keys()])].filter((id) => id !== userId);
     const running = this.parties.get(ownerId);
     reply({

@@ -1,10 +1,88 @@
 // 멍뭉고치 게임 데이터 (서버와 브라우저가 함께 사용)
 
 export const STAGES = [
-  { id: 0, key: 'baby', name: '아기', minExp: 0, minDays: 0 },
-  { id: 1, key: 'kid', name: '꼬마', minExp: 150, minDays: 3 },
-  { id: 2, key: 'adult', name: '늠름한 강아지', minExp: 500, minDays: 7 },
+  { id: 0, key: 'baby', name: '아기', minLevel: 1, minDays: 0 },
+  { id: 1, key: 'kid', name: '꼬마', minLevel: 5, minDays: 3 },
+  { id: 2, key: 'adult', name: '늠름한 강아지', minLevel: 12, minDays: 7 },
 ];
+
+// ---------- 레벨 ----------
+// 경험치가 쌓이면 레벨이 올라요 (끝없이). 다음 레벨까지 필요한 경험치는 조금씩 늘어나요.
+// Lv 5 ≈ 경험치 150 (꼬마), Lv 12 ≈ 경험치 500 (늠름한 강아지)
+export const LEVEL = {
+  needBase: 30,
+  needPerLevel: 2.5,
+  needCurveFrom: 11, // 이 레벨부터는 조금 더 가파르게
+  needCurve: 0.5,
+  coinsBase: 10, // 레벨업 보상 코인 = coinsBase + 레벨
+  ticketEvery: 3, // 3레벨마다 무료 캡슐 뽑기권
+  frameEvery: 10, // 10레벨마다 이름표 테두리가 바뀌어요
+};
+
+// 레벨로 배우는 놀이터 몸짓 (기본: 멍!/점프/인사/빙글)
+export const EMOTES = {
+  bark: { name: '멍!', level: 1 },
+  jump: { name: '점프', level: 1 },
+  wave: { name: '인사', level: 1 },
+  spin: { name: '빙글', level: 1 },
+  roll: { name: '데굴', level: 5 },
+  dance: { name: '춤', level: 10 },
+  bang: { name: '빵야', level: 15 },
+  sing: { name: '노래', level: 20 },
+};
+
+// ---------- 재능 능력치 ----------
+// 싸우는 힘이 아니라 "우리 강아지는 이런 걸 잘해!" 하는 개성이에요. 절대 줄어들지 않아요.
+export const TALENTS = {
+  strong: { name: '튼튼', color: '#ff8a5c', desc: '멍뭉런, 축구, 술래잡기, 산책 수업을 하면 자라요.', icon: 'paw' },
+  smart: { name: '똑똑', color: '#5b8cff', desc: '훈련과 학교 수업을 하면 자라요.', icon: 'star' },
+  kind: { name: '다정', color: '#ff6f91', desc: '친구와 놀기, 협동 게임, 쓰다듬기로 자라요.', icon: 'heart' },
+  charm: { name: '멋짐', color: '#b07cff', desc: '꾸미기, 빗질, 매너 수업으로 자라요.', icon: 'sparkle' },
+  curious: { name: '호기심', color: '#3fb58a', desc: '보물찾기, 간식 받기 놀이, 캡슐 뽑기로 자라요.', icon: 'clover' },
+};
+// 단계(1~10)마다 필요한 누적 점수
+export const TALENT_STEPS = [0, 8, 20, 36, 56, 80, 110, 146, 188, 236];
+export const TALENT_DAILY_CAP = 20; // 재능 하나당 하루에 오를 수 있는 점수
+export const TALENT_PERSONALITY = { hyper: 'strong', smart: 'smart', shy: 'kind', sweet: 'charm', sleepy: 'charm', foodie: 'curious' };
+export const TALENT_PERSONALITY_BONUS = 1.2;
+// 단계별 효과 (혼자 하는 놀이에만. 겨루는 놀이에는 효과가 없어요)
+export const TALENT_PERKS = {
+  strong: [{ stage: 5, text: '멍뭉런 체력 +25' }, { stage: 10, text: '멍뭉런 체력 +25 더!' }],
+  smart: [{ stage: 5, text: '개인기를 2번만 성공해도 배워요' }],
+  kind: [{ stage: 5, text: '친구와 친밀도가 조금 더 빨리 올라요' }],
+  charm: [{ stage: 3, text: '포토부스 천사 링·진주·새싹 소품' }, { stage: 6, text: '포토부스 해적·곰돌이 모자·목도리 소품' }],
+  curious: [{ stage: 5, text: '보물 "따뜻해요" 힌트 범위가 넓어져요' }, { stage: 10, text: '힌트 범위가 더 넓어져요' }],
+};
+// 활동별 재능 점수
+export const TALENT_GAINS = {
+  feed: {}, brush: { charm: 2 }, pet: { kind: 1 },
+  school: { snack: { smart: 3, curious: 1 }, walk: { strong: 4 }, play: { strong: 3, kind: 1 }, manner: { smart: 3, charm: 2 } },
+  equip: { charm: 1 },
+  gacha: { curious: 2 },
+  visit: { kind: 2 },
+  coop: { kind: 4 },
+  soccer: { strong: 4 },
+  tag: { strong: 3 },
+  treasure: { curious: 4 },
+};
+// 여럿이 하는 놀이의 경험치
+export const PLAY_EXP = { coop: 8, soccer: 6, tag: 4, treasure: 4, party: 4 };
+
+// 칭호: 레벨이나 재능으로 얻고, 강아지 카드에서 골라 달아요. 놀이터에서는 레벨 대신 칭호가 보여요.
+export const TITLES = {
+  sprout: { name: '새싹 멍뭉이', level: 1 },
+  brave: { name: '씩씩한 꼬마', level: 5 },
+  walker: { name: '산책 대장', level: 10 },
+  star: { name: '놀이터 스타', level: 20 },
+  doctor: { name: '멍뭉 박사', level: 30 },
+  super: { name: '반짝반짝 슈퍼스타', level: 40 },
+  legend: { name: '전설의 멍뭉이', level: 50 },
+  runner: { name: '달리기 선수', talent: 'strong', stage: 7 },
+  genius: { name: '척척박사', talent: 'smart', stage: 7 },
+  bestie: { name: '다정한 단짝', talent: 'kind', stage: 7 },
+  fashion: { name: '패션 리더', talent: 'charm', stage: 7 },
+  explorer: { name: '보물 탐험가', talent: 'curious', stage: 7 },
+};
 
 // 견종: 색상과 생김새 파라미터는 sprites.js에서 픽셀 아트로 그려집니다.
 export const BREEDS = {

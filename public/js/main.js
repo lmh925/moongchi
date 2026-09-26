@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -16,6 +16,7 @@ import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './pho
 import { playJumpRope } from './jumprope.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
+import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -58,6 +59,7 @@ function publicDog(d) {
   return {
     name: d.name, breed: d.breed, personality: d.personality, stage: d.stage, equip: d.equip,
     fluff: d.fluff, tricks: d.tricks, mood: d.mood, atSchool: !!d.school,
+    titleName: d.titleName, frame: d.frame,
   };
 }
 
@@ -268,6 +270,8 @@ function applyMe(me) {
   if (!me.dog) return;
   $('#top-name').textContent = me.dog.name;
   $('#top-stage').textContent = STAGES[me.dog.stage].name;
+  $('#top-level').textContent = `Lv ${me.dog.level}`;
+  $('#top-level').className = `chip lv-badge frame-${me.dog.frame ?? 0}`;
   $('#top-coins').textContent = me.user.coins;
   $('#badge-notebook').hidden = !me.unreadReports;
   $('#badge-friends').hidden = !me.pendingFriends;
@@ -363,6 +367,7 @@ function connectSocket() {
     else enterRoom(state.roomOwnerId ?? myId(), { quiet: true });
   });
   bindPlazaSocket(socket);
+  socket.on('growth', ({ events }) => queueGrowth(events ?? []));
   state.coop = new CoopClient(socket, {
     onStart: () => { state.coopWaiting = null; renderSpotBox(); },
     onEnd: () => refreshMe(),
@@ -536,6 +541,7 @@ function updateAway() {
 function tick() {
   const dog = state.me?.dog;
   if (!dog) return;
+  if (state.pendingGrowth?.length) flushGrowth();
   const shown = applyDecay(dog, serverNow(), state.speed);
   for (const k of ['fullness', 'cleanliness', 'affection']) {
     const bar = document.getElementById(`bar-${k}`);
@@ -615,11 +621,73 @@ function openTricks() {
 }
 
 // ---------- 이벤트 (성장, 하교) ----------
-async function handleEvents(events = []) {
+// 한 번에 여러 레벨이 오르면 창 하나로 모아서 보여 줘요
+function mergeLevelUps(events) {
+  const out = [];
   for (const ev of events) {
+    const prev = out[out.length - 1];
+    if (ev.type === 'levelUp' && prev?.type === 'levelUp') {
+      const r = prev.rewards; const n = ev.rewards;
+      out[out.length - 1] = {
+        ...ev,
+        rewards: { coins: r.coins + n.coins, tickets: r.tickets + n.tickets, emotes: [...r.emotes, ...n.emotes], titles: [...r.titles, ...n.titles], frame: Math.max(r.frame, n.frame) },
+      };
+    } else out.push(ev);
+  }
+  return out;
+}
+
+async function handleEvents(events = []) {
+  for (const ev of mergeLevelUps(events)) {
+    if (ev.type === 'levelUp') await playLevelUp(state.me.dog, ev);
+    if (ev.type === 'talentUp') await showTalentUp(ev);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
   }
+}
+
+function showTalentUp(ev) {
+  if (!ev.perks.length && !ev.titleNames.length) {
+    sfx.star();
+    toast(`${ev.name} 재능이 ${ev.stage}단계가 되었어요!`, 'good');
+    return null;
+  }
+  sfx.levelUp();
+  return waitModal({ title: `${ev.name} 재능 ${ev.stage}단계!`, className: 'celebrate', body: talentUpBody(ev) });
+}
+
+// 여럿이 하는 놀이 중에 레벨업하면 놀이가 끝나고 창이 다 닫힌 뒤에 보여 줘요
+function queueGrowth(events) {
+  state.pendingGrowth = [...(state.pendingGrowth ?? []), ...events];
+  flushGrowth();
+}
+async function flushGrowth() {
+  if (!state.pendingGrowth?.length || state.flushingGrowth) return;
+  if ($('#modal-root').children.length || state.coop?.session || document.querySelector('.runner-screen')) return;
+  state.flushingGrowth = true;
+  try {
+    const me = await api('/me');
+    applyMe(me);
+    const events = state.pendingGrowth;
+    state.pendingGrowth = [];
+    await handleEvents([...events, ...me.events]);
+    renderPanel();
+  } catch { /* 다음에 다시 */ } finally { state.flushingGrowth = false; }
+}
+
+function openMyCard() {
+  openDogCard(state.me.dog, {
+    mine: true,
+    onTitle: async (title) => {
+      try {
+        const me = await post('/dog/title', { title });
+        applyMe(me);
+        if (state.tab === 'home') renderPanel();
+        toast(title ? '칭호를 달았어요!' : '칭호를 뗐어요.', 'good');
+        return true;
+      } catch (err) { toast(err.message, 'bad'); return false; }
+    },
+  });
 }
 
 function waitModal(opts) {
@@ -706,10 +774,13 @@ function homePanel() {
       statRow('fullness', '포만감', 'food', 'var(--stat-full)'),
       statRow('cleanliness', '청결도', 'sparkle', 'var(--stat-clean)'),
       statRow('affection', '애정도', 'heart', 'var(--stat-love)')),
-    g ? el('div', { class: 'growth' },
-      `다음 성장: ${g.next} (경험치 ${g.exp}/${g.needExp} · 함께한 날 ${g.days}/${g.needDays}일)`,
-      el('div', { class: 'bar' }, el('i', { style: { width: `${Math.round(g.ratio * 100)}%` } })))
-      : el('div', { class: 'growth' }, '늠름한 강아지로 다 자랐어요! 앞으로도 사랑 듬뿍 주세요.'),
+    el('div', { class: 'level-row' },
+      levelBar(dog),
+      el('button', { class: 'btn small secondary card-btn', onclick: openMyCard }, '강아지 카드')),
+    el('div', { class: 'growth' },
+      titleChip(dog),
+      g ? `다음 성장: ${g.next} (${[g.level < g.needLevel ? `Lv ${g.needLevel}까지` : null, g.days < g.needDays ? `함께한 날 ${g.days}/${g.needDays}일` : null].filter(Boolean).join(' · ') || '곧 자라요!'})`
+        : '늠름한 강아지로 다 자랐어요! 레벨은 앞으로도 계속 올라요.'),
     away ? el('div', { class: 'school-board' }, `${dog.name}(은)는 학교에서 공부 중이에요`, el('div', { class: 'big', id: 'school-left' }, ''), '돌아오면 알림장을 받을 수 있어요!',
       el('div', {}, el('button', { class: 'btn small', onclick: leaveSchool }, '조퇴하고 데려오기'))) : null,
     el('div', { class: 'actions' },
@@ -750,7 +821,7 @@ async function startPhotobooth() {
   const mine = publicDog(state.me.dog);
   let again = 'again';
   while (again === 'again') {
-    again = await playPhotobooth([mine, p.dog], [mine.name, p.dog.name]);
+    again = await playPhotobooth([mine, p.dog], [mine.name, p.dog.name], { charm: state.me.dog.talentStages?.charm ?? 1 });
   }
   if (state.tab === 'play') renderPanel();
 }
@@ -933,6 +1004,9 @@ function visitPanel() {
   return el('div', {},
     el('h3', {}, `${room.owner.nickname}네 집`),
     dog ? el('p', { class: 'sub' }, `${dog.name} · ${BREEDS[dog.breed].name} · ${PERSONALITIES[dog.personality].name} · ${STAGES[dog.stage].name}`) : null,
+    dog?.level ? el('div', { class: 'growth' },
+      el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`), titleChip(dog),
+      el('button', { class: 'btn small secondary card-btn', onclick: () => openDogCard(dog, { ownerName: room.owner.nickname }) }, '강아지 카드')) : null,
     el('div', { class: 'actions' },
       actionBtn(dog ? `${dog.name} 쓰다듬기` : '쓰다듬기', 'heart', () => state.socket.emit('room:pet', { userId: room.owner.id }), !dog || dog.atSchool),
       actionBtn('개인기', 'star', openTricks, !!mine.school),
@@ -1030,7 +1104,7 @@ async function startTraining() {
       });
     } else {
       if (r.coins) sfx.coin();
-      toast(`훈련 끝! 성공 ${score.correct}번 · 코인 +${r.coins} · 경험치 +${r.exp}${info.target ? ` · ${TRICKS[info.target].name} ${r.progress}/${TRAINING.learnHits}` : ''}`, 'good');
+      toast(`훈련 끝! 성공 ${score.correct}번 · 코인 +${r.coins} · 경험치 +${r.exp}${info.target ? ` · ${TRICKS[info.target].name} ${r.progress}/${r.need ?? TRAINING.learnHits}` : ''}`, 'good');
     }
     await handleEvents(res.events);
     renderPanel();
@@ -1098,7 +1172,9 @@ function closetPanel() {
         el('div', { class: 'meta' }, `모은 아이템 ${ownedCount} / ${totalCount}`),
         el('button', { class: 'link', onclick: showOdds }, '확률 보기')),
       el('button', { class: 'btn primary', onclick: doGacha },
-        free ? '오늘 무료 뽑기!' : el('span', { class: 'price' }, '뽑기 ', el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), GACHA.price))),
+        free ? '오늘 무료 뽑기!'
+          : user.gachaTickets > 0 ? `뽑기권 쓰기 (${user.gachaTickets}장)`
+            : el('span', { class: 'price' }, '뽑기 ', el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), GACHA.price))),
     el('div', { class: 'segmented' },
       el('button', { class: dogTab ? 'on' : '', onclick: () => { state.closetTab = 'dog'; renderPanel(); } }, '강아지 꾸미기'),
       el('button', { class: !dogTab ? 'on' : '', onclick: () => { state.closetTab = 'room'; renderPanel(); } }, '방 꾸미기')),
@@ -1136,6 +1212,7 @@ async function doGacha() {
     const res = await post('/gacha');
     applyMe(res);
     const again = await playGacha(res.result, itemThumb);
+    await handleEvents(res.events);
     renderPanel();
     if (again) doGacha();
   } catch (err) { sfx.error(); toast(err.message, 'bad'); }
@@ -1165,6 +1242,7 @@ async function itemClick(id, { owned, on, locked }) {
     applyMe(res);
     if (atHome()) state.scene.setDecor(res.user.room);
     renderPanel();
+    await handleEvents(res.events);
   } catch (err) { toast(err.message, 'bad'); }
 }
 
@@ -1279,6 +1357,7 @@ function bindPlazaSocket(socket) {
     state.plaza.view.bubble(userId, kind, value);
     sfx.pop();
   });
+  socket.on('plaza:dog', ({ userId, dog }) => { state.plaza?.view.setDog(userId, dog); });
   socket.on('plaza:emote', ({ userId, kind }) => {
     if (!state.plaza) return;
     state.plaza.view.emote(userId, kind);
@@ -1566,7 +1645,7 @@ function renderSpotBox() {
 
 function plazaPanel() {
   const p = state.plaza;
-  const emotes = [['bark', '멍!'], ['jump', '점프'], ['wave', '인사'], ['spin', '빙글']];
+  const myEmotes = state.me.dog.emotes ?? ['bark', 'jump', 'wave', 'spin'];
   return el('div', {},
     el('div', { class: 'plaza-top' },
       el('b', { id: 'plaza-count' }, `${p.channel}번 놀이터 · ${p.count}/${PLAZA.cap}`),
@@ -1574,9 +1653,13 @@ function plazaPanel() {
         el('button', { class: 'btn small', onclick: openChannels }, '놀이터 바꾸기'),
         el('button', { class: 'btn small secondary', onclick: () => leavePlaza() }, '집으로'))),
     el('div', { id: 'spot-box', class: 'spot-box' }),
-    el('div', { class: 'emotes' }, emotes.map(([k, label]) => el('button', {
-      class: 'btn small', onclick: () => state.socket.emit('plaza:emote', { kind: k }),
-    }, label))),
+    el('div', { class: 'emotes' }, Object.entries(EMOTES).map(([k, em]) => {
+      const has = myEmotes.includes(k);
+      return el('button', {
+        class: `btn small ${has ? '' : 'locked'}`, disabled: !has, title: has ? '' : `Lv ${em.level}에 배워요`,
+        onclick: () => state.socket.emit('plaza:emote', { kind: k }),
+      }, has ? em.name : `Lv ${em.level}`);
+    })),
     el('div', { class: 'chatbar' },
       el('div', { class: 'stickers' }, Object.entries(STICKERS).map(([id, name]) => el('button', {
         class: 'sticker', title: name, 'aria-label': name, onclick: () => state.socket.emit('plaza:sticker', { id }),
@@ -1686,8 +1769,9 @@ async function startGame(type) {
     const res = await post('/minigame/finish', { gameId, score });
     applyMe(res);
     if (res.result.coins) sfx.coin();
-    toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}`, 'good');
+    toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}${res.result.exp ? ` · 경험치 +${res.result.exp}` : ''}`, 'good');
     renderPanel();
+    await handleEvents(res.events);
   } catch (err) { exitLandscape(); toast(err.message, 'bad'); renderPanel(); }
 }
 

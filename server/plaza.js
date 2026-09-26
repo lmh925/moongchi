@@ -1,11 +1,10 @@
 // 멍뭉 놀이터: 누구나 들어오는 공개 광장 (채널당 최대 20마리)
 // 흐름: 클라이언트 입력(plaza:pos, plaza:emote ...) → 서버 상태 갱신 → 같은 채널에 방송 → 각자 화면 그리기
-import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER } from '../shared/data.js';
-import { kstDate } from '../shared/rules.js';
+import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER, EMOTES, TALENT_GAINS, PLAY_EXP } from '../shared/data.js';
+import { kstDate, levelFromExp } from '../shared/rules.js';
 import { REPORT_REASONS } from './safety.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Number(v) || 0));
-const EMOTES = ['bark', 'jump', 'wave', 'spin'];
 
 export class PlazaHub {
   constructor(io, { game, friends, safety, bonds }) {
@@ -57,7 +56,9 @@ export class PlazaHub {
     });
     socket.on('plaza:emote', (msg) => {
       const m = this.member(socket);
-      if (!m || !EMOTES.includes(msg?.kind) || !this.gate(m, 700)) return;
+      const emote = EMOTES[msg?.kind];
+      if (!m || !emote || !this.gate(m, 700)) return;
+      if (emote.level > 1 && levelFromExp(this.game.loadDog(userId)?.exp ?? 0) < emote.level) return;
       this.broadcast(m, 'plaza:emote', { userId, kind: msg.kind });
     });
     socket.on('plaza:block', (msg, cb) => {
@@ -128,7 +129,7 @@ export class PlazaHub {
     const ch = this.channels.get(id);
     const spot = PLAZA_SPOTS.fountain;
     const m = {
-      userId, socketId: socket.id, nickname: this.game.getUser(userId).nickname, dog: this.game.publicDog(dog),
+      userId, socketId: socket.id, nickname: this.game.getUser(userId).nickname, dog: this.game.plazaDog(dog),
       hidden: new Set(this.hiddenFor(userId)),
       x: spot.x + (Math.random() - 0.5) * 60, y: spot.y + 40 + Math.random() * 20, dir: 1, moving: false, lastPos: 0, lastEmote: 0,
     };
@@ -171,6 +172,17 @@ export class PlazaHub {
       const m = c.members.get(userId);
       const s = m && this.io.sockets.sockets.get(m.socketId);
       if (s) { this.leave(s); s.emit('plaza:kicked', { reason }); }
+    }
+  }
+
+  // 칭호·성장 모습이 바뀌면 놀이터 친구들에게도 알려요
+  dogChanged(userId) {
+    for (const ch of this.channels.values()) {
+      const m = ch.members.get(userId);
+      if (!m) continue;
+      m.dog = this.game.plazaDog(this.game.loadDog(userId));
+      this.broadcast(m, 'plaza:dog', { userId, dog: m.dog });
+      this.io.sockets.sockets.get(m.socketId)?.emit('plaza:dog', { userId, dog: m.dog });
     }
   }
 
@@ -258,7 +270,8 @@ export class PlazaHub {
     const near = ch.treasures.map((t) => ({ t, d: Math.hypot(t.x - m.x, (t.y - m.y) * 1.3) })).sort((a, b) => a.d - b.d)[0];
     if (!near) return { ok: true, found: false, hint: 'none' };
     if (near.d > TREASURE.findRadius) {
-      return { ok: true, found: false, hint: near.d < TREASURE.hotRadius ? 'hot' : near.d < TREASURE.warmRadius ? 'warm' : 'cold' };
+      const warm = this.game.effects(m.userId).warmRadius; // 호기심이 자라면 힌트 범위가 넓어져요
+      return { ok: true, found: false, hint: near.d < TREASURE.hotRadius ? 'hot' : near.d < warm ? 'warm' : 'cold' };
     }
     // 찾았어요!
     ch.treasures = ch.treasures.filter((t) => t !== near.t);
@@ -279,7 +292,9 @@ export class PlazaHub {
     for (const [uid, at] of ch.diggers) {
       if (uid === m.userId || now - at > TREASURE.helperMs || !ch.members.has(uid) || m.hidden.has(uid)) continue;
       if (this.giveTreasureCoins(uid, 1)) helpers.push(uid);
+      this.game.grant(uid, { talents: { curious: 1 } });
     }
+    this.game.grant(m.userId, { exp: PLAY_EXP.treasure, talents: TALENT_GAINS.treasure });
     this.io.to(`plaza:${ch.id}`).emit('treasure:found', {
       userId: m.userId, nickname: m.nickname, kind: near.t.kind, x: near.t.x, y: near.t.y, helpers, n: ch.treasures.length,
     });
@@ -434,6 +449,7 @@ export class PlazaHub {
       const coins = Math.max(0, Math.min(base + goals * SOCCER.coins.perGoal, SOCCER.dailyCoins - got));
       this.soccerCoins.set(key, got + coins);
       this.game.addCoins(userId, coins);
+      this.game.grant(userId, { exp: PLAY_EXP.soccer, talents: TALENT_GAINS.soccer });
       return { userId, nickname: ch.members.get(userId)?.nickname ?? '친구', team, goals, coins };
     });
     if (this.soccerCoins.size > 5000) this.soccerCoins.clear();
@@ -493,7 +509,11 @@ export class PlazaHub {
       const key = `${userId}:${today}`;
       const got = this.tagCoins.get(key) ?? 0;
       const coins = Math.max(0, Math.min(TAG.coins + tags * TAG.coinsPerTag, 60 - got));
-      if (t.status === 'play') { this.tagCoins.set(key, got + coins); this.game.addCoins(userId, coins); }
+      if (t.status === 'play') {
+        this.tagCoins.set(key, got + coins);
+        this.game.addCoins(userId, coins);
+        this.game.grant(userId, { exp: PLAY_EXP.tag, talents: TALENT_GAINS.tag });
+      }
       return { userId, nickname: ch.members.get(userId)?.nickname ?? '친구', tags, coins: t.status === 'play' ? coins : 0 };
     }).sort((a, b) => b.tags - a.tags);
     ch.tag = null;

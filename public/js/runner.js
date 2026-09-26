@@ -184,8 +184,10 @@ export function playRunner(dog) {
     let seed = 7;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed & 0xffff) / 0x10000; };
 
+    // 튼튼 재능이 자라면 체력이 더 많아요
+    const maxHp = 100 + (dog.effects?.runnerHp ?? 0);
     const s = {
-      t: 0, dist: 0, speed: 95, hp: 100, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
+      t: 0, dist: 0, speed: 95, hp: maxHp, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
       hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 14, countdown: 3, over: false, overT: 0, pops: [], dust: [],
       paused: false,
     };
@@ -286,7 +288,7 @@ export function playRunner(dog) {
           it.taken = true;
           if (it.kind === 'bone') { s.score += 1; sfx.catch(); }
           if (it.kind === 'star') { s.score += 10; sfx.star(); s.pops.push({ x: it.x, y: it.y, text: '+10', age: 0 }); }
-          if (it.kind === 'heart') { s.hp = Math.min(100, s.hp + 25); sfx.love(); s.pops.push({ x: it.x, y: it.y, text: '체력 UP', age: 0 }); }
+          if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + 25); sfx.love(); s.pops.push({ x: it.x, y: it.y, text: '체력 UP', age: 0 }); }
         }
         if (s.hurtT <= 0) {
           for (const o of s.obs) {
@@ -379,8 +381,9 @@ export function playRunner(dog) {
       }
       ctx.textAlign = 'start';
       hud.score.textContent = `${s.score}개`;
-      hud.hp.style.width = `${Math.max(0, s.hp)}%`;
-      hud.hp.style.background = s.hp > 50 ? 'var(--grass-l)' : s.hp > 25 ? 'var(--butter)' : 'var(--red)';
+      const hpRatio = Math.max(0, s.hp) / maxHp;
+      hud.hp.style.width = `${hpRatio * 100}%`;
+      hud.hp.style.background = hpRatio > 0.5 ? 'var(--grass-l)' : hpRatio > 0.25 ? 'var(--butter)' : 'var(--red)';
     };
 
     let last = performance.now();

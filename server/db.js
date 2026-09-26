@@ -1,6 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { levelFromExp } from '../shared/rules.js';
+import { TALENTS, TALENT_PERSONALITY } from '../shared/data.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -111,7 +113,26 @@ export function openDb(file) {
   ensure('minigames', 'type', "TEXT NOT NULL DEFAULT 'catch'");
   ensure('users', 'gacha_date', 'TEXT');
   ensure('users', 'train_progress', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'gacha_tickets', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('dogs', 'level', 'INTEGER NOT NULL DEFAULT 0'); // 보상을 받은 마지막 레벨 (0 = 아직 옮기기 전)
+  ensure('dogs', 'talents', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('dogs', 'talent_day', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('dogs', 'title', 'TEXT');
+  migrateLevels(db);
   return db;
+}
+
+// 레벨이 생기기 전부터 함께한 강아지: 지금 경험치만큼 레벨을 매기고(보상은 이미 받은 셈),
+// 그동안 함께한 만큼 재능도 조금 채워 줘요.
+export function migrateLevels(db) {
+  const rows = db.prepare('SELECT id, exp, personality FROM dogs WHERE level = 0').all();
+  const upd = db.prepare('UPDATE dogs SET level = ?, talents = ? WHERE id = ?');
+  for (const r of rows) {
+    const level = levelFromExp(r.exp);
+    const fav = TALENT_PERSONALITY[r.personality];
+    const talents = Object.fromEntries(Object.keys(TALENTS).map((k) => [k, Math.min(80, Math.floor((level - 1) * (k === fav ? 2.5 : 1.5)))]));
+    upd.run(level, JSON.stringify(talents), r.id);
+  }
 }
 
 // BEGIN/COMMIT 헬퍼
