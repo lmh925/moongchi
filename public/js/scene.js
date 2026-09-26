@@ -357,8 +357,43 @@ export class Scene {
     const x = ((ev.clientX - r.left) / r.width) * SCENE_W;
     const y = ((ev.clientY - r.top) / r.height) * SCENE_H;
     const e = this.hit(x, y);
-    if (e) return this.handlers.onDogTap?.(e);
-    if (y > FLOOR_TOP + 10) this.handlers.onFloorTap?.(toNorm(Math.min(AREA.x1, Math.max(AREA.x0, x)), Math.min(AREA.y1, Math.max(AREA.y0, y))));
+    if (e) {
+      const combo = this.poke(e);
+      return this.handlers.onDogTap?.(e, combo);
+    }
+    if (y > FLOOR_TOP + 10) {
+      const cx = Math.min(AREA.x1, Math.max(AREA.x0, x)); const cy = Math.min(AREA.y1, Math.max(AREA.y0, y));
+      this.particles.push({ marker: true, x: cx, y: cy, vx: 0, vy: 0, life: 0.7, age: 0 });
+      this.handlers.onFloorTap?.(toNorm(cx, cy));
+    }
+  }
+
+  // 강아지를 톡 누르면 말랑하게 찌그러졌다가 폴짝! 연속으로 누르면 빙글 돌아요.
+  poke(e) {
+    const now = performance.now();
+    e.pokes = (e.pokes ?? []).filter((t) => now - t < 1500);
+    e.pokes.push(now);
+    e.pokeT = 0.45;
+    if (e.state === 'sleep') { e.state = 'idle'; e.stateT = 0; e.idleFor = 3; }
+    if (e.state === 'idle' || e.state === 'walk') { e.state = 'idle'; e.stateT = 0; e.idleFor = 3; e.tx = e.x; e.ty = e.y; }
+    this.particles.push({ icon: 'heart', x: e.x + (Math.random() - 0.5) * 10, y: e.y - 30, vx: 0, vy: -18, life: 0.8, age: 0, small: true });
+    if (e.pokes.length >= 4) {
+      e.pokes = [];
+      this.trick(e.id, 'spin');
+      return 'spin';
+    }
+    return e.pokes.length;
+  }
+
+  // 같이 놀기: from 강아지가 to 강아지에게 달려가서 함께 폴짝폴짝 뛰어놀아요.
+  playTogether(fromId, toId) {
+    const a = this.entities.get(fromId); const b = this.entities.get(toId);
+    if (!a || !b || !a.dog || !b.dog || a.dog.atSchool || b.dog.atSchool) return;
+    const side = a.x < b.x ? -1 : 1;
+    a.tx = Math.min(AREA.x1, Math.max(AREA.x0, b.x + side * 20));
+    a.ty = b.y;
+    a.state = 'rush'; a.stateT = 0; a.partner = toId;
+    b.state = 'idle'; b.stateT = 0; b.idleFor = 6; b.tx = b.x; b.ty = b.y;
   }
 
   update(dt) {
@@ -366,19 +401,28 @@ export class Scene {
       e.t += dt; e.stateT += dt;
       if (!e.dog || e.dog.atSchool) continue;
       const speed = 30 * (PERSONALITIES[e.dog.personality]?.speed ?? 1);
-      if (e.state === 'walk' || e.state === 'toBed') {
+      if (e.pokeT > 0) e.pokeT -= dt;
+      if (e.state === 'walk' || e.state === 'toBed' || e.state === 'rush') {
         const dx = e.tx - e.x; const dy = e.ty - e.y;
         const d = Math.hypot(dx, dy);
         if (d < 1) {
           e.x = e.tx; e.y = e.ty;
-          if (e.state === 'toBed') { e.state = 'sleep'; e.stateT = 0; } else { e.state = 'idle'; e.stateT = 0; e.idleFor = 3 + Math.random() * 5; }
+          if (e.state === 'toBed') { e.state = 'sleep'; e.stateT = 0; }
+          else if (e.state === 'rush') this.startFrolic(e);
+          else { e.state = 'idle'; e.stateT = 0; e.idleFor = 3 + Math.random() * 5; }
         } else {
-          const step = Math.min(d, speed * dt);
+          // 걸을 때 발밑에 흙먼지가 폴폴
+          if (Math.floor(e.t * 6) !== Math.floor((e.t - dt) * 6)) {
+            this.particles.push({ dust: true, x: e.x - e.facing * 8, y: e.y - 1, vx: -e.facing * 6, vy: -4, life: 0.45, age: 0 });
+          }
+          const step = Math.min(d, speed * (e.state === 'rush' ? 2.2 : 1) * dt);
           e.x += (dx / d) * step; e.y += (dy / d) * step;
           if (Math.abs(dx) > 0.5) e.facing = dx > 0 ? 1 : -1;
         }
       } else if (e.state === 'trick' && e.stateT > (TRICK_TIME[e.trick] ?? 1.5)) {
         e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3; e.facing = e.facing || 1;
+      } else if (e.state === 'frolic' && e.stateT > 2.4) {
+        e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3;
       } else if (e.state === 'care' && e.stateT > 1.8) {
         e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3;
       } else if (e.state === 'sleep') {
@@ -405,6 +449,18 @@ export class Scene {
     this.particles = this.particles.filter((p) => p.age < p.life);
   }
 
+  startFrolic(a) {
+    const b = this.entities.get(a.partner);
+    a.state = 'frolic'; a.stateT = 0;
+    if (b && b.dog && !b.dog.atSchool) {
+      b.state = 'frolic'; b.stateT = 0.2; b.tx = b.x; b.ty = b.y;
+      a.facing = b.x > a.x ? 1 : -1; b.facing = -a.facing;
+      for (let i = 0; i < 4; i++) {
+        this.particles.push({ icon: 'heart', x: (a.x + b.x) / 2 + (Math.random() - 0.5) * 16, y: a.y - 28, vx: (Math.random() - 0.5) * 10, vy: -16, life: 1.5, age: -i * 0.3 });
+      }
+    }
+  }
+
   // 현재 상태 → 스프라이트 포즈
   pose(e) {
     const d = e.dog;
@@ -427,8 +483,8 @@ export class Scene {
         const s = e.stateT;
         opts = { ...base, eyes: 'happy', mouth: 'tongue', tail: Math.floor(s * 8) % 2 };
         if (e.care === 'feed') { opts.headDy = Math.floor(s * 5) % 2 ? 3 : 2; opts.mouth = 'open'; opts.eyes = 'closed'; }
-        if (e.care === 'pet' || e.care === 'love') { pose = 'sit'; }
-        if (e.care === 'brush') { dy = Math.floor(s * 6) % 2 ? -1 : 0; }
+        if (e.care === 'pet' || e.care === 'love') { pose = 'front'; }
+        if (e.care === 'brush') { pose = 'front'; dy = Math.floor(s * 6) % 2 ? -1 : 0; }
         break;
       }
       case 'trick': {
@@ -443,13 +499,31 @@ export class Scene {
           case 'roll': pose = 'lie'; rot = Math.floor(s * 6) % 4; opts.eyes = 'happy'; break;
           case 'dance': pose = 'beg'; facing = Math.floor(s * 3) % 2 ? 1 : -1; dy = -Math.round(Math.abs(Math.sin(s * 6)) * 3); opts.mouth = 'open'; break;
           case 'bang': if (s < 0.5) { pose = 'beg'; } else { pose = 'lie'; rot = 2; opts.eyes = 'closed'; opts.mouth = 'tongue'; } break;
-          case 'sing': pose = 'beg'; opts.mouth = Math.floor(s * 4) % 2 ? 'open' : 'closed'; opts.eyes = 'closed'; opts.headDy = -1; break;
+          case 'sing': pose = 'front'; opts.mouth = Math.floor(s * 4) % 2 ? 'open' : 'closed'; opts.eyes = 'closed'; opts.headDy = -1; break;
           default: break;
         }
         break;
       }
+      case 'rush':
+        pose = Math.floor(e.t * 10) % 2 ? 'walk1' : 'walk2';
+        dy = Math.floor(e.t * 10) % 2 ? -2 : 0;
+        opts.mouth = 'tongue'; opts.eyes = 'happy';
+        break;
+      case 'frolic': {
+        const s = e.stateT;
+        pose = Math.floor(s * 4) % 2 ? 'beg' : 'stand';
+        dy = -Math.round(Math.abs(Math.sin(s * 7)) * 5);
+        opts = { ...base, eyes: 'happy', mouth: 'open', tail: Math.floor(s * 10) % 2 };
+        break;
+      }
       default:
         if (d.mood === 'happy' && Math.floor(e.t / 3) % 3 === 0) opts.mouth = 'tongue';
+        // 가끔 화면(나)을 바라봐요
+        if (Math.floor((e.t + (e.id % 7)) / 3.5) % 3 === 1) pose = 'front';
+    }
+    if (e.pokeT > 0) {
+      pose = 'front';
+      opts = { ...opts, eyes: 'happy', mouth: 'tongue', tail: Math.floor(e.t * 12) % 2 };
     }
     return { pose, opts, dy, rot, facing };
   }
@@ -475,8 +549,16 @@ export class Scene {
         ctx.rotate((rot * Math.PI) / 2);
         ctx.translate(0, 12);
       }
-      if (facing < 0) ctx.scale(-1, 1);
-      ctx.drawImage(spr.canvas, -DOG_W / 2 + 2, -FOOT);
+      if (e.pokeT > 0) {
+        // 말랑 찌그러짐 → 폴짝
+        const k = 1 - e.pokeT / 0.45;
+        const squash = k < 0.35 ? Math.sin((k / 0.35) * Math.PI) * 0.22 : 0;
+        const hop = k >= 0.35 ? Math.round(Math.sin(((k - 0.35) / 0.65) * Math.PI) * 7) : 0;
+        ctx.translate(0, -hop);
+        ctx.scale(1 + squash * 0.7, 1 - squash);
+      }
+      if (facing < 0 && pose !== 'front') ctx.scale(-1, 1);
+      ctx.drawImage(spr.canvas, pose === 'front' ? -DOG_W / 2 : -DOG_W / 2 + 2, -FOOT);
       ctx.restore();
       // 이름표와 말풍선 (DOM, 선명한 글씨)
       const headY = y + dy - 38 + (e.dog.stage === 0 ? 8 : e.dog.stage === 1 ? 4 : 0);
@@ -491,7 +573,24 @@ export class Scene {
       if (p.age < 0) continue;
       const alpha = Math.min(1, (p.life - p.age) * 2);
       ctx.globalAlpha = alpha;
-      if (p.bubble) {
+      if (p.marker) {
+        // 바닥을 누른 곳에 동그라미 + 발자국
+        const k = p.age / p.life;
+        ctx.globalAlpha = 1 - k;
+        const r = 3 + k * 9;
+        for (let a = 0; a < 16; a++) {
+          const ang = (a / 16) * Math.PI * 2;
+          ctx.fillStyle = '#fff6e6';
+          ctx.fillRect(Math.round(p.x + Math.cos(ang) * r), Math.round(p.y + Math.sin(ang) * r * 0.45), 1, 1);
+        }
+        const ic = iconCanvas('paw');
+        ctx.drawImage(ic, Math.round(p.x - 3), Math.round(p.y - 4), 7, 7);
+      } else if (p.dust) {
+        ctx.globalAlpha = 1 - p.age / p.life;
+        ctx.fillStyle = '#f5e6cf';
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
+        ctx.fillRect(Math.round(p.x) + 2, Math.round(p.y) + 1, 1, 1);
+      } else if (p.bubble) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(Math.round(p.x), Math.round(p.y), p.r + 1, p.r + 1);
         ctx.fillStyle = '#8fd3ff';

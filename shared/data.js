@@ -182,6 +182,7 @@ export const DEFAULT_ROOM = { wallpaper: 'wall_wood', rug: null, bed: 'bed_baske
 
 // 멍뭉 학교 코스 (minutes: 실제 시간 기준)
 export const SCHOOL_COURSES = {
+  snack: { name: '간식 수업', minutes: 10, coins: 5, exp: 8, trickChance: 0.2, desc: '잠깐 다녀오는 짧은 수업! 간식 예절을 배워요.' },
   walk: { name: '산책 수업', minutes: 30, coins: 15, exp: 20, trickChance: 0.5, desc: '동네 한 바퀴! 친구들과 함께 걸어요.' },
   play: { name: '놀이 수업', minutes: 60, coins: 30, exp: 40, trickChance: 0.8, desc: '공놀이, 숨바꼭질! 신나게 놀아요.' },
   manner: { name: '예절 수업', minutes: 180, coins: 80, exp: 100, trickChance: 1.0, desc: '선생님께 새로운 개인기를 꼭 배워와요.' },
@@ -223,6 +224,31 @@ export const TEACHER_COMMENTS = {
   ],
 };
 
+// 조퇴했을 때 선생님 한마디
+export const EARLY_COMMENTS = [
+  '오늘은 보호자님이 일찍 데리러 오셨어요. 다음엔 끝까지 함께해요!',
+  '수업 중간에 집에 갔어요. 친구들이 벌써 보고 싶어 했답니다.',
+  '짧았지만 즐거운 시간이었어요. 또 만나요!',
+];
+
+// 강아지끼리 친밀도 단계 (같은 방에서 놀수록 올라가요)
+export const BOND_LEVELS = [
+  { min: 0, name: '처음 만난 사이' },
+  { min: 10, name: '아는 사이' },
+  { min: 30, name: '친한 친구' },
+  { min: 60, name: '단짝' },
+  { min: 100, name: '영혼의 단짝' },
+];
+
+export const BOND_RULES = {
+  together: 1, // 같은 방에 1분 함께 있을 때
+  pet: 1, // 친구 강아지를 쓰다듬을 때
+  play: 2, // 같이 놀기
+  petGapMs: 10_000,
+  playGapMs: 20_000,
+  dailyCap: 30,
+};
+
 // 채팅: 표정 스티커와 정해진 문장
 export const STICKERS = {
   heart: '하트', laugh: '웃음', sweat: '땀방울', sparkle: '반짝',
@@ -254,7 +280,13 @@ export const RULES = {
   favoriteBonus: 5, // 좋아하는 돌봄을 받으면 애정도가 추가로 올라요
   dailyCoins: 20,
   startingCoins: 50,
-  minigame: { seconds: 30, maxCoins: 15, dailyPlays: 10 },
+  minigame: {
+    seconds: 30, maxCoins: 15, dailyPlays: 10,
+    types: {
+      catch: { name: '간식 받아먹기', minSeconds: 27, scorePerCoin: 2, maxScore: 200 },
+      run: { name: '멍뭉 런', minSeconds: 5, scorePerCoin: 6, maxScore: 2000 },
+    },
+  },
 };
 
 export const CHAT_MAX_LEN = 20;

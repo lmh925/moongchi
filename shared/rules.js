@@ -1,6 +1,6 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
-  STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS,
+  STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -94,6 +94,12 @@ export function quizResult(answers) {
   });
   const top = (scores) => Object.entries(scores).reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
   return { personality: top(p), breed: top(b) };
+}
+
+export function bondLevel(points) {
+  let level = 0;
+  BOND_LEVELS.forEach((l, i) => { if (points >= l.min) level = i; });
+  return level;
 }
 
 export function learnableTricks(dog) {

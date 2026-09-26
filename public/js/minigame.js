@@ -2,6 +2,7 @@
 import { RULES } from '/shared/data.js';
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el, modal } from './ui.js';
+import { sfx, playBgm } from './audio.js';
 
 const W = 192;
 const H = 144;
@@ -39,6 +40,7 @@ export function playMinigame(dog) {
     });
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
+    playBgm('play');
     const player = { x: W / 2, tx: W / 2, facing: 1 };
     const treats = [];
     const pops = [];
@@ -74,6 +76,7 @@ export function playMinigame(dog) {
         const tr = treats[i];
         if (tr.y > GROUND - 30 && tr.y < GROUND - 8 && Math.abs(tr.x - player.x) < 16) {
           score += tr.value;
+          if (tr.value > 1) sfx.star(); else sfx.catch();
           pops.push({ x: tr.x, y: tr.y, age: 0, text: `+${tr.value}` });
           treats.splice(i, 1);
         } else if (tr.y > H) treats.splice(i, 1);
@@ -98,6 +101,7 @@ export function playMinigame(dog) {
       timeEl.textContent = `${Math.max(0, Math.ceil(left))}초`;
       if (left <= 0) {
         done = true;
+        playBgm('home');
         close();
         resolve(score);
         return;

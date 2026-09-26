@@ -67,7 +67,16 @@ CREATE TABLE IF NOT EXISTS minigames (
   id TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   started_at INTEGER NOT NULL,
-  finished INTEGER NOT NULL DEFAULT 0
+  finished INTEGER NOT NULL DEFAULT 0,
+  type TEXT NOT NULL DEFAULT 'catch'
+);
+CREATE TABLE IF NOT EXISTS bonds (
+  a INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  b INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  points INTEGER NOT NULL DEFAULT 0,
+  day TEXT,
+  day_points INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (a, b)
 );
 `;
 
@@ -76,6 +85,9 @@ export function openDb(file) {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
+  // 이전 버전 DB 업그레이드
+  const cols = db.prepare('PRAGMA table_info(minigames)').all().map((c) => c.name);
+  if (!cols.includes('type')) db.exec("ALTER TABLE minigames ADD COLUMN type TEXT NOT NULL DEFAULT 'catch'");
   return db;
 }
 

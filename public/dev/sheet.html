@@ -6,7 +6,7 @@
 import { dogSprite, iconCanvas, DOG_W, DOG_H, ICONS } from '/js/sprites.js';
 import { BREEDS } from '/shared/data.js';
 const qs = new URLSearchParams(location.search); const S = +(qs.get('s') ?? 3);
-const poses = [['stand',{}],['walk1',{}],['walk2',{}],['stand',{eyes:'happy',mouth:'tongue',tail:1}],['sit',{}],['paw',{eyes:'happy'}],['beg',{eyes:'happy',mouth:'open'}],['bow',{}],['lie',{eyes:'closed'}],['stand',{eyes:'sad'}],['stand',{fluff:2,eyes:'happy'}],['sit',{equip:{head:'crown',neck:'bowtie',face:'sunglasses'}}],['stand',{equip:{head:'straw_hat',neck:'bandana',face:'star_glasses'}}],['sit',{equip:{head:'wizard',neck:'bib'}}],['sit',{equip:{head:'ribbon'}}],['sit',{equip:{head:'strawberry'}}],['sit',{equip:{head:'flower'}}]];
+const poses = [['front',{}],['front',{eyes:'happy',mouth:'tongue',tail:1}],['front',{eyes:'sad'}],['front',{fluff:2,equip:{head:'crown',neck:'bowtie',face:'sunglasses'}}],['front',{equip:{head:'straw_hat',neck:'bandana',face:'star_glasses'}}],['front',{equip:{head:'wizard',neck:'bib'}}],['front',{equip:{head:'ribbon'}}],['stand',{}],['walk1',{}],['walk2',{}],['stand',{eyes:'happy',mouth:'tongue',tail:1}],['sit',{}],['paw',{eyes:'happy'}],['beg',{eyes:'happy',mouth:'open'}],['bow',{}],['lie',{eyes:'closed'}],['stand',{eyes:'sad'}],['stand',{fluff:2,eyes:'happy'}],['sit',{equip:{head:'crown',neck:'bowtie',face:'sunglasses'}}],['stand',{equip:{head:'straw_hat',neck:'bandana',face:'star_glasses'}}],['sit',{equip:{head:'wizard',neck:'bib'}}],['sit',{equip:{head:'ribbon'}}],['sit',{equip:{head:'strawberry'}}],['sit',{equip:{head:'flower'}}]];
 const out = document.getElementById('out');
 const breeds = qs.get('b') ? qs.get('b').split(',') : Object.keys(BREEDS);
 const c = document.createElement('canvas');

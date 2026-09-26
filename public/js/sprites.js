@@ -148,6 +148,12 @@ const ACCESSORIES = {
     map: ['oooooooooo', 'ogwgggo...', 'oggggo....', '.oooo.....'] },
 };
 
+// 정면 모습일 때 모양이 달라지는 액세서리 (안경은 두 눈에 씌워요)
+const FRONT_ACC = {
+  star_glasses: { dx: -6, dy: -3, map: ['..y.......y..', '.yyy.....yyy.', 'yycyyoooyycyy', '.ycy.....ycy.', 'y...y...y...y'] },
+  sunglasses: { dx: -6, dy: -2, map: ['ooooooooooooo', 'oggwgoooggwgo', 'ogggo...ogggo', '.ooo.....ooo.'] },
+};
+
 // ---------- 강아지 그리기 ----------
 const STAGE_GEO = [
   { headR: 7.5, bodyRx: 7.5, bodyRy: 5, leg: 3 },
@@ -167,10 +173,11 @@ function dogPalette(b) {
   };
 }
 
-// pose: stand | walk1 | walk2 | sit | lie | bow | paw | beg
+// pose: stand | walk1 | walk2 | sit | lie | bow | paw | beg | front(정면)
 // opts: { eyes: open|happy|closed|sad, mouth: closed|open|tongue, tail: 0|1, fluff: 0|1|2, equip }
 export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
   const b = BREEDS[breedId] ?? BREEDS.bichon;
+  if (pose === 'front') return buildDogFront(b, stage, opts);
   const g = { ...STAGE_GEO[stage] };
   if (b.legs === 'short') g.leg = Math.max(2, g.leg - 3);
   if (b.legs === 'long') g.leg += 1;
@@ -395,6 +402,192 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
   return { grid, anchors, head: { x: hcx, y: hcy, r: headR }, body: { x: bcx, y: bcy } };
 }
 
+
+// 정면 모습: 화면을 바라보는 2등신 강아지 (좌우 대칭, 중심선 x = 24.5)
+function buildDogFront(b, stage, opts) {
+  const g = { ...STAGE_GEO[stage] };
+  if (b.legs === 'short') g.leg = Math.max(2, g.leg - 3);
+  if (b.legs === 'long') g.leg += 1;
+  const fluff = opts.fluff ?? 0;
+  const eyes = opts.eyes ?? 'open';
+  const mouth = opts.mouth ?? 'closed';
+  const grid = new Grid(DOG_W, DOG_H, dogPalette(b));
+  const fuzzy = b.coat === 'curly' || b.coat === 'fluffy' || fluff > 0;
+  const bumpR = b.coat === 'curly' ? 1.8 : 1.4;
+  const extra = fluff * 0.6;
+  const texture = b.coat === 'curly' ? 'curly' : b.coat === 'silky' ? 'silky' : null;
+  const hcx = 24; // 왼쪽 눈 20~21, 오른쪽 눈 27~28
+  const C = hcx + 0.5;
+  const mirror = (x) => 2 * C - x;
+
+  const bodyRx = g.bodyRy + 2.5 + (b.legs === 'short' ? 1 : 0) + extra * 0.5;
+  const bodyRy = g.bodyRy + 1 + extra * 0.3;
+  const bcy = GROUND - g.leg - bodyRy + 3;
+  const headR = g.headR + (b.headFluff ? b.headFluff * 0.5 : 0);
+  const hcy = Math.round(bcy - bodyRy - headR * 0.45 + 3 + (opts.headDy ?? 0));
+
+  // 꼬리 (몸 뒤로 살짝 보여요, 살랑살랑)
+  {
+    const wag = opts.tail ? 2 : 0;
+    const tx = C + bodyRx - 2 + wag;
+    const ty = bcy - bodyRy + 1;
+    const m = grid.mask();
+    if (b.tail === 'plume') m.ellipse(tx + 1, ty - 2, 2.5 + extra, 3.5 + extra);
+    else if (b.tail === 'curl') m.ellipse(tx, ty - 1, 3 + extra, 3 + extra);
+    else if (b.tail === 'pompom') m.rect(tx - 1, ty - 1, 2, 3).ellipse(tx + 1, ty - 3, 2.5 + extra, 2.5 + extra);
+    else m.ellipse(tx, ty + 1, 2, 2);
+    grid.paint(m, 'fur', { texture: b.coat === 'curly' ? 'curly' : null });
+  }
+
+  // 뒷다리 (양옆)
+  const legTop = Math.round(bcy + bodyRy - 4);
+  for (const x of [Math.round(C - bodyRx + 1), Math.round(mirror(C - bodyRx + 1) - 3)]) {
+    const m = grid.mask().rect(x, legTop, 3, GROUND - legTop + 1);
+    grid.paint(m, 'far');
+  }
+
+  // 몸통 (+포메 갈기)
+  let bodyMask;
+  {
+    const m = grid.mask().ellipse(C, bcy, bodyRx, bodyRy);
+    if (fuzzy) m.bumps(C, bcy, bodyRx, bodyRy, 10 + fluff * 4, bumpR + extra * 0.5, 0, Math.PI);
+    if (b.coat === 'fluffy') {
+      m.ellipse(C, hcy + headR * 0.75, headR + 1.5 + extra, headR * 0.75 + extra);
+      m.bumps(C, hcy + headR * 0.75, headR + 1.5 + extra, headR * 0.75 + extra, 12, 1.6 + extra * 0.5, 0, Math.PI);
+    }
+    grid.paint(m, 'fur', { texture });
+    bodyMask = m;
+    if (b.accent) {
+      const chest = grid.mask().ellipse(C, bcy, bodyRx * 0.5, bodyRy * 0.85);
+      for (let i = 0; i < chest.d.length; i++) if (chest.d[i] && !m.d[i]) chest.d[i] = 0;
+      grid.paint(chest, 'acc', { outline: false });
+    }
+  }
+
+  // 앞다리
+  const bottomAcc = b.accent && b.legs === 'short';
+  for (const x of [hcx - 4, hcx + 2]) {
+    const m = grid.mask().rect(x, legTop, 3, GROUND - legTop + 1);
+    grid.paint(m, 'fur');
+    if (bottomAcc) grid.paint(grid.mask().rect(x, GROUND - 1, 3, 2), 'acc', { outline: false, flat: true });
+  }
+
+  // 말티즈의 길게 늘어진 털
+  if (b.coat === 'silky') {
+    const m = grid.mask();
+    const top = Math.round(bcy);
+    for (let x = Math.round(C - bodyRx + 1); x <= Math.round(C + bodyRx - 1); x++) {
+      m.rect(x, top, 1, GROUND - 1 - top - (x % 3 === 0 ? 1 : 0));
+    }
+    grid.paint(m, 'fur', { texture: 'silky' });
+  }
+
+  // 뾰족귀 (머리 뒤에서 솟아요)
+  const earBig = b.ear === 'pointyBig' ? 1.4 : b.ear === 'pointySmall' ? 0.7 : 1;
+  const pointy = b.ear.startsWith('pointy');
+  const earTip = [];
+  if (pointy) {
+    const ax = C - headR + 1.5; const ay = hcy - headR + 5;
+    const bx = C - 2.5; const by = hcy - headR + 1.5;
+    const px = C - headR + 1; const py = hcy - headR - 5 * earBig + 1;
+    const m = grid.mask().tri(ax, ay, bx, by, px, py).tri(mirror(ax), ay, mirror(bx), by, mirror(px), py);
+    grid.paint(m, 'fur', { flat: true });
+    earTip.push([Math.round(px + 1.5), Math.round(py + 3)]);
+  }
+
+  // 머리
+  {
+    const m = grid.mask().ellipse(C, hcy, headR + 0.5 + extra * 0.4, headR * 0.9 + extra * 0.4);
+    if (b.headFluff || fuzzy) {
+      m.bumps(C, hcy - 0.5, headR + 0.5 + extra * 0.4, headR * 0.9 + extra * 0.4, 9 + fluff * 3 + (b.headFluff ?? 0) * 3,
+        bumpR + (b.headFluff ? 0.4 : 0) + extra * 0.4, Math.PI * 0.95, Math.PI * 2.05);
+    }
+    grid.paint(m, 'fur', { texture: b.coat === 'curly' ? 'curly' : null });
+    // 얼굴 가운데는 매끈하게 (표정이 잘 보이도록)
+    if (b.coat === 'curly') {
+      const face = grid.mask().ellipse(C, hcy + 1, headR - 2.5, headR * 0.7 - 0.5);
+      grid.paint(face, 'fur', { outline: false, flat: true });
+    }
+    // 주둥이
+    const long = b.snout === 'long' ? 1 : 0;
+    const muzzle = grid.mask().ellipse(C, hcy + 3, 3.5 + long, 2.6);
+    grid.paint(muzzle, b.accent ? 'acc' : 'furL', { outline: false, flat: !b.accent });
+    if (!b.accent) for (let x = hcx - 2; x <= hcx + 3; x++) grid.set(x, hcy + 5, 'furS');
+    if (b.accent) {
+      const cheeks = grid.mask().ellipse(C - 4.5, hcy + 3, 2.5, 2).ellipse(C + 4.5, hcy + 3, 2.5, 2);
+      for (let i = 0; i < cheeks.d.length; i++) if (cheeks.d[i] && !m.d[i]) cheeks.d[i] = 0;
+      grid.paint(cheeks, 'acc', { outline: false });
+    }
+  }
+  for (const [x, y] of earTip) {
+    for (const [ex, ey] of [[x, y], [x, y + 1]]) {
+      grid.set(ex, ey, 'earIn');
+      grid.set(Math.round(mirror(ex + 0.5) - 0.5), ey, 'earIn');
+    }
+  }
+
+  // 늘어진 귀 (양옆)
+  if (!pointy && b.ear !== 'hidden') {
+    const long = b.ear === 'longSilky' ? 7 : 5;
+    const ex = C - headR - 0.5;
+    const m = grid.mask().ellipse(ex, hcy + 3, 2.5 + extra * 0.3, long).ellipse(mirror(ex), hcy + 3, 2.5 + extra * 0.3, long);
+    if (b.ear === 'longCurly') m.bumps(ex, hcy + 3, 2.5, long, 6, 1.2).bumps(mirror(ex), hcy + 3, 2.5, long, 6, 1.2);
+    grid.paint(m, 'ear', { texture: b.ear === 'longCurly' ? 'curly' : b.ear === 'longSilky' ? 'silky' : null });
+  }
+
+  // 눈, 코, 입, 볼터치
+  const ey = hcy - 1;
+  const eyeXs = [hcx - 4, hcx + 3];
+  for (const x of eyeXs) {
+    if (eyes === 'happy') {
+      grid.set(x - 1, ey + 1, 'eye'); grid.set(x, ey, 'eye'); grid.set(x + 1, ey, 'eye'); grid.set(x + 2, ey + 1, 'eye');
+    } else if (eyes === 'closed') {
+      for (let i = -1; i <= 2; i++) grid.set(x + i, ey + 1, 'eye');
+    } else {
+      for (let j = -1; j <= 1; j++) for (let i = 0; i < 2; i++) grid.set(x + i, ey + j, 'eye');
+      grid.set(x, ey - 1, 'white');
+    }
+  }
+  if (eyes === 'sad') {
+    const [lx, rx] = eyeXs;
+    grid.set(lx - 1, ey - 2, 'out'); grid.set(lx, ey - 3, 'out'); grid.set(lx + 1, ey - 3, 'out');
+    grid.set(rx, ey - 3, 'out'); grid.set(rx + 1, ey - 3, 'out'); grid.set(rx + 2, ey - 2, 'out');
+    grid.set(lx, ey + 2, 'tear');
+  }
+  const ny = hcy + 1;
+  grid.set(hcx, ny, 'nose'); grid.set(hcx + 1, ny, 'nose'); grid.set(hcx, ny + 1, 'nose'); grid.set(hcx + 1, ny + 1, 'nose');
+  grid.set(hcx - 1, ny, 'nose'); grid.set(hcx + 2, ny, 'nose');
+  grid.set(hcx - 2, ny + 2, 'out'); grid.set(hcx - 1, ny + 3, 'out'); grid.set(hcx, ny + 2, 'out');
+  grid.set(hcx + 1, ny + 2, 'out'); grid.set(hcx + 2, ny + 3, 'out'); grid.set(hcx + 3, ny + 2, 'out');
+  if (mouth === 'open' || mouth === 'tongue') {
+    grid.set(hcx, ny + 3, 'tongue'); grid.set(hcx + 1, ny + 3, 'tongue');
+    if (mouth === 'tongue') { grid.set(hcx, ny + 4, 'tongue'); grid.set(hcx + 1, ny + 4, 'tongue'); }
+  }
+  grid.set(eyeXs[0] - 2, ey + 3, 'pink'); grid.set(eyeXs[0] - 1, ey + 3, 'pink');
+  grid.set(eyeXs[1] + 2, ey + 3, 'pink'); grid.set(eyeXs[1] + 3, ey + 3, 'pink');
+
+  // 액세서리
+  const anchors = {
+    head: { x: hcx + 1, y: Math.round(hcy - headR - (b.headFluff ? 1 : 0)) + (pointy ? 1 : 0) },
+    neck: { x: hcx + 1, y: Math.round(hcy + headR * 0.85) },
+    eye: { x: hcx, y: ey },
+  };
+  for (const slot of ['neck', 'face', 'head']) {
+    const id = opts.equip?.[slot];
+    const acc = id && ACCESSORIES[id];
+    if (!acc) continue;
+    const variant = FRONT_ACC[id] ?? acc;
+    const a = anchors[acc.anchor];
+    stamp(grid, variant.map, acc.colors, a.x + variant.dx, a.y + variant.dy);
+  }
+  if (fluff >= 2) {
+    grid.set(Math.round(C - bodyRx) - 1, bcy - 3, '#fff7a8');
+    grid.set(Math.round(C + headR) + 2, hcy - headR, '#fff7a8');
+    grid.set(hcx - 7, hcy - headR - 1, '#ffffff');
+  }
+  return { grid, anchors, head: { x: hcx, y: hcy, r: headR }, body: { x: C, y: bcy } };
+}
+
 const cache = new Map();
 
 // 캔버스로 만든 강아지 스프라이트 (캐시)
@@ -414,7 +607,7 @@ export function dogSprite(breed, stage, pose, opts = {}) {
 }
 
 // 정적인 초상화 (심리테스트 결과, 친구 목록 등) → dataURL
-export function dogPortrait(breed, stage, opts = {}, pose = 'stand') {
+export function dogPortrait(breed, stage, opts = {}, pose = 'front') {
   const spr = dogSprite(breed, stage, pose, { eyes: 'happy', mouth: 'tongue', ...opts });
   return spr.canvas.toDataURL();
 }
@@ -445,6 +638,10 @@ export const ICONS = {
     map: ['.oooooo...', 'ogogogo...', 'ogogogo...', 'oppppppo..', 'oppppppo..', '.oooowwo..', '....owwo..', '....owlo..', '....owwo..', '.....oo...'] },
   paw: { colors: { o: '#4a3330', p: '#ff9fb2', b: '#8b5e3c' },
     map: ['.oo...oo..', 'obbo.obbo.', 'obbo.obbo.', '.oo...oo..', '...ooo....', '..obbbo...', '.obbbbbo..', '.obbbbbo..', '..ooooo...'] },
+  sound: { colors: { o: '#4a3330', w: '#fff6e6', b: '#5bc0ff' },
+    map: ['...o......', '..oo..b...', 'oooo...b..', 'owwo.b..b.', 'owwo..b.b.', 'owwo.b..b.', 'oooo...b..', '..oo..b...', '...o......'] },
+  mute: { colors: { o: '#4a3330', w: '#fff6e6', r: '#e84a5f' },
+    map: ['...o......', '..oo......', 'oooo.r...r', 'owwo..r.r.', 'owwo...r..', 'owwo..r.r.', 'oooo.r...r', '..oo......', '...o......'] },
   star: { colors: { o: '#b8860b', y: '#ffd23f', l: '#fff3a0' },
     map: ['....o.....', '...oyo....', 'oooylyooo.', 'oyyyyyyyo.', '.oyyyyyo..', '..oyyyo...', '.oyyoyyo..', '.oyo.oyo..', '.oo...oo..'] },
 };

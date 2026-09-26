@@ -8,6 +8,7 @@ import { Game, GameError } from './game.js';
 import { Auth } from './auth.js';
 import { Friends } from './friends.js';
 import { RoomHub } from './rooms.js';
+import { Bonds } from './bonds.js';
 import { checkDogName } from './filter.js';
 import { RULES } from '../shared/data.js';
 
@@ -18,11 +19,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const game = new Game(db, { speed, now });
   const auth = new Auth(db, { now });
   const friends = new Friends(db, game);
+  const bonds = new Bonds(db, { now });
 
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server);
-  const hub = new RoomHub(io, { auth, game, friends });
+  const hub = new RoomHub(io, { auth, game, friends, bonds });
 
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
@@ -116,6 +118,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId, { events: res.events });
   }));
 
+  api.post('/school/leave', authed, wrap((req) => {
+    const res = game.leaveSchool(req.userId);
+    hub.dogChanged(req.userId);
+    return me(req.userId, { events: res.events });
+  }));
+
   api.get('/reports', authed, wrap((req) => ({ reports: game.listReports(req.userId) })));
   api.post('/reports/:id/read', authed, wrap((req) => { game.markReportRead(req.userId, Number(req.params.id)); }));
 
@@ -132,7 +140,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId);
   }));
 
-  api.post('/minigame/start', authed, wrap((req) => game.startMinigame(req.userId)));
+  api.post('/minigame/start', authed, wrap((req) => game.startMinigame(req.userId, req.body?.type ?? 'catch')));
   api.post('/minigame/finish', authed, wrap((req) => {
     const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score);
     return { ...me(req.userId), result: res };
@@ -140,7 +148,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
 
   api.get('/friends', authed, wrap((req) => {
     const list = friends.list(req.userId);
-    list.friends = list.friends.map((f) => ({ ...f, online: hub.online(f.id) }));
+    list.friends = list.friends.map((f) => ({ ...f, online: hub.online(f.id), bond: bonds.get(req.userId, f.id) }));
     return list;
   }));
   api.get('/friends/lookup/:code', authed, wrap((req) => {
@@ -167,7 +175,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', (req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
 
-  return { app, server, io, db, game, auth, friends, hub, rules: RULES };
+  return { app, server, io, db, game, auth, friends, bonds, hub, rules: RULES };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

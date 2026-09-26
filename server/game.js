@@ -1,7 +1,7 @@
 // 강아지/유저 데이터 로직 (서버가 최종 판정)
 import crypto from 'node:crypto';
 import {
-  PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, TRICKS,
+  PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
 } from '../shared/data.js';
 import {
@@ -165,16 +165,20 @@ export class Game {
     return { dog, events };
   }
 
-  finishSchool(dog) {
+  // 수업이 끝났을 때(또는 조퇴할 때) 알림장을 쓰고 보상을 줘요. 조퇴하면 다닌 시간만큼만 받아요.
+  finishSchool(dog, { at = dog.school.endsAt, early = false } = {}) {
     const course = SCHOOL_COURSES[dog.school.course];
-    const endsAt = dog.school.endsAt;
-    const next = { ...dog, tricks: [...dog.tricks], school: null, updatedAt: endsAt };
-    next.exp += course.exp;
-    const events = this.checkGrowth(next, endsAt);
+    const total = dog.school.endsAt - dog.school.startedAt;
+    const ratio = early ? Math.max(0, Math.min(1, (at - dog.school.startedAt) / total)) : 1;
+    const coins = Math.floor(course.coins * ratio);
+    const exp = Math.floor(course.exp * ratio);
+    const next = { ...dog, tricks: [...dog.tricks], school: null, updatedAt: at };
+    next.exp += exp;
+    const events = this.checkGrowth(next, at);
     let trick = null;
-    const chance = course.trickChance + (dog.personality === 'smart' ? 0.2 : 0);
+    const chance = (course.trickChance + (dog.personality === 'smart' ? 0.2 : 0)) * (early ? ratio : 1);
     const learnable = learnableTricks(next);
-    if (learnable.length && this.rng() < chance) {
+    if (learnable.length && (!early || ratio >= 0.5) && this.rng() < chance) {
       trick = pick(learnable, this.rng);
       next.tricks.push(trick);
     }
@@ -182,9 +186,10 @@ export class Game {
       hyper: { '달리기': 1 }, foodie: { '간식 예절': 1 }, sweet: { '친구 사귀기': 1 },
       smart: { '집중력': 1 }, sleepy: { '집중력': -1 }, shy: { '친구 사귀기': -1 },
     }[dog.personality] ?? {};
+    const maxStamp = early && ratio < 0.5 ? 2 : 3;
     const stamps = Object.fromEntries(REPORT_SUBJECTS.map((s) => {
       const base = 1 + Math.floor(this.rng() * 3);
-      return [s, Math.max(1, Math.min(3, base + (bias[s] ?? 0)))];
+      return [s, Math.max(1, Math.min(maxStamp, base + (bias[s] ?? 0)))];
     }));
     const report = {
       dogName: dog.name,
@@ -192,20 +197,32 @@ export class Game {
       personality: dog.personality,
       stage: next.stage,
       course: dog.school.course,
-      courseName: course.name,
+      courseName: early ? `${course.name} (조퇴)` : course.name,
+      early,
       stamps,
-      comment: pick(TEACHER_COMMENTS[dog.personality], this.rng),
+      comment: pick(early ? EARLY_COMMENTS : TEACHER_COMMENTS[dog.personality], this.rng),
       trick,
       trickName: trick ? TRICKS[trick].name : null,
-      coins: course.coins,
-      exp: course.exp,
-      date: endsAt,
+      coins,
+      exp,
+      date: at,
     };
     const res = this.db.prepare('INSERT INTO reports (user_id, data, created_at) VALUES (?, ?, ?)')
-      .run(dog.userId, JSON.stringify(report), endsAt);
-    this.addCoins(dog.userId, course.coins);
+      .run(dog.userId, JSON.stringify(report), at);
+    this.addCoins(dog.userId, coins);
     report.id = Number(res.lastInsertRowid);
     return { dog: next, report, events };
+  }
+
+  leaveSchool(userId) {
+    const { dog, events } = this.refreshDog(userId);
+    if (!dog) throw new GameError('강아지가 없어요.', 404);
+    if (!dog.school) throw new GameError('학교에 가 있지 않아요.');
+    return tx(this.db, () => {
+      const res = this.finishSchool(dog, { at: this.now(), early: true });
+      this.saveDog(res.dog);
+      return { dog: res.dog, events: [...events, ...res.events, { type: 'schoolDone', report: res.report }] };
+    });
   }
 
   listReports(userId) {
@@ -265,13 +282,14 @@ export class Game {
   }
 
   // ---------- 미니게임 (간식 받아먹기) ----------
-  startMinigame(userId) {
+  startMinigame(userId, type = 'catch') {
+    if (!RULES.minigame.types[type]) throw new GameError('그런 놀이는 없어요.');
     const user = this.getUser(userId);
     const today = kstDate(this.now());
     const plays = user.minigameDate === today ? user.minigamePlays : 0;
     if (plays >= RULES.minigame.dailyPlays) throw new GameError('오늘은 충분히 놀았어요! 내일 또 놀아요.');
     const id = crypto.randomBytes(12).toString('hex');
-    this.db.prepare('INSERT INTO minigames (id, user_id, started_at) VALUES (?, ?, ?)').run(id, userId, this.now());
+    this.db.prepare('INSERT INTO minigames (id, user_id, started_at, type) VALUES (?, ?, ?, ?)').run(id, userId, this.now(), type);
     this.db.prepare('UPDATE users SET minigame_date = ?, minigame_plays = ? WHERE id = ?').run(today, plays + 1, userId);
     return { gameId: id, playsLeft: RULES.minigame.dailyPlays - plays - 1 };
   }
@@ -281,10 +299,11 @@ export class Game {
       const game = this.db.prepare('SELECT * FROM minigames WHERE id = ? AND user_id = ?').get(String(gameId), userId);
       if (!game || game.finished) throw new GameError('이미 끝난 놀이예요.');
       const elapsed = this.now() - game.started_at;
-      if (elapsed < (RULES.minigame.seconds - 3) * 1000) throw new GameError('조금 더 놀아야 해요!');
+      const kind = RULES.minigame.types[game.type] ?? RULES.minigame.types.catch;
+      if (elapsed < kind.minSeconds * 1000) throw new GameError('조금 더 놀아야 해요!');
       this.db.prepare('UPDATE minigames SET finished = 1 WHERE id = ?').run(gameId);
-      const safeScore = Math.max(0, Math.min(200, Math.floor(Number(score) || 0)));
-      const coins = Math.min(RULES.minigame.maxCoins, Math.floor(safeScore / 2));
+      const safeScore = Math.max(0, Math.min(kind.maxScore, Math.floor(Number(score) || 0)));
+      const coins = Math.min(RULES.minigame.maxCoins, Math.floor(safeScore / kind.scorePerCoin));
       this.addCoins(userId, coins);
       // 함께 놀면 애정도도 올라요
       const dog = this.loadDog(userId);

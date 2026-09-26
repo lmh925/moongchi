@@ -153,3 +153,59 @@ test('친구: 신청 → 수락, 서로 신청하면 바로 친구', () => {
   friends.remove(a, c);
   assert.equal(friends.areFriends(c, a), false);
 });
+
+test('조퇴: 다닌 시간만큼만 보상, 절반 전이면 개인기 없음', () => {
+  const { auth, game, clock } = setup();
+  const { userId } = auth.signup('조퇴', '1111');
+  game.createDog(userId, { name: '콩', breed: 'poodle', personality: 'smart' });
+  const coins0 = game.getUser(userId).coins;
+  game.startSchool(userId, 'manner'); // 3시간, 코인 80
+  clock.advance(45 * 60_000); // 1/4
+  const res = game.leaveSchool(userId);
+  const report = res.events.find((e) => e.type === 'schoolDone').report;
+  assert.equal(report.early, true);
+  assert.equal(report.coins, 20);
+  assert.equal(report.trick, null);
+  assert.equal(res.dog.school, null);
+  assert.equal(game.getUser(userId).coins, coins0 + 20);
+  assert.throws(() => game.leaveSchool(userId), /학교에 가 있지 않아요/);
+});
+
+test('짧은 간식 수업은 10분이에요', () => {
+  const { auth, game, clock } = setup();
+  const { userId } = auth.signup('간식', '1111');
+  game.createDog(userId, { name: '콩', breed: 'bichon', personality: 'foodie' });
+  game.startSchool(userId, 'snack');
+  clock.advance(10 * 60_000 + 1);
+  assert.ok(game.refreshDog(userId).events.some((e) => e.type === 'schoolDone'));
+});
+
+test('멍뭉 런: 빨리 끝나도 되고 점수 기준이 달라요', () => {
+  const { auth, game, clock } = setup();
+  const { userId } = auth.signup('달리기', '1111');
+  game.createDog(userId, { name: '콩', breed: 'corgi', personality: 'hyper' });
+  assert.throws(() => game.startMinigame(userId, 'nope'), /없어요/);
+  const { gameId } = game.startMinigame(userId, 'run');
+  clock.advance(6000);
+  assert.equal(game.finishMinigame(userId, gameId, 30).coins, 5);
+});
+
+test('강아지 친밀도: 단계가 오르고 하루 최대치가 있어요', async () => {
+  const { Bonds } = await import('../server/bonds.js');
+  const { auth, db, clock } = setup();
+  const bonds = new Bonds(db, { now: clock.now });
+  const a = auth.signup('가가', '1111').userId;
+  const b = auth.signup('나나', '1111').userId;
+  assert.equal(bonds.get(a, b).level, 0);
+  let up = null;
+  for (let i = 0; i < 10; i++) { const r = bonds.add(a, b, 'together'); if (r.after.level > r.before) up = r.after; }
+  assert.equal(up?.name, '아는 사이');
+  assert.equal(bonds.get(b, a).points, 10, '순서와 상관없이 같은 친밀도');
+  assert.ok(bonds.add(a, b, 'pet'));
+  assert.equal(bonds.add(a, b, 'pet'), null, '쓰다듬기는 잠깐 쉬었다가');
+  for (let i = 0; i < 40; i++) bonds.add(a, b, 'together');
+  assert.equal(bonds.get(a, b).points, 30, '하루 최대 30');
+  clock.advance(24 * 3600_000);
+  bonds.add(a, b, 'together');
+  assert.equal(bonds.get(a, b).points, 31);
+});

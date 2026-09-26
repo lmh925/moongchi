@@ -7,11 +7,15 @@ const CHAT_GAP_MS = 1200;
 const INVITE_GAP_MS = 5000;
 
 export class RoomHub {
-  constructor(io, { auth, game, friends }) {
+  constructor(io, { auth, game, friends, bonds }) {
     this.io = io;
     this.auth = auth;
     this.game = game;
     this.friends = friends;
+    this.bonds = bonds;
+    // 같은 방에서 1분 함께 있으면 친밀도가 올라요
+    this.togetherTimer = setInterval(() => this.tickTogether(), 60_000);
+    this.togetherTimer.unref?.();
     this.rooms = new Map(); // ownerId -> Map<userId, member>
     this.sockets = new Map(); // userId -> Set<socket>
     io.use((socket, next) => {
@@ -78,8 +82,17 @@ export class RoomHub {
     socket.on('room:pet', (msg) => {
       const m = this.member(socket);
       const target = Number(msg?.userId);
-      if (!m || !this.chatGate(socket, 600)) return;
+      if (!m || !this.inRoom(socket.data.room, target) || !this.chatGate(socket, 600)) return;
       this.io.to(this.channel(socket.data.room)).emit('room:pet', { from: userId, to: target });
+      if (target !== userId) this.addBond(socket.data.room, userId, target, 'pet');
+    });
+    // 같이 놀기: 내 강아지가 친구 강아지에게 달려가서 함께 뛰어놀아요
+    socket.on('room:play', (msg) => {
+      const m = this.member(socket);
+      const target = Number(msg?.userId);
+      if (!m || target === userId || !this.inRoom(socket.data.room, target) || !this.chatGate(socket, 1500)) return;
+      this.io.to(this.channel(socket.data.room)).emit('room:play', { from: userId, to: target });
+      this.addBond(socket.data.room, userId, target, 'play');
     });
     socket.on('room:trick', (msg) => {
       const m = this.member(socket);
@@ -108,6 +121,28 @@ export class RoomHub {
         this.broadcastPresence(userId, false);
       }
     });
+  }
+
+  inRoom(ownerId, userId) {
+    return userId === ownerId || !!this.rooms.get(ownerId)?.has(userId);
+  }
+
+  addBond(ownerId, a, b, kind) {
+    const res = this.bonds.add(a, b, kind);
+    if (!res) return;
+    this.io.to(this.channel(ownerId)).emit('bond', { a, b, bond: res.after, up: res.after.level > res.before });
+  }
+
+  tickTogether() {
+    for (const [ownerId, room] of this.rooms) {
+      const ids = [...new Set([ownerId, ...room.keys()])].filter((id) => {
+        const dog = this.game.loadDog(id);
+        return dog && !dog.school;
+      });
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) this.addBond(ownerId, ids[i], ids[j], 'together');
+      }
+    }
   }
 
   broadcastPresence(userId, online) {
@@ -186,7 +221,13 @@ export class RoomHub {
     socket.data.room = ownerId;
     socket.join(this.channel(ownerId));
     socket.to(this.channel(ownerId)).emit('room:enter', this.memberView(m));
-    reply({ ok: true, room: this.roomState(ownerId) });
+    const others = [...new Set([ownerId, ...this.rooms.get(ownerId).keys()])].filter((id) => id !== userId);
+    reply({ ok: true, room: this.roomState(ownerId), bonds: this.bonds.many(userId, others) });
+    for (const other of others) {
+      const om = this.rooms.get(ownerId).get(other);
+      const s = om && this.io.sockets.sockets.get(om.socketId);
+      s?.emit('bond', { a: other, b: userId, bond: this.bonds.get(other, userId), up: false });
+    }
     this.updateChatPermissions(ownerId);
   }
 
