@@ -1,6 +1,6 @@
 // 멍뭉 놀이터: 누구나 들어오는 공개 광장 (채널당 최대 20마리)
 // 흐름: 클라이언트 입력(plaza:pos, plaza:emote ...) → 서버 상태 갱신 → 같은 채널에 방송 → 각자 화면 그리기
-import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS } from '../shared/data.js';
+import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER } from '../shared/data.js';
 import { kstDate } from '../shared/rules.js';
 import { REPORT_REASONS } from './safety.js';
 
@@ -17,6 +17,7 @@ export class PlazaHub {
     this.channels = new Map(); // id -> { id, members: Map<userId, member>, tag }
     this.tagCoins = new Map();
     this.treasureCoins = new Map();
+    this.soccerCoins = new Map();
     this.onLeave = null; // 협동 게임 등에서 알림 받기
     this.ticker = setInterval(() => this.tick(), 100);
     this.ticker.unref?.();
@@ -37,6 +38,9 @@ export class PlazaHub {
       m.x = clamp(msg?.x, 0, PLAZA.worldW);
       m.y = clamp(msg?.y, 0, PLAZA.worldH);
       m.dir = msg?.dir === -1 ? -1 : 1;
+      m.vx = (m.x - (m.px ?? m.x)) / Math.max(0.05, (now - (m.pt ?? now - 100)) / 1000);
+      m.vy = (m.y - (m.py ?? m.y)) / Math.max(0.05, (now - (m.pt ?? now - 100)) / 1000);
+      m.px = m.x; m.py = m.y; m.pt = now;
       m.moving = !!msg?.moving;
       m.dirty = true; // 0.1초마다 모아서 한 번에 보내요 (tick → flushPositions)
     });
@@ -74,6 +78,9 @@ export class PlazaHub {
       } catch (err) { ack(cb)({ ok: false, reason: err.message }); }
     });
     socket.on('treasure:dig', (msg, cb) => ack(cb)(this.dig(socket, msg)));
+    socket.on('soccer:join', (_, cb) => ack(cb)(this.soccerJoin(socket)));
+    socket.on('soccer:leave', () => this.soccerLeave(socket.data.plaza, userId));
+    socket.on('soccer:kick', () => this.soccerKick(socket));
     socket.on('tag:join', (_, cb) => ack(cb)(this.tagJoin(socket)));
     socket.on('tag:leave', () => this.tagLeave(socket.data.plaza, userId));
     socket.on('disconnect', () => this.leave(socket));
@@ -137,6 +144,7 @@ export class PlazaHub {
       members: [...ch.members.values()].filter((o) => !blocked.has(o.userId)).map((o) => this.view(o)),
       tag: this.tagView(ch),
       treasures: ch.treasures.length,
+      soccer: this.soccerView(ch),
       friends: this.friends.friendIds(userId),
     };
   }
@@ -149,6 +157,7 @@ export class PlazaHub {
     if (m && m.socketId === socket.id) {
       ch.members.delete(socket.data.userId);
       this.tagLeave(id, socket.data.userId);
+      this.soccerLeave(id, socket.data.userId);
       socket.to(`plaza:${id}`).emit('plaza:exit', { userId: socket.data.userId });
       if (ch.members.size === 0) this.channels.delete(id);
       this.onLeave?.(socket.data.userId);
@@ -287,6 +296,152 @@ export class PlazaHub {
     return coins;
   }
 
+  // ---------- 멍멍 축구 ----------
+  field() {
+    const f = PLAZA_SPOTS.soccer;
+    return { x0: f.x - f.w / 2, x1: f.x + f.w / 2, y0: f.y - f.h / 2, y1: f.y + f.h / 2, cx: f.x, cy: f.y };
+  }
+
+  soccerView(ch) {
+    const g = ch.soccer;
+    if (!g) return null;
+    return {
+      status: g.status, teams: Object.fromEntries(g.teams), score: g.score, startsAt: g.startsAt, endsAt: g.endsAt,
+      ball: { x: g.ball.x, y: g.ball.y, vx: g.ball.vx, vy: g.ball.vy },
+    };
+  }
+
+  emitSoccer(ch) { this.io.to(`plaza:${ch.id}`).emit('soccer:state', this.soccerView(ch)); }
+
+  soccerJoin(socket) {
+    const m = this.member(socket);
+    if (!m) return { ok: false, reason: '놀이터에 들어가 있지 않아요.' };
+    const ch = this.channels.get(socket.data.plaza);
+    const f = this.field();
+    if (!ch.soccer) {
+      ch.soccer = { status: 'waiting', teams: new Map(), goals: new Map(), score: { pink: 0, blue: 0 }, startsAt: 0, endsAt: 0, ball: { x: f.cx, y: f.cy, vx: 0, vy: 0 }, pauseUntil: 0, kicks: new Map() };
+    }
+    const g = ch.soccer;
+    if (g.teams.has(m.userId)) return { ok: true, team: g.teams.get(m.userId) };
+    const count = (t) => [...g.teams.values()].filter((x) => x === t).length;
+    const team = count('pink') <= count('blue') ? 'pink' : 'blue';
+    g.teams.set(m.userId, team);
+    if (g.status === 'waiting' && count('pink') >= 1 && count('blue') >= 1 && !g.startsAt) g.startsAt = Date.now() + SOCCER.countdownMs;
+    this.emitSoccer(ch);
+    return { ok: true, team };
+  }
+
+  soccerLeave(channelId, userId) {
+    const ch = this.channels.get(channelId);
+    const g = ch?.soccer;
+    if (!g || !g.teams.has(userId)) return;
+    g.teams.delete(userId);
+    if (g.teams.size === 0) { ch.soccer = null; this.io.to(`plaza:${ch.id}`).emit('soccer:state', null); return; }
+    const teams = new Set(g.teams.values());
+    if (g.status === 'waiting' && teams.size < 2) g.startsAt = 0;
+    this.emitSoccer(ch);
+  }
+
+  // 강하게 차기 버튼: 공 가까이에 있으면 멀리 뻥!
+  soccerKick(socket) {
+    const m = this.member(socket);
+    const ch = m && this.channels.get(socket.data.plaza);
+    const g = ch?.soccer;
+    if (!g || g.status !== 'play' || !g.teams.has(m.userId) || Date.now() < g.pauseUntil) return;
+    const b = g.ball;
+    const dx = b.x - m.x; const dy = b.y - (m.y - 2);
+    const d = Math.hypot(dx, dy);
+    if (d > SOCCER.kickRadius) return;
+    const nx = d ? dx / d : m.dir; const ny = d ? dy / d : 0;
+    b.vx = nx * SOCCER.kickSpeed; b.vy = ny * SOCCER.kickSpeed;
+    g.lastTouch = m.userId;
+    this.io.to(`plaza:${ch.id}`).emit('soccer:kick', { userId: m.userId, strong: true });
+  }
+
+  soccerTick(ch, now) {
+    const g = ch.soccer;
+    if (!g) return;
+    const f = this.field();
+    if (g.status === 'waiting') {
+      if (g.startsAt && now >= g.startsAt) {
+        g.status = 'play'; g.endsAt = now + SOCCER.seconds * 1000;
+        Object.assign(g.ball, { x: f.cx, y: f.cy, vx: 0, vy: 0 });
+        this.emitSoccer(ch);
+      }
+      return;
+    }
+    if (now >= g.endsAt) { this.soccerEnd(ch); return; }
+    if (now < g.pauseUntil) return;
+    const b = g.ball;
+    // 공 물리: 0.1초를 4번 나눠서 계산해요
+    for (let step = 0; step < 4; step++) {
+      const dt = 0.025;
+      // 강아지가 공에 닿으면 톡 밀어요 (강아지가 달리던 방향도 조금 더해요)
+      for (const [uid] of g.teams) {
+        const m = ch.members.get(uid);
+        if (!m) continue;
+        const dx = b.x - m.x; const dy = b.y - (m.y - 2);
+        const d = Math.hypot(dx, dy);
+        if (d < SOCCER.touchRadius && now - (g.kicks.get(uid) ?? 0) > 200) {
+          g.kicks.set(uid, now);
+          const nx = d ? dx / d : m.dir; const ny = d ? dy / d : 0;
+          const run = Math.min(80, Math.hypot(m.vx ?? 0, m.vy ?? 0));
+          b.vx = nx * (SOCCER.touchSpeed + run * 0.4); b.vy = ny * (SOCCER.touchSpeed + run * 0.4);
+          g.lastTouch = uid;
+        }
+      }
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      const fr = SOCCER.friction ** dt;
+      b.vx *= fr; b.vy *= fr;
+      if (Math.hypot(b.vx, b.vy) < 3) { b.vx = 0; b.vy = 0; }
+      if (b.y < f.y0 + 3) { b.y = f.y0 + 3; b.vy = Math.abs(b.vy) * 0.8; }
+      if (b.y > f.y1 - 3) { b.y = f.y1 - 3; b.vy = -Math.abs(b.vy) * 0.8; }
+      const inMouth = Math.abs(b.y - f.cy) < SOCCER.goalHalf;
+      if (b.x < f.x0 + 2) {
+        if (inMouth) { this.soccerGoal(ch, 'blue', now); return; }
+        b.x = f.x0 + 2; b.vx = Math.abs(b.vx) * 0.8;
+      }
+      if (b.x > f.x1 - 2) {
+        if (inMouth) { this.soccerGoal(ch, 'pink', now); return; }
+        b.x = f.x1 - 2; b.vx = -Math.abs(b.vx) * 0.8;
+      }
+    }
+    this.io.to(`plaza:${ch.id}`).volatile.emit('soccer:ball', [Math.round(b.x * 10) / 10, Math.round(b.y * 10) / 10, Math.round(b.vx), Math.round(b.vy)]);
+  }
+
+  soccerGoal(ch, team, now) {
+    const g = ch.soccer;
+    const f = this.field();
+    g.score[team] += 1;
+    const by = g.lastTouch && g.teams.get(g.lastTouch) === team ? g.lastTouch : null;
+    if (by) g.goals.set(by, (g.goals.get(by) ?? 0) + 1);
+    Object.assign(g.ball, { x: f.cx, y: f.cy, vx: 0, vy: 0 });
+    g.pauseUntil = now + 1800;
+    this.io.to(`plaza:${ch.id}`).emit('soccer:goal', { team, by, byName: by ? ch.members.get(by)?.nickname : null, score: g.score });
+    this.emitSoccer(ch);
+  }
+
+  soccerEnd(ch) {
+    const g = ch.soccer;
+    const { pink, blue } = g.score;
+    const winner = pink === blue ? null : pink > blue ? 'pink' : 'blue';
+    const today = kstDate(Date.now());
+    const results = [...g.teams.entries()].map(([userId, team]) => {
+      const base = winner === null ? SOCCER.coins.draw : winner === team ? SOCCER.coins.win : SOCCER.coins.lose;
+      const goals = g.goals.get(userId) ?? 0;
+      const key = `${userId}:${today}`;
+      const got = this.soccerCoins.get(key) ?? 0;
+      const coins = Math.max(0, Math.min(base + goals * SOCCER.coins.perGoal, SOCCER.dailyCoins - got));
+      this.soccerCoins.set(key, got + coins);
+      this.game.addCoins(userId, coins);
+      return { userId, nickname: ch.members.get(userId)?.nickname ?? '친구', team, goals, coins };
+    });
+    if (this.soccerCoins.size > 5000) this.soccerCoins.clear();
+    ch.soccer = null;
+    this.io.to(`plaza:${ch.id}`).emit('soccer:end', { score: { pink, blue }, winner, results });
+    this.io.to(`plaza:${ch.id}`).emit('soccer:state', null);
+  }
+
   // ---------- 술래잡기 ----------
   tagView(ch) {
     const t = ch.tag;
@@ -363,6 +518,7 @@ export class PlazaHub {
     const now = Date.now();
     for (const ch of this.channels.values()) {
       this.flushPositions(ch);
+      this.soccerTick(ch, now);
       if (ch.treasures.length < TREASURE.max && now >= ch.nextTreasure) {
         ch.nextTreasure = now + TREASURE.spawnMs;
         this.spawnTreasure(ch);

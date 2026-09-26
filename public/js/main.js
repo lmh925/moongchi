@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE,
+  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '/shared/data.js';
 import { applyDecay, quizResult } from '/shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -1267,6 +1267,44 @@ function bindPlazaSocket(socket) {
     });
     refreshMe();
   });
+  socket.on('soccer:state', (g) => {
+    if (!state.plaza) return;
+    const before = state.plaza.soccer;
+    state.plaza.soccer = g;
+    state.plaza.view.soccer = g;
+    if (g) state.plaza.view.setBall(g.ball.x, g.ball.y, g.ball.vx, g.ball.vy); else state.plaza.view.ball = null;
+    if (g?.status === 'play' && before?.status !== 'play') { sfx.bell(); if (g.teams[myId()]) toast(`축구 시작! 나는 ${SOCCER.teams[g.teams[myId()]]}! ${g.teams[myId()] === 'pink' ? '오른쪽' : '왼쪽'} 골대에 넣어요.`, 'good'); }
+    renderTagHud();
+    renderSpotBox();
+  });
+  socket.on('soccer:ball', ([x, y, vx, vy]) => state.plaza?.view.setBall(x, y, vx, vy));
+  socket.on('soccer:kick', ({ userId }) => { if (state.plaza) { sfx.jump(); state.plaza.view.emote(userId, 'jump'); } });
+  socket.on('soccer:goal', ({ team, byName, score }) => {
+    if (!state.plaza) return;
+    if (state.plaza.soccer) state.plaza.soccer.score = score;
+    const f = PLAZA_SPOTS.soccer;
+    state.plaza.view.treasurePop(team === 'pink' ? f.x + f.w / 2 - 6 : f.x - f.w / 2 + 6, f.y, 'star');
+    sfx.levelUp();
+    toast(`골~인! ${SOCCER.teams[team]} 득점${byName ? ` (${byName})` : ''} · 핑크 ${score.pink} : ${score.blue} 파랑`, 'good');
+    renderTagHud();
+  });
+  socket.on('soccer:end', ({ score, winner, results }) => {
+    if (!state.plaza) return;
+    const mine = results.find((r) => r.userId === myId());
+    if (!mine) return;
+    sfx.levelUp();
+    modal({
+      title: winner ? `${SOCCER.teams[winner]} 승리!` : '무승부! 모두 잘했어요',
+      body: el('div', {},
+        el('p', { class: 'jr-score center' }, `핑크 ${score.pink} : ${score.blue} 파랑`),
+        el('div', { class: 'party-results' }, results.map((r) => el('div', { class: `party-result ${r.userId === myId() ? 'me' : ''}` },
+          el('span', { class: 'rank' }, r.team === 'pink' ? '🩷' : '💙'),
+          el('span'),
+          el('div', {}, el('b', {}, r.nickname), el('div', { class: 'meta' }, `골 ${r.goals} · 코인 +${r.coins}`)))))),
+      buttons: [{ label: '또 하자!' }],
+    });
+    refreshMe();
+  });
   socket.on('treasure:dig', ({ userId }) => state.plaza?.view.dig(userId));
   socket.on('treasure:count', ({ n }) => { if (state.plaza) { state.plaza.treasures = n; renderSpotBox(); } });
   socket.on('treasure:found', ({ userId, nickname, kind, x, y, helpers, n }) => {
@@ -1318,7 +1356,9 @@ function mountPlaza(res) {
     onFloor: () => sfx.tap(),
   });
   for (const m of res.members) if (m.userId !== myId()) view.upsert({ ...m, friend: friends.has(m.userId) });
-  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null };
+  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null, soccer: res.soccer };
+  view.soccer = res.soccer;
+  if (res.soccer) view.setBall(res.soccer.ball.x, res.soccer.ball.y, res.soccer.ball.vx, res.soccer.ball.vy);
   view.tag = res.tag;
   $('#room-label').textContent = `멍뭉 놀이터 ${res.channel}번`;
   $('#away-sign').hidden = true;
@@ -1364,6 +1404,12 @@ function renderTagHud() {
     if (t.status === 'waiting') lines.push(`술래잡기 모집 중 (${t.players.length}명)${t.startsAt ? ' · 곧 시작!' : ''}`);
     else lines.push(`술래잡기 ${Math.max(0, Math.ceil((t.endsAt - serverNow()) / 1000))}초 · 술래: ${name(t.it)}`);
   }
+  const g = p.soccer;
+  if (g) {
+    const n = Object.keys(g.teams).length;
+    if (g.status === 'waiting') lines.push(`멍멍 축구 모집 중 (${n}명)${g.startsAt ? ' · 곧 시작!' : ' · 양 팀에 1명씩 필요해요'}`);
+    else lines.push(`축구 핑크 ${g.score.pink} : ${g.score.blue} 파랑 · ${Math.max(0, Math.ceil((g.endsAt - serverNow()) / 1000))}초`);
+  }
   for (const [game, w] of Object.entries(p.waiting)) {
     const spot = Object.values(PLAZA_SPOTS).find((sp) => sp.game === game);
     if (w && w.userId !== myId()) lines.push(`${spot?.name ?? '놀이 장소'}에서 ${w.nickname}(이)가 친구를 기다려요!`);
@@ -1371,7 +1417,7 @@ function renderTagHud() {
   hud.replaceChildren(...lines.map((l) => el('div', {}, l)));
   hud.hidden = !lines.length;
   clearTimeout(state.tagHudTimer);
-  if (t?.status === 'play' || t?.startsAt) state.tagHudTimer = setTimeout(renderTagHud, 500);
+  if (t?.status === 'play' || t?.startsAt || g?.status === 'play' || g?.startsAt) state.tagHudTimer = setTimeout(renderTagHud, 500);
 }
 
 async function digHere() {
@@ -1416,6 +1462,17 @@ function renderSpotBox() {
   let content;
   if (!info) {
     content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자·줄넘기 터(왼쪽 아래), 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
+  } else if (spot === 'soccer') {
+    const g = p.soccer;
+    const team = g?.teams[myId()];
+    content = [el('b', {}, info.name),
+      el('div', { class: 'meta' }, `공에 닿으면 톡 밀려요! 핑크팀은 오른쪽, 파랑팀은 왼쪽 골대에 넣어요. ${SOCCER.seconds}초 경기.`),
+      team
+        ? el('div', { class: `team-badge ${team}` }, `나는 ${SOCCER.teams[team]}!`)
+        : el('button', { class: 'btn primary', onclick: async () => { const r = await emitAck('soccer:join', {}); if (!r.ok) toast(r.reason, 'bad'); else sfx.pop(); } }, '경기 참가하기'),
+      team ? el('div', { class: 'btns' },
+        el('button', { class: 'btn primary', disabled: g?.status !== 'play', onclick: () => state.socket.emit('soccer:kick') }, '뻥! 강하게 차기'),
+        el('button', { class: 'btn small', onclick: () => { state.socket.emit('soccer:leave'); } }, '그만하기')) : null];
   } else if (spot === 'sand') {
     const hints = {
       hot: '뜨거워요! 바로 근처예요!', warm: '따뜻해요~ 가까워지고 있어요.', cold: '차가워요. 다른 곳을 파 봐요.',

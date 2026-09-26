@@ -216,3 +216,34 @@ test('보물찾기: 모래밭에서 파면 힌트를 주고, 가까이 파면 �
   assert.deepEqual(ev.helpers, [b.id], '같이 판 친구도 선물을 받아요');
   a.socket.emit('plaza:leave'); b.socket.emit('plaza:leave');
 });
+
+test('멍멍 축구: 두 팀으로 나뉘고, 공을 골대에 넣으면 점수가 올라요', async () => {
+  const a = await player(); const b = await player();
+  const ja = await ask(a.socket, 'plaza:join', {});
+  await ask(b.socket, 'plaza:join', {});
+  a.socket.emit('plaza:pos', { x: 320, y: 250 });
+  b.socket.emit('plaza:pos', { x: 440, y: 310 });
+  const ta = await ask(a.socket, 'soccer:join', {});
+  const playing = next(a.socket, 'soccer:state', (s) => s?.status === 'play');
+  const tb = await ask(b.socket, 'soccer:join', {});
+  assert.notEqual(ta.team, tb.team, '팀이 골고루 나뉘어요');
+  await playing;
+  // 핑크팀은 오른쪽 골대로 공격해요. 공을 오른쪽 골대 바로 앞에 놓고 핑크팀 강아지가 뒤에서 차요
+  const g = plazaHub.channels.get(ja.channel).soccer;
+  const pinkPlayer = ta.team === 'pink' ? a : b;
+  Object.assign(g.ball, { x: 452, y: 280, vx: 0, vy: 0 });
+  const goal = next(a.socket, 'soccer:goal');
+  await wait(120);
+  pinkPlayer.socket.emit('plaza:pos', { x: 444, y: 282 });
+  pinkPlayer.socket.emit('soccer:kick');
+  const ev = await goal;
+  assert.equal(ev.team, 'pink');
+  assert.equal(ev.score.pink, 1);
+  // 경기가 끝나면 모두 코인을 받아요
+  const ended = next(a.socket, 'soccer:end');
+  g.endsAt = Date.now();
+  const end = await ended;
+  assert.equal(end.winner, 'pink');
+  assert.ok(end.results.every((r) => r.coins > 0));
+  a.socket.emit('plaza:leave'); b.socket.emit('plaza:leave');
+});

@@ -328,7 +328,7 @@ export const PLAZA_SPOTS = {
   ribbon: { name: '대왕 선물 상자', x: 104, y: 250, game: 'ribbon' },
   jumprope: { name: '줄넘기 터', x: 150, y: 298, game: 'jumprope' },
   sand: { name: '보물 모래밭', x: 91, y: 119, w: 68, h: 38 },
-  soccer: { name: '멍멍 축구장', x: 380, y: 280, soon: true },
+  soccer: { name: '멍멍 축구장', x: 380, y: 280, w: 160, h: 88 },
 };
 
 export const TREASURE = {
@@ -345,6 +345,20 @@ export const TREASURE = {
     bone: { name: '황금 뼈다귀', coins: 6, weight: 22 },
     capsule: { name: '반짝 캡슐', coins: 4, weight: 8, item: true },
   },
+};
+
+export const SOCCER = {
+  seconds: 90,
+  countdownMs: 4000,
+  goalHalf: 13, // 골대 입구 절반 높이
+  touchRadius: 10,
+  kickRadius: 16,
+  touchSpeed: 95,
+  kickSpeed: 175,
+  friction: 0.55, // 1초에 남는 속도 비율
+  coins: { win: 8, draw: 6, lose: 5, perGoal: 1 },
+  dailyCoins: 60,
+  teams: { pink: '핑크팀', blue: '파랑팀' },
 };
 
 export const TAG = { seconds: 60, radius: 14, immuneMs: 1500, minPlayers: 2, countdownMs: 4000, coins: 5, coinsPerTag: 2, maxCoins: 15 };

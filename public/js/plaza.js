@@ -133,6 +133,8 @@ export class PlazaView {
     this.spot = null;
     this.tag = null;
     this.waiting = {}; // 놀이 장소에서 기다리는 친구
+    this.soccer = null; // { teams: {userId: 'pink'|'blue'} }
+    this.ball = null; // { x, y, vx, vy }
     this.particles = [];
     this.t = 0;
     this.running = true;
@@ -227,6 +229,11 @@ export class PlazaView {
     for (let i = 0; i < n; i++) {
       this.particles.push({ icon, x: e.x + (Math.random() - 0.5) * 16, y: e.y - 30, vy: -16, life: 1.2, age: -i * 0.15 });
     }
+  }
+
+  setBall(x, y, vx, vy) {
+    if (!this.ball || Math.hypot(this.ball.x - x, this.ball.y - y) > 30) this.ball = { x, y, vx, vy, tx: x, ty: y };
+    Object.assign(this.ball, { tx: x, ty: y, vx, vy });
   }
 
   // ---------- 조작 ----------
@@ -346,6 +353,13 @@ export class PlazaView {
       if (inside) spot = key;
     }
     if (spot !== this.spot) { this.spot = spot; this.handlers.onSpot?.(spot); }
+    if (this.ball) {
+      // 서버 위치로 부드럽게 다가가면서, 받은 속도로 앞질러 움직여요
+      const b = this.ball;
+      b.tx += b.vx * dt; b.ty += b.vy * dt;
+      b.vx *= 0.55 ** dt; b.vy *= 0.55 ** dt;
+      b.x += (b.tx - b.x) * Math.min(1, dt * 12); b.y += (b.ty - b.y) * Math.min(1, dt * 12);
+    }
     for (const p of this.particles) {
       p.age += dt;
       if (p.vx) p.x += p.vx * dt;
@@ -386,6 +400,7 @@ export class PlazaView {
       ...[...this.entities.values()].map((e) => ({ y: e.y, draw: () => this.drawDog(e) })),
       ...TREES.map(([x, y]) => ({ y, draw: () => drawTree(ctx, x, y) })),
       { y: PLAZA_SPOTS.ribbon.y, draw: () => drawGiftBox(ctx, PLAZA_SPOTS.ribbon.x, PLAZA_SPOTS.ribbon.y, this.t) },
+      ...(this.ball ? [{ y: this.ball.y, draw: () => this.drawBall() }] : []),
     ].sort((a, b) => a.y - b.y);
     for (const d of drawables) d.draw();
     for (const p of this.particles) {
@@ -396,6 +411,17 @@ export class PlazaView {
     }
     ctx.restore();
     this.drawTags(camX, camY);
+  }
+
+  drawBall() {
+    const { ctx } = this;
+    const b = this.ball;
+    ellipse(ctx, b.x, b.y + 1, 4, 1.5, 'rgba(74,51,48,0.3)');
+    const spin = Math.floor((b.x + b.y) / 3) % 2;
+    ellipse(ctx, b.x, b.y - 3, 4, 4, OUT);
+    ellipse(ctx, b.x, b.y - 3, 3, 3, '#ffffff');
+    rect(ctx, b.x - 1 + spin, b.y - 4, 2, 2, OUT);
+    rect(ctx, b.x + 1 - spin * 2, b.y - 2, 1, 1, OUT);
   }
 
   drawDog(e) {
@@ -410,7 +436,9 @@ export class PlazaView {
     if (e.emote === 'spin') { facing = Math.floor(e.emoteT * 10) % 2 ? 1 : -1; }
     if (e.emote === 'dig') { pose = 'bow'; dy = Math.floor(e.emoteT * 12) % 2; opts.eyes = 'closed'; }
     const it = this.tag?.status === 'play' && this.tag.it === e.userId;
-    ellipse(ctx, e.x, e.y + 1, 10, 2.5, it ? 'rgba(232,74,95,0.55)' : 'rgba(74,51,48,0.22)');
+    const team = this.soccer?.teams?.[e.userId];
+    const ring = it ? 'rgba(232,74,95,0.55)' : team === 'pink' ? 'rgba(255,111,145,0.8)' : team === 'blue' ? 'rgba(91,140,255,0.8)' : 'rgba(74,51,48,0.22)';
+    ellipse(ctx, e.x, e.y + 1, team ? 11 : 10, team ? 3 : 2.5, ring);
     const spr = dogSprite(e.dog.breed, e.dog.stage, pose, opts);
     ctx.save();
     ctx.translate(Math.round(e.x), Math.round(e.y) + dy);

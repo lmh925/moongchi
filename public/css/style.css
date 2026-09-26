@@ -275,6 +275,11 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
   background: linear-gradient(135deg, #fff1c9, #d9f5e6);
 }
 .spot-box .meta { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.team-badge { font-weight: 700; border: 2px solid var(--ink); border-radius: 999px; padding: 2px 10px; justify-self: start; color: #fff; }
+.team-badge.pink { background: #ff6f91; }
+.team-badge.blue { background: #5b8cff; }
+.spot-box .btns { display: flex; gap: 6px; }
+.spot-box .btns .btn.primary { flex: 1; }
 .dig-hint { font-weight: 700; border-radius: 8px; padding: 4px 8px; background: #fff; border: 2px solid var(--ink); }
 .dig-hint.hot { background: #ffd9e3; color: var(--red); }
 .dig-hint.warm { background: #fff1c9; color: #c77a00; }
