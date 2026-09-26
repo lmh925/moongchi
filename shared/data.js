@@ -201,6 +201,7 @@ export const ITEMS = {
   toy_duck: { name: '꽥꽥 오리', slot: 'toy', stage: 0, price: 35, rarity: 'common' },
   toy_bear: { name: '곰돌이 인형', slot: 'toy', stage: 0, price: 60, rarity: 'rare' },
   toy_cactus: { name: '선인장 화분', slot: 'toy', stage: 0, price: null, rarity: 'common', shop: false },
+  clover: { name: '네잎클로버 핀', slot: 'head', stage: 0, price: null, rarity: 'rare', shop: false, gacha: false, reward: true },
   toy_rocket: { name: '우주 로켓', slot: 'toy', stage: 0, price: null, rarity: 'epic', shop: false },
 };
 
@@ -307,6 +308,44 @@ export const PARTY = {
   maxCoins: 10,
   winnerBonus: 5,
   dailyCoinCap: 60,
+};
+
+// 멍뭉 놀이터 (공개 광장)
+export const PLAZA = {
+  cap: 20, // 한 놀이터(채널)에 들어갈 수 있는 강아지 수
+  worldW: 480,
+  worldH: 360,
+  speed: 62, // 초당 이동 거리 (월드 픽셀)
+  posHz: 10,
+  reportBanThreshold: 3, // 서로 다른 친구 3명에게 신고받으면
+  banHours: 24, // 하루 동안 놀이터에 못 들어와요
+};
+
+// 놀이터 곳곳의 놀이 장소
+export const PLAZA_SPOTS = {
+  fountain: { name: '분수대', x: 240, y: 176 },
+  tag: { name: '술래잡기 마당', x: 392, y: 76, w: 120, h: 96 },
+  ribbon: { name: '대왕 선물 상자', x: 104, y: 250, game: 'ribbon' },
+  sand: { name: '보물 모래밭', x: 90, y: 110, soon: true },
+  soccer: { name: '멍멍 축구장', x: 380, y: 280, soon: true },
+};
+
+export const TAG = { seconds: 60, radius: 14, immuneMs: 1500, minPlayers: 2, countdownMs: 4000, coins: 5, coinsPerTag: 2, maxCoins: 15 };
+
+// 2인 협동 미니게임 (공통 규칙)
+export const COOP_GAMES = {
+  ribbon: {
+    name: '으쌰으쌰 대왕 리본 풀기',
+    desc: '두 친구가 게이지가 초록 칸에 올 때 동시에 영차! 매듭 3개를 풀면 선물 상자가 팡!',
+    timeLimit: 90,
+    syncMs: 300,
+    stages: [
+      { periodMs: 1700, zone: [0.36, 0.64] },
+      { periodMs: 1400, zone: [0.39, 0.61] },
+      { periodMs: 1150, zone: [0.41, 0.59] },
+    ],
+    reward: { clear: 12, timeout: 3, item: 'clover' },
+  },
 };
 
 // 채팅: 표정 스티커와 정해진 문장

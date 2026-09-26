@@ -9,6 +9,9 @@ import { Auth } from './auth.js';
 import { Friends } from './friends.js';
 import { RoomHub } from './rooms.js';
 import { Bonds } from './bonds.js';
+import { Safety } from './safety.js';
+import { PlazaHub } from './plaza.js';
+import { CoopHub } from './coop/index.js';
 import { checkDogName } from './filter.js';
 import { RULES } from '../shared/data.js';
 
@@ -25,6 +28,10 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const server = http.createServer(app);
   const io = new Server(server);
   const hub = new RoomHub(io, { auth, game, friends, bonds });
+  const safety = new Safety(db, { now });
+  const plaza = new PlazaHub(io, { game, friends, safety, bonds });
+  const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
+  io.on('connection', (socket) => { plaza.bind(socket); coop.bind(socket); });
 
   app.disable('x-powered-by');
   if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
@@ -169,6 +176,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { id: target.id, nickname: target.nickname, isMe: target.id === req.userId, isFriend: friends.areFriends(req.userId, target.id) };
   }));
   api.post('/friends/request', authed, limiter(30, 10 * 60_000), wrap((req) => {
+    const target = game.getUserByCode(String(req.body?.code ?? '').trim());
+    if (target && safety.isBlocked(req.userId, target.id)) throw new GameError('친구 신청을 보낼 수 없어요.');
     const res = friends.request(req.userId, req.body?.code);
     hub.emitToUser(res.target.id, 'friends:changed', {});
     return { status: res.status, nickname: res.target.nickname };
@@ -187,7 +196,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', (req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
 
-  return { app, server, io, db, game, auth, friends, bonds, hub, rules: RULES };
+  return { app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, rules: RULES };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
