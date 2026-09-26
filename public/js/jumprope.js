@@ -264,3 +264,6 @@ function loadBest() {
 function saveBest(v) {
   try { if (v > loadBest()) localStorage.setItem(BEST_KEY, String(v)); } catch { /* 무시 */ }
 }
+
+// 실시간 2인 줄넘기(coop-jumprope.js)에서도 같은 그림을 써요
+export { drawField, drawRope, W as ROPE_W, H as ROPE_H, FEET as ROPE_FEET, DOGS_X as ROPE_DOGS_X };

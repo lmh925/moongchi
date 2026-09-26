@@ -326,6 +326,7 @@ export const PLAZA_SPOTS = {
   fountain: { name: '분수대', x: 240, y: 176 },
   tag: { name: '술래잡기 마당', x: 392, y: 76, w: 120, h: 96 },
   ribbon: { name: '대왕 선물 상자', x: 104, y: 250, game: 'ribbon' },
+  jumprope: { name: '줄넘기 터', x: 150, y: 298, game: 'jumprope' },
   sand: { name: '보물 모래밭', x: 90, y: 110, soon: true },
   soccer: { name: '멍멍 축구장', x: 380, y: 280, soon: true },
 };
@@ -345,6 +346,21 @@ export const COOP_GAMES = {
       { periodMs: 1150, zone: [0.41, 0.59] },
     ],
     reward: { clear: 12, timeout: 3, item: 'clover' },
+  },
+  jumprope: {
+    name: '깡총깡총 실시간 줄넘기',
+    desc: '밧줄이 발밑에 올 때 두 친구가 각자 톡! 둘 다 뛰어야 넘어가요. 20번 넘으면 성공!',
+    timeLimit: 120,
+    goal: 20,
+    lives: 3,
+    startPeriodMs: 1600,
+    minPeriodMs: 800,
+    speedupEvery: 5,
+    speedupMs: 120,
+    windowMs: 220,
+    minWindowMs: 150,
+    graceMs: 180, // 네트워크 지연을 감안해 판정을 조금 기다려요
+    reward: { clear: 12, perCombo: 0.4 },
   },
 };
 

@@ -41,6 +41,8 @@ const state = {
 const barkPitch = (dog) => (dog ? 1.35 - dog.stage * 0.15 - (dog.breed === 'corgi' || dog.breed === 'shiba' ? 0.1 : 0) : 1);
 
 const myId = () => state.me?.user.id;
+// 자동 테스트용 (주소에 ?debug 가 있을 때만)
+if (new URLSearchParams(location.search).has('debug')) window.__mm = state;
 const serverNow = () => Date.now() + state.offset;
 const atHome = () => state.roomOwnerId === myId();
 
@@ -1350,8 +1352,10 @@ function renderTagHud() {
     if (t.status === 'waiting') lines.push(`술래잡기 모집 중 (${t.players.length}명)${t.startsAt ? ' · 곧 시작!' : ''}`);
     else lines.push(`술래잡기 ${Math.max(0, Math.ceil((t.endsAt - serverNow()) / 1000))}초 · 술래: ${name(t.it)}`);
   }
-  const w = p.waiting.ribbon;
-  if (w && w.userId !== myId()) lines.push(`선물 상자에서 ${w.nickname}(이)가 친구를 기다려요!`);
+  for (const [game, w] of Object.entries(p.waiting)) {
+    const spot = Object.values(PLAZA_SPOTS).find((sp) => sp.game === game);
+    if (w && w.userId !== myId()) lines.push(`${spot?.name ?? '놀이 장소'}에서 ${w.nickname}(이)가 친구를 기다려요!`);
+  }
   hud.replaceChildren(...lines.map((l) => el('div', {}, l)));
   hud.hidden = !lines.length;
   clearTimeout(state.tagHudTimer);
@@ -1377,7 +1381,7 @@ function renderSpotBox() {
   const info = spot && PLAZA_SPOTS[spot];
   let content;
   if (!info) {
-    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자(왼쪽 아래)나 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
+    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자·줄넘기 터(왼쪽 아래), 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
   } else if (info.soon) {
     content = [el('b', {}, info.name), el('div', { class: 'meta' }, '곧 열려요! 조금만 기다려 주세요.')];
   } else if (spot === 'tag') {

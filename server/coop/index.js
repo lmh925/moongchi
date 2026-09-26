@@ -5,8 +5,9 @@ import crypto from 'node:crypto';
 import { COOP_GAMES, ITEMS } from '../../shared/data.js';
 import { kstDate } from '../../shared/rules.js';
 import { ribbon } from '../../shared/coop/ribbon.js';
+import { jumprope } from '../../shared/coop/jumprope.js';
 
-export const GAMES = { ribbon };
+export const GAMES = { ribbon, jumprope };
 const DAILY_COIN_CAP = 80;
 
 export class CoopHub {
@@ -147,7 +148,8 @@ export class CoopHub {
       results[role] = { coins, item };
     }
     if (!reason) this.bonds.add(session.players.p1.userId, session.players.p2.userId, 'play');
-    this.send(session, 'coop:end', { sid: session.sid, status: reason ?? session.state.status, results });
+    const summary = GAMES[session.gameId].summary?.(session.state) ?? null;
+    this.send(session, 'coop:end', { sid: session.sid, status: reason ?? session.state.status, results, summary });
   }
 
   leaveSession(userId) {

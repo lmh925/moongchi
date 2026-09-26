@@ -162,3 +162,28 @@ test('협동 게임: 같은 놀이 장소에서 기다리던 두 명이 짝이 �
   assert.equal(me.user.coins - coinsBefore, end.results.p1.coins);
   assert.ok(me.user.owned.includes('clover'));
 });
+
+test('실시간 줄넘기 규칙: 둘 다 판정 범위 안에서 뛰어야 넘어가요', async () => {
+  const { jumprope, ropePhase } = await import('../shared/coop/jumprope.js');
+  const s = jumprope.init({ now: 0 });
+  assert.equal(ropePhase(s, s.nextJ), 0.5);
+  // 둘 다 성공
+  let J = s.nextJ;
+  jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J - 50 }, now: J });
+  jumprope.input(s, { role: 'p2', input: { type: 'jump', at: J + 60 }, now: J + 100 });
+  let ev = jumprope.tick(s, J + 1000);
+  assert.equal(ev[0].ok, true);
+  assert.equal(s.combo, 1);
+  // 한 명만 뛰면 하트가 줄어요
+  J = s.nextJ;
+  jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J }, now: J });
+  ev = jumprope.tick(s, J + 1000);
+  assert.deepEqual([ev[0].ok, ev[0].missed, s.lives, s.combo], [false, ['p2'], 2, 0]);
+  // 너무 이르면 판정 안 됨 (벌칙도 없음)
+  J = s.nextJ;
+  assert.equal(jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J - 600 }, now: J - 600 })[0].good, false);
+  // 하트를 다 잃으면 끝
+  for (let i = 0; i < 2; i++) jumprope.tick(s, s.nextJ + 1000);
+  assert.equal(s.status, 'over');
+  assert.ok(jumprope.reward(s).coins >= 2);
+});

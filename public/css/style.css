@@ -300,6 +300,8 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 .knots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
 .knot { width: 14px; height: 14px; border-radius: 50%; background: var(--butter); border: 2px solid var(--ink); }
 .knot.done { background: var(--grass-l); }
+.jr-coop-stage { aspect-ratio: 4 / 3; }
+.big-hearts { font-size: 20px; }
 .coop-btn { width: 100%; margin-top: 10px; font-size: 24px; touch-action: manipulation; }
 .coop-btn.glow { background: var(--grass-l); text-shadow: 1px 1px 0 var(--grass-d); }
 

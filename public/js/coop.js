@@ -5,8 +5,9 @@ import { sfx, playBgm } from './audio.js';
 import { dogPortrait, iconURL } from './sprites.js';
 import { ITEMS } from '/shared/data.js';
 import { RibbonRenderer } from './coop-ribbon.js';
+import { JumpRopeRenderer } from './coop-jumprope.js';
 
-const RENDERERS = { ribbon: RibbonRenderer };
+const RENDERERS = { ribbon: RibbonRenderer, jumprope: JumpRopeRenderer };
 
 export class CoopClient {
   // hooks: { onStart(), onEnd(result), onRetry(game) }
@@ -88,7 +89,8 @@ export class CoopClient {
       const wrap = el('div', { class: 'modal-wrap' },
         el('div', { class: 'modal-card center' },
           el('h2', { class: 'modal-title' }, clear ? '대성공!' : p.status === 'left' ? '친구가 먼저 나갔어요' : '다음에 또 해요!'),
-          el('p', {}, clear ? `${s.partner.nickname}(이)랑 힘을 모아 해냈어요!` : p.status === 'left' ? '괜찮아요, 다른 친구랑 또 해 봐요.' : '시간이 다 됐어요. 조금만 더 하면 될 것 같아요!'),
+          el('p', {}, clear ? `${s.partner.nickname}(이)랑 힘을 모아 해냈어요!` : p.status === 'left' ? '괜찮아요, 다른 친구랑 또 해 봐요.' : p.status === 'over' ? '하트를 다 썼어요. 다시 호흡을 맞춰 봐요!' : '시간이 다 됐어요. 조금만 더 하면 될 것 같아요!'),
+          p.summary ? el('p', { class: 'jr-score' }, p.summary) : null,
           mine.coins ? el('p', { class: 'price center' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '' }), ` 뼈다귀 코인 +${mine.coins}`) : null,
           mine.item ? el('p', {}, '특별 선물: ', el('span', { class: 'learned' }, ITEMS[mine.item].name), ' (꾸미기에서 써 보세요)') : null,
           el('div', { class: 'modal-buttons' },

@@ -70,6 +70,11 @@ function drawWorld() {
   rect(ctx, s.x, s.y - 41, 1, 82, '#ffffff');
   ctx.beginPath(); ctx.arc(s.x + 0.5, s.y + 0.5, 12, 0, Math.PI * 2); ctx.stroke();
   for (const gx of [s.x - 84, s.x + 78]) { rect(ctx, gx, s.y - 12, 6, 24, '#ffffff'); rect(ctx, gx + 1, s.y - 11, 4, 22, '#dfe6f0'); }
+  // 줄넘기 터: 말뚝 두 개와 바닥에 놓인 줄
+  const j = PLAZA_SPOTS.jumprope;
+  ellipse(ctx, j.x, j.y + 2, 34, 9, '#6cc070');
+  for (const px of [j.x - 30, j.x + 30]) { rect(ctx, px - 2, j.y - 16, 4, 18, OUT); rect(ctx, px - 1, j.y - 15, 2, 16, '#c98a4b'); ellipse(ctx, px, j.y - 16, 3, 3, '#ff9fb8'); }
+  for (let x = -28; x <= 28; x++) rect(ctx, j.x + x, j.y - 14 + Math.round((1 - (x / 28) ** 2) * 14), 1, 2, '#e84a5f');
   // 선물 상자 받침
   const r = PLAZA_SPOTS.ribbon;
   ellipse(ctx, r.x, r.y + 8, 26, 9, '#ffd9e3');
@@ -322,7 +327,7 @@ export class PlazaView {
     let spot = null;
     for (const [key, s] of Object.entries(PLAZA_SPOTS)) {
       if (key === 'fountain') continue;
-      const inside = s.w ? Math.abs(me.x - s.x) < s.w / 2 && Math.abs(me.y - s.y) < s.h / 2 : Math.hypot(me.x - s.x, me.y - s.y) < 36;
+      const inside = s.w ? Math.abs(me.x - s.x) < s.w / 2 && Math.abs(me.y - s.y) < s.h / 2 : Math.hypot(me.x - s.x, me.y - s.y) < 42;
       if (inside) spot = key;
     }
     if (spot !== this.spot) { this.spot = spot; this.handlers.onSpot?.(spot); }
