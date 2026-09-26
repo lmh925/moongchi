@@ -14,6 +14,7 @@ import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
 import { playJumpRope } from './jumprope.js';
+import { openLeaderboard, lbToast } from './leaderboard.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
@@ -1155,7 +1156,12 @@ async function startJumpRope() {
   unlock();
   const p = partner();
   const mine = publicDog(state.me.dog);
-  await playJumpRope(mine, p.dog, [mine.name, p.dog.name]);
+  // 랭킹용: 시작 시각을 서버에 먼저 알려 두고, 끝나면 이번 판 최고 콤보를 보내요 (실패해도 놀이는 그대로)
+  const rope = await post('/rope/start', {}).catch(() => null);
+  const result = await playJumpRope(mine, p.dog, [mine.name, p.dog.name]);
+  if (rope && result?.session > 0) {
+    try { lbToast((await post('/rope/finish', { ropeId: rope.ropeId, combo: result.session })).lb); } catch { /* 랭킹만 빠져요 */ }
+  }
   if (state.tab === 'play') renderPanel();
 }
 
@@ -2274,6 +2280,10 @@ function playPanel() {
       el('div', { class: 'title' }, '멍뭉 놀이터', el('span', { class: 'chip' }, '다 같이!')),
       el('p', {}, '여러 친구 강아지들이 모이는 큰 공원! 조이스틱으로 뛰어다니고, 술래잡기와 대왕 리본 풀기를 같이 해요.'),
       el('button', { class: 'btn primary', disabled: !!dog.school, onclick: () => enterPlaza() }, '놀이터 가기!')),
+    el('button', { class: 'lb-open', onclick: () => { unlock(); sfx.tap(); openLeaderboard({ api, now: serverNow }); } },
+      el('span', { class: 'lb-cup' }, '🏆'),
+      el('span', {}, el('b', {}, '이번 주 랭킹'), el('small', {}, '멍뭉런 · 간식 받기 · 합동 줄넘기 — 친구랑 겨뤄요!')),
+      el('span', { class: 'lb-go' }, '보기 ›')),
     el('h3', {}, '둘이 놀기'),
     el('p', { class: 'sub' }, `${partner().name}(이)랑 함께해요. 친구가 우리 집에 놀러 와 있으면 그 친구와 놀아요!`),
     el('div', { class: 'cards' },
@@ -2303,6 +2313,7 @@ async function startGame(type) {
     applyMe(res);
     if (res.result.coins) sfx.coin();
     toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}${res.result.exp ? ` · 경험치 +${res.result.exp}` : ''}`, 'good');
+    lbToast(res.result.lb);
     renderPanel();
     await handleEvents(res.events);
   } catch (err) { exitLandscape(); toast(err.message, 'bad'); renderPanel(); }

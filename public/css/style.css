@@ -989,3 +989,24 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .baby-reveal h3 { margin: 4px 0; }
 .help.family { color: var(--pink-d); font-weight: 700; }
 .wish-box .card .title { flex-wrap: wrap; gap: 6px; }
+
+/* 이번 주 랭킹 */
+.lb-open { display: flex; align-items: center; gap: 10px; width: 100%; margin: 12px 0 10px; padding: 10px 12px; border: 3px solid var(--ink); border-radius: 14px; background: linear-gradient(180deg, #fff3c4, #ffd98a); color: var(--ink); text-align: left; cursor: pointer; font: inherit; box-shadow: 0 3px 0 var(--ink); }
+.lb-open:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.lb-open .lb-cup { font-size: 28px; }
+.lb-open > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.lb-open small { font-size: 12px; opacity: .8; }
+.lb-open .lb-go { font-weight: 800; }
+.lb-modal .segmented button { white-space: nowrap; padding: 6px 2px; font-size: 14px; }
+.lb-modal .segmented.small button { padding: 4px; font-size: 13px; }
+.lb-list { list-style: none; margin: 6px 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.lb-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 2px dashed #eadbc6; }
+.lb-row img, .lb-row .lb-noimg { width: 40px; height: 37px; flex: none; }
+.lb-rank { width: 28px; text-align: center; font-weight: 800; font-size: 16px; flex: none; }
+.lb-row.top .lb-rank { font-size: 22px; }
+.lb-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lb-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-name small { font-size: 12px; opacity: .7; }
+.lb-score { font-weight: 800; white-space: nowrap; }
+.lb-row.me { background: #fff1d6; border-radius: 10px; border-bottom-color: transparent; outline: 2px solid var(--butter, #ffd23f); }
+.lb-mine { margin: 8px 0 4px; padding: 6px 10px; border-radius: 10px; background: #fff7e6; border: 2px solid #eadbc6; text-align: center; font-weight: 700; }

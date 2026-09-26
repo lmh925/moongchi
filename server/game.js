@@ -820,7 +820,7 @@ export class Game {
         this.saveDog(dog);
       }
       events.push(...this.track(userId, game.type === 'run' ? 'run' : 'catch'));
-      return { coins, exp, events };
+      return { coins, exp, events, type: game.type, safeScore };
     });
   }
 

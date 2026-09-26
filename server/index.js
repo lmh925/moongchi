@@ -17,6 +17,7 @@ import { CoopHub } from './coop/index.js';
 import { Progress } from './progress.js';
 import { Trades } from './trades.js';
 import { Babies } from './babies.js';
+import { Leaderboard } from './leaderboard.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -41,6 +42,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const safety = new Safety(db, { now });
   const trades = new Trades(db, { game, friends, safety, progress });
   const babies = new Babies(db, { game, friends, safety, bonds, progress });
+  const leaderboard = new Leaderboard(db, { game, friends, safety, progress });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -139,7 +141,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const me = (userId, extra = {}) => {
     const { dog, events } = game.refreshDog(userId);
     if (events.length) hub.dogChanged(userId);
-    if (extra.visit) events.push(...progress.onMe(userId, dog));
+    if (extra.visit) events.push(...progress.onMe(userId, dog), ...leaderboard.rewardLastWeek(userId));
     events.push(...babies.deliver(userId));
     const others = game.refreshOthers(userId);
     if (others.length) { events.push(...others); hub.dogsChanged(userId); }
@@ -304,8 +306,14 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/minigame/finish', authed, wrap((req) => {
     const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score);
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
+    res.lb = leaderboard.submit(req.userId, res.type, res.safeScore);
     return { ...me(req.userId, { events: res.events }), result: res };
   }));
+
+  // ---------- 이번 주 랭킹 ----------
+  api.get('/leaderboard', authed, wrap((req) => leaderboard.board(req.userId, String(req.query.game ?? 'run'), req.query.scope === 'all' ? 'all' : 'friends')));
+  api.post('/rope/start', authed, limiter(60, 10 * 60_000), wrap((req) => leaderboard.ropeStart(req.userId)));
+  api.post('/rope/finish', authed, wrap((req) => ({ lb: leaderboard.ropeFinish(req.userId, req.body?.ropeId, req.body?.combo) })));
 
   // ---------- 운영자 (신고 확인) ----------
   // 환경 변수 ADMIN_CODE가 있을 때만 켜져요. 요청마다 x-admin-code 헤더로 확인해요.

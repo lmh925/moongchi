@@ -153,3 +153,14 @@ test('가입은 보호자 확인 체크가 필요하고, 계정 지우기는 비
   assert.equal(page.status, 200);
   assert.match(await page.text(), /개인정보처리방침/);
 });
+
+test('이번 주 랭킹 API', async () => {
+  const p = await player('랭커', 'bichon');
+  const empty = await call('/leaderboard?game=catch&scope=friends', { token: p.token });
+  assert.deepEqual([empty.data.entries.length, empty.data.mine], [0, null]);
+  const rope = await call('/rope/start', { token: p.token, body: {} });
+  const done = await call('/rope/finish', { token: p.token, body: { ropeId: rope.data.ropeId, combo: 50 } });
+  assert.equal(done.status, 200);
+  assert.equal(done.data.lb, null, '방금 시작했으면 콤보가 인정되지 않아요');
+  assert.equal((await call('/leaderboard?game=hack', { token: p.token })).status, 400);
+});

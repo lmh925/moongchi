@@ -136,6 +136,22 @@ export function openDb(file) {
   ensure('users', 'treats', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'poop', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'parents', 'TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS scores (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game TEXT NOT NULL,
+    week TEXT NOT NULL,
+    best INTEGER NOT NULL,
+    dog TEXT,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, game, week)
+  );
+  CREATE INDEX IF NOT EXISTS scores_board ON scores(game, week, best DESC);
+  CREATE TABLE IF NOT EXISTS lb_rewards (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    game TEXT NOT NULL,
+    week TEXT NOT NULL,
+    PRIMARY KEY (user_id, game, week)
+  );`);
   ensure('dogs', 'kids', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(`CREATE TABLE IF NOT EXISTS wishes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -148,6 +148,7 @@ export function playJumpRope(me, friend, names) {
     };
 
     const gameOver = () => {
+      s.sessionBest = Math.max(s.sessionBest ?? 0, s.combo); // 이번에 논 것 중 최고 (랭킹용)
       s.mode = 'over';
       s.fail = 0;
       sfx.hurt();
@@ -178,7 +179,7 @@ export function playJumpRope(me, friend, names) {
       window.removeEventListener('keydown', onKey);
       playBgm('home');
       wrap.remove();
-      resolve({ best: s.best });
+      resolve({ best: s.best, session: Math.max(s.sessionBest ?? 0, s.combo) });
     };
 
     const onKey = (e) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); tap(); } };

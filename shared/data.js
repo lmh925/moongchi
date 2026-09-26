@@ -640,6 +640,7 @@ export const BADGES = {
   legends: { name: '전설의 친구들', desc: '스페셜 강아지 5마리 모두 만나기', icon: 'star', color: '#ff9fe0', special: 'specials', n: 5 },
   trio: { name: '요크 삼형제 모임', desc: '키리쿠·건·피츄가 한자리에', icon: 'heart', color: '#6d7a8e', stat: ['trio'], n: 1 },
   fashion: { name: '패션쇼 스타', desc: '패션쇼에서 응원 1등 3번', icon: 'star', color: '#ff6f91', stat: ['showStar'], n: 3 },
+  champion: { name: '주간 챔피언', desc: '이번 주 랭킹 3등 안에 들기', icon: 'medal', color: '#ffd23f', stat: ['champion'], n: 1 },
   trader: { name: '멍뭉 상인', desc: '친구와 거래 5번 하기', icon: 'coin', color: '#3fb58a', stat: ['trade'], n: 5 },
 };
 export const BADGE_COINS = 20; // 배지를 얻으면 받는 코인
@@ -778,4 +779,18 @@ export const BABY = {
   arriveMs: 48 * 3600_000, // 소원을 빌고 선물이 오기까지
   cooldownMs: 7 * 24 * 3600_000, // 같은 두 친구가 다시 소원을 빌 수 있기까지
   maxDogs: 3, // 한 집에 함께 사는 강아지 최대 수
+};
+
+// ---------- 이번 주 랭킹 ----------
+// 매주 월요일(한국 시간) 새로 시작해요. 친구 랭킹과 전체 랭킹, 지난주 1~3등은 우편함으로 선물을 받아요.
+export const LEADERBOARD = {
+  games: {
+    run: { name: '멍뭉런', unit: '개', desc: '모은 간식 수' },
+    catch: { name: '간식 받기', unit: '개', desc: '받아먹은 간식 수' },
+    rope: { name: '합동 줄넘기', unit: '콤보', desc: '최고 콤보' },
+  },
+  top: 20, // 전체 랭킹에 보여 주는 수
+  rewards: [30, 20, 10], // 지난주 1·2·3등 코인
+  ropeMaxCombo: 500,
+  ropeSecondsPerCombo: 0.9, // 줄넘기 콤보 1개에 최소 걸리는 시간 (가짜 기록 막기)
 };
