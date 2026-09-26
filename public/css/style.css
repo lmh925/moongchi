@@ -937,3 +937,11 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .trade-warn { background: #fff4d6; border: 2px solid #e0a800; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: 700; margin: 8px 0; }
 .chip.st-accepted { background: var(--mint); }
 .chip.st-declined, .chip.st-cancelled, .chip.st-expired { background: #eee3d3; }
+
+/* 보호자 확인 · 개인정보 · 계정 지우기 */
+.consent { display: flex; gap: 8px; align-items: flex-start; text-align: left; font-size: 12px; line-height: 1.5; margin: 10px 0 0; color: var(--ink-soft); }
+.consent input { width: 20px; height: 20px; flex: 0 0 20px; margin: 0; accent-color: var(--pink-d); }
+.consent a, .legal-link a { color: var(--pink-d); }
+.legal-link { font-size: 12px; margin: 10px 0 0; text-align: center; color: var(--ink-soft); }
+.link.danger { color: var(--red); }
+.danger-btn { background: var(--red); color: #fff; }

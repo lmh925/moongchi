@@ -36,6 +36,11 @@ export class RoomHub {
     return (this.sockets.get(userId)?.size ?? 0) > 0;
   }
 
+  // 계정을 지울 때: 열려 있는 창을 모두 닫아요 (방·놀이터에서도 나가요)
+  disconnectUser(userId) {
+    for (const s of [...(this.sockets.get(userId) ?? [])]) s.disconnect(true);
+  }
+
   emitToUser(userId, event, payload) {
     for (const s of this.sockets.get(userId) ?? []) s.emit(event, payload);
   }

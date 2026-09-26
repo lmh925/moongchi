@@ -55,7 +55,7 @@ let n = 0;
 async function player(breed = 'bichon') {
   n += 1;
   const nick = `놀이${'가나다라마바사아자차카타파하구누두루무부수우주'[n]}`;
-  const { data } = await call('/signup', { body: { nickname: nick, pin: '1234' } });
+  const { data } = await call('/signup', { body: { nickname: nick, pin: '1234', consent: true } });
   const me = await call('/dog', { token: data.token, body: { name: `멍${n}`, breed, personality: 'sweet' } });
   const socket = ioClient(base, { auth: { token: data.token }, transports: ['websocket'] });
   sockets.push(socket);

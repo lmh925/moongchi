@@ -57,6 +57,12 @@ export class Auth {
     checkPin(pin);
     const row = this.db.prepare('SELECT * FROM users WHERE nickname = ?').get(String(nickname ?? '').trim());
     if (!row) throw new GameError('그런 닉네임을 찾을 수 없어요.');
+    this.checkRowPin(row, pin);
+    return { userId: row.id, token: this.issueToken(row.id) };
+  }
+
+  // 비밀번호 확인 (틀리면 횟수를 세고, 여러 번 틀리면 잠가요)
+  checkRowPin(row, pin) {
     const now = this.now();
     if (row.locked_until > now) {
       const min = Math.ceil((row.locked_until - now) / 60_000);
@@ -70,7 +76,19 @@ export class Auth {
       throw new GameError(lock ? '비밀번호를 여러 번 틀려서 10분 동안 잠겼어요.' : `비밀번호가 달라요. (${fails}/${MAX_FAILS})`, 401);
     }
     this.db.prepare('UPDATE users SET fail_count = 0, locked_until = 0 WHERE id = ?').run(row.id);
-    return { userId: row.id, token: this.issueToken(row.id) };
+  }
+
+  // 계정 삭제: 비밀번호를 한 번 더 확인하고, 강아지·친구·편지·거래 기록까지 모두 지워요 (되돌릴 수 없어요)
+  verifyPin(userId, pin) {
+    checkPin(pin);
+    const row = this.db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!row) throw new GameError('계정을 찾을 수 없어요.', 404);
+    this.checkRowPin(row, pin);
+  }
+
+  deleteAccount(userId, pin) {
+    this.verifyPin(userId, pin);
+    this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
   }
 
   userIdForToken(token) {

@@ -108,8 +108,10 @@ const pad = pinPad((p) => {
 $('#auth-pin').append(pad.node);
 
 function updateAuthButton() {
-  $('#auth-submit').disabled = $('#auth-nick').value.trim().length < 2 || authPin.length !== 4;
+  const consentOK = authMode !== 'signup' || $('#auth-consent-box').checked;
+  $('#auth-submit').disabled = $('#auth-nick').value.trim().length < 2 || authPin.length !== 4 || !consentOK;
 }
+$('#auth-consent-box').addEventListener('change', updateAuthButton);
 
 // ---------- 빠른 로그인 (이 기기에 저장한 닉네임) ----------
 // 비밀번호는 저장하지 않아요. 닉네임과 강아지 모습만 기억해요.
@@ -162,6 +164,8 @@ function openAuth(mode, nickname = '') {
   $('#auth-submit').textContent = mode === 'signup' ? '시작하기' : '들어가기';
   $('#auth-error').textContent = '';
   $('#auth-nick').value = nickname;
+  $('#auth-consent').hidden = mode !== 'signup';
+  $('#auth-consent-box').checked = false;
   pad.reset();
   renderQuickLogin();
   show('auth');
@@ -175,7 +179,7 @@ $('#auth-submit').addEventListener('click', async () => {
   const btn = $('#auth-submit');
   btn.disabled = true;
   try {
-    const res = await post(authMode === 'signup' ? '/signup' : '/login', { nickname: $('#auth-nick').value.trim(), pin: authPin });
+    const res = await post(authMode === 'signup' ? '/signup' : '/login', { nickname: $('#auth-nick').value.trim(), pin: authPin, consent: $('#auth-consent-box').checked });
     setToken(res.token);
     if (authMode === 'signup') {
       modal({
@@ -2086,11 +2090,40 @@ function openSettings() {
       el('p', {}, `친구 코드: ${user.friendCode}`),
       el('p', { class: 'help' }, '강아지는 방치해도 아프거나 떠나지 않아요. 대신 조금 시무룩해지니까 자주 놀러 와 주세요!'),
       canInstall() ? el('button', { class: 'btn small primary', onclick: () => installApp() }, '📲 앱으로 설치하기') : null,
-      state.me.dog?.special && !state.me.dog.original ? el('button', { class: 'link', onclick: openOriginal }, '원조 코드가 있어요') : null),
+      state.me.dog?.special && !state.me.dog.original ? el('button', { class: 'link', onclick: openOriginal }, '원조 코드가 있어요') : null,
+      el('p', { class: 'legal-link' }, el('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, '개인정보처리방침'), ' · ',
+        el('button', { class: 'link danger', onclick: openDeleteAccount }, '계정 지우기'))),
     buttons: [
       { label: '로그아웃', kind: 'secondary', onClick: logout },
       { label: '닫기' },
     ],
+  });
+}
+
+// 계정 지우기: 비밀번호를 한 번 더 넣어야 해요. 되돌릴 수 없어요.
+function openDeleteAccount() {
+  closeAllModals();
+  let pin = '';
+  const delPad = pinPad((p) => { pin = p; btn.disabled = p.length !== 4; });
+  const btn = el('button', { class: 'btn danger-btn', disabled: true }, '정말 지우기');
+  const { close } = modal({
+    title: '계정을 지울까요?',
+    body: el('div', { class: 'center' },
+      el('p', {}, `${state.me.user.nickname}의 강아지·아이템·친구·편지가 `, el('b', {}, '모두 사라지고 되돌릴 수 없어요.')),
+      el('p', { class: 'help' }, '꼭 보호자와 함께 결정해 주세요. 계속하려면 비밀번호 숫자 4개를 넣어 주세요.'),
+      delPad.node,
+      el('div', { class: 'modal-buttons' }, el('button', { class: 'btn secondary', onclick: () => close() }, '그만두기'), btn)),
+    buttons: [],
+  });
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      await post('/account/delete', { pin });
+      forgetAccount(state.me.user.nickname);
+      setToken(null);
+      close();
+      modal({ title: '계정을 지웠어요', body: el('p', { class: 'center' }, '그동안 함께해 줘서 고마웠어요. 🐾'), buttons: [{ label: '처음으로', onClick: () => { location.href = '/'; } }], dismissable: false });
+    } catch (err) { toast(err.message, 'bad'); delPad.reset(); }
   });
 }
 

@@ -30,6 +30,7 @@
         </div>
         <div class="quick-login" hidden></div>
         <button id="install-btn" class="btn ghost install-btn" type="button" hidden>📲 앱으로 설치하기</button>
+        <p class="legal-link"><a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a></p>
       </div>
     </section>
 
@@ -44,6 +45,10 @@
         </label>
         <p class="label">비밀번호 (숫자 4개)</p>
         <div id="auth-pin"></div>
+        <label id="auth-consent" class="consent" hidden>
+          <input type="checkbox" id="auth-consent-box">
+          <span>보호자와 함께 <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a>을 읽었어요. (만 14세 미만은 보호자 동의가 필요해요)</span>
+        </label>
         <p id="auth-error" class="error" role="alert"></p>
         <div class="quick-login small" hidden></div>
         <div class="row">

@@ -16,6 +16,7 @@ import { PlazaHub } from './plaza.js';
 import { CoopHub } from './coop/index.js';
 import { Progress } from './progress.js';
 import { Trades } from './trades.js';
+import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
 import { RULES } from '../shared/data.js';
@@ -24,6 +25,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, 'data', 'meongmung.db'), speed = Number(process.env.GAME_SPEED) || 1, now, rateLimit = true } = {}) {
   const db = openDb(dbFile);
+  const backups = startBackups(db, dbFile);
   const game = new Game(db, { speed, now });
   const auth = new Auth(db, { now });
   const friends = new Friends(db, game);
@@ -69,6 +71,10 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const noCache = { setHeaders: (res) => res.set('Cache-Control', 'no-cache') };
   const forever = { immutable: true, maxAge: '365d' };
   app.get(['/', '/index.html'], sendIndex);
+  // 개인정보처리방침 (문의처는 환경 변수 CONTACT_EMAIL)
+  const privacyHtml = fs.readFileSync(path.join(root, 'public', 'privacy.html'), 'utf8')
+    .replace('{{CONTACT}}', (process.env.CONTACT_EMAIL ?? '운영자에게 문의 (연락처 준비 중)').replace(/[<>&"]/g, ''));
+  app.get(['/privacy', '/privacy.html'], (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(privacyHtml); });
   app.use('/v/:build/shared', express.static(path.join(root, 'shared'), forever));
   app.use('/v/:build', express.static(path.join(root, 'public'), forever));
   app.use(express.static(path.join(root, 'public'), { ...noCache, index: false }));
@@ -113,9 +119,19 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
 
   api.get('/config', wrap(() => ({ speed })));
   api.get('/version', (req, res) => { res.set('Cache-Control', 'no-store'); res.json({ build: BUILD }); });
-  api.post('/signup', limiter(10, 10 * 60_000), wrap((req) => auth.signup(req.body?.nickname, req.body?.pin)));
+  api.post('/signup', limiter(10, 10 * 60_000), wrap((req) => {
+    if (req.body?.consent !== true) throw new GameError('보호자와 함께 개인정보처리방침을 읽고 체크해 주세요.');
+    return auth.signup(req.body?.nickname, req.body?.pin);
+  }));
   api.post('/login', limiter(20, 10 * 60_000), wrap((req) => auth.login(req.body?.nickname, req.body?.pin)));
   api.post('/logout', authed, wrap((req) => { auth.logout(req.token); }));
+  api.post('/account/delete', authed, limiter(10, 10 * 60_000), wrap((req) => {
+    auth.verifyPin(req.userId, req.body?.pin);
+    const friendIds = friends.friendIds(req.userId);
+    hub.disconnectUser(req.userId);
+    auth.deleteAccount(req.userId, req.body?.pin);
+    for (const id of friendIds) hub.emitToUser(id, 'friends:changed', {});
+  }));
 
   const me = (userId, extra = {}) => {
     const { dog, events } = game.refreshDog(userId);
@@ -325,7 +341,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', sendIndex);
 
-  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, trades, rules: RULES };
+  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, trades, backups, rules: RULES };
 }
 
 // public/, shared/ 파일들의 경로·크기·수정 시각으로 짧은 버전 값을 만들어요

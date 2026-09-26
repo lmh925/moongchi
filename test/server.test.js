@@ -20,7 +20,7 @@ async function call(path, { token, body, method } = {}) {
 }
 
 async function player(nickname, breed) {
-  const { data } = await call('/signup', { body: { nickname, pin: '1234' } });
+  const { data } = await call('/signup', { body: { nickname, pin: '1234', consent: true } });
   const me = await call('/dog', { token: data.token, body: { name: `${nickname}멍`, breed, personality: 'sweet' } });
   const socket = ioClient(base, { auth: { token: data.token }, transports: ['websocket'] });
   sockets.push(socket);
@@ -132,4 +132,24 @@ test('게임 파일은 버전 주소로 불러와서 옛 캐시가 남지 않아
   assert.equal(shared.status, 200);
   const plain = await fetch(`${base}/js/main.js`);
   assert.equal(plain.headers.get('cache-control'), 'no-cache');
+});
+
+test('가입은 보호자 확인 체크가 필요하고, 계정 지우기는 비밀번호를 다시 확인해요', async () => {
+  const no = await call('/signup', { body: { nickname: '동의안함', pin: '1234' } });
+  assert.equal(no.status, 400);
+  const p = await player('지울계정', 'poodle');
+  let closed = false;
+  p.socket.on('disconnect', () => { closed = true; });
+  const wrong = await call('/account/delete', { token: p.token, body: { pin: '9999' } });
+  assert.equal(wrong.status, 401);
+  const ok = await call('/account/delete', { token: p.token, body: { pin: '1234' } });
+  assert.equal(ok.status, 200);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.ok(closed, '열린 창도 닫혀요');
+  assert.equal((await call('/me', { token: p.token })).status, 401);
+  const again = await call('/login', { body: { nickname: '지울계정', pin: '1234' } });
+  assert.equal(again.status, 400, '닉네임도 사라져요');
+  const page = await fetch(`${base}/privacy`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /개인정보처리방침/);
 });

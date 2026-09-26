@@ -24,6 +24,8 @@ npm start            # http://localhost:3000
 | `DB_FILE` | `data/meongmung.db` | SQLite 파일 위치 (영구 디스크에 두세요) |
 | `GAME_SPEED` | `1` | 게임 시간 배속 (테스트용) |
 | `TRUST_PROXY` | (없음) | 프록시/로드밸런서 뒤에서 실행할 때 `1` |
+| `CONTACT_EMAIL` | (없음) | 개인정보처리방침(`/privacy`)에 보일 문의처 |
+| `BACKUP_DIR` | DB 옆 `backups/` | 하루 한 번 DB 백업 위치 (`BACKUP_KEEP`: 보관 일수, 기본 14) |
 | `ORIGINAL_CODE` | (없음) | 스페셜 캐릭터 "👑 원조" 코드. 가족 계정이 내 정보 → "원조 코드가 있어요"에 입력해요 (스페셜마다 한 계정만) |
 
 ## 배포
