@@ -253,6 +253,27 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 }
 .school-board .big { font-size: 26px; font-weight: 700; color: var(--butter); }
 
+/* 간식 파티 */
+.party-card {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px;
+  border: 3px solid var(--ink); border-radius: 12px; background: linear-gradient(135deg, #fff1c9, #d9f5e6);
+}
+.party-card .title { font-weight: 700; font-size: 16px; }
+.party-card .meta { font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+.party-card .btn { white-space: nowrap; flex-shrink: 0; }
+.party-hud {
+  position: absolute; right: 6px; top: 6px; background: rgba(255, 250, 240, .92); border: 2px solid var(--ink); border-radius: 8px;
+  padding: 4px 8px; font-size: 12px; min-width: 88px; pointer-events: none;
+}
+.party-time { font-weight: 700; color: var(--pink-d); text-align: center; font-size: 15px; }
+.party-row { display: flex; justify-content: space-between; gap: 8px; }
+.party-row.me { color: var(--pink-d); font-weight: 700; }
+.party-results { display: grid; gap: 8px; }
+.party-result { display: grid; grid-template-columns: 28px 56px 1fr; align-items: center; gap: 8px; border: 2px solid var(--line); border-radius: 10px; padding: 4px 8px; }
+.party-result.me { border-color: var(--pink); background: var(--pink-l); }
+.party-result img { width: 56px; height: 51px; }
+.party-result .rank { font-size: 20px; text-align: center; font-weight: 700; }
+
 /* 함께 등교 (훈련) */
 .together-card {
   border: 3px solid var(--ink); border-radius: 12px; padding: 12px; margin-bottom: 8px;

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { io as ioClient } from 'socket.io-client';
 import { createServer } from '../server/index.js';
 
-const { server } = createServer({ dbFile: ':memory:' });
+const { server, hub } = createServer({ dbFile: ':memory:' });
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 const sockets = [];
@@ -86,4 +86,33 @@ test('돌봄 API와 학교 보내기', async () => {
   assert.ok(school.data.dog.school);
   const blocked = await call('/dog/action', { token: p.token, body: { action: 'pet' } });
   assert.equal(blocked.status, 400);
+});
+
+test('간식 파티: 가까이 있는 강아지만 간식을 먹고, 끝나면 코인을 받아요', async () => {
+  const a = await player('파티장', 'bichon');
+  const b = await player('손님', 'corgi');
+  await call('/friends/request', { token: b.token, body: { code: a.me.user.friendCode } });
+  const l = await call('/friends', { token: a.token });
+  await call('/friends/respond', { token: a.token, body: { requestId: l.data.incoming[0].id, accept: true } });
+  await ask(a.socket, 'room:join', { ownerId: a.me.user.id });
+  assert.equal((await ask(a.socket, 'party:start', {})).ok, false, '혼자서는 파티 불가');
+  await ask(b.socket, 'room:join', { ownerId: a.me.user.id });
+  const started = next(a.socket, 'party:start');
+  const treat = next(a.socket, 'party:treat');
+  assert.equal((await ask(b.socket, 'party:start', {})).ok, true);
+  await started;
+  const t = await treat;
+  b.socket.emit('party:grab', { treatId: t.id, x: (t.x + 0.5) % 1, y: t.y }); // 너무 멀어요
+  const grabbed = next(a.socket, 'party:grabbed');
+  b.socket.emit('party:grab', { treatId: t.id, x: t.x, y: t.y });
+  const g = await grabbed;
+  assert.equal(g.userId, b.me.user.id);
+  const coinsBefore = (await call('/me', { token: b.token })).data.user.coins;
+  const ended = next(a.socket, 'party:end');
+  hub.endParty(a.me.user.id);
+  const { results } = await ended;
+  assert.equal(results[0].userId, b.me.user.id);
+  assert.ok(results[0].winner);
+  const coinsAfter = (await call('/me', { token: b.token })).data.user.coins;
+  assert.equal(coinsAfter - coinsBefore, results[0].coins);
 });

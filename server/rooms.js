@@ -1,5 +1,6 @@
 // 실시간 마이룸: 방문, 이동, 스티커/문장/채팅, 개인기, 초대
-import { STICKERS, PHRASES, TRICKS } from '../shared/data.js';
+import { STICKERS, PHRASES, TRICKS, PARTY } from '../shared/data.js';
+import { kstDate } from '../shared/rules.js';
 import { checkText } from './filter.js';
 
 const clamp01 = (v) => Math.min(1, Math.max(0, Number(v) || 0));
@@ -17,6 +18,8 @@ export class RoomHub {
     this.togetherTimer = setInterval(() => this.tickTogether(), 60_000);
     this.togetherTimer.unref?.();
     this.rooms = new Map(); // ownerId -> Map<userId, member>
+    this.parties = new Map(); // ownerId -> 간식 파티 상태
+    this.partyCoins = new Map(); // `${userId}:${날짜}` -> 오늘 파티로 받은 코인
     this.sockets = new Map(); // userId -> Set<socket>
     io.use((socket, next) => {
       const userId = auth.userIdForToken(socket.handshake.auth?.token);
@@ -101,6 +104,17 @@ export class RoomHub {
       if (!dog?.tricks.includes(msg.trick) || !this.chatGate(socket, 1500)) return;
       socket.to(this.channel(socket.data.room)).emit('room:trick', { userId, trick: msg.trick });
     });
+    socket.on('party:start', (_, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const m = this.member(socket);
+      if (!m) return reply({ ok: false, reason: '방에 들어가 있지 않아요.' });
+      reply(this.startParty(socket.data.room));
+    });
+    socket.on('party:grab', (msg) => {
+      const m = this.member(socket);
+      if (!m) return;
+      this.grabTreat(socket.data.room, userId, String(msg?.treatId ?? ''), clamp01(msg?.x), clamp01(msg?.y));
+    });
     socket.on('invite', (msg, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};
       const friendId = Number(msg?.friendId);
@@ -121,6 +135,72 @@ export class RoomHub {
         this.broadcastPresence(userId, false);
       }
     });
+  }
+
+  // ---------- 간식 파티 ----------
+  startParty(ownerId) {
+    const room = this.rooms.get(ownerId);
+    if (!room || room.size < 2) return { ok: false, reason: '친구가 같이 있어야 파티를 열 수 있어요!' };
+    if (this.parties.has(ownerId)) return { ok: false, reason: '벌써 파티 중이에요!' };
+    const players = [...room.keys()].filter((id) => !this.game.loadDog(id)?.school);
+    if (players.length < 2) return { ok: false, reason: '강아지가 학교에 간 친구가 있어요.' };
+    const now = Date.now();
+    const party = {
+      id: now.toString(36), endsAt: now + PARTY.seconds * 1000, treats: new Map(), scores: new Map(players.map((p) => [p, 0])), seq: 0,
+    };
+    this.parties.set(ownerId, party);
+    this.io.to(this.channel(ownerId)).emit('party:start', { endsAt: party.endsAt, seconds: PARTY.seconds, players });
+    party.spawner = setInterval(() => this.spawnTreat(ownerId), PARTY.spawnMs);
+    party.ender = setTimeout(() => this.endParty(ownerId), PARTY.seconds * 1000);
+    return { ok: true };
+  }
+
+  spawnTreat(ownerId) {
+    const party = this.parties.get(ownerId);
+    if (!party) return;
+    const now = Date.now();
+    for (const [id, t] of party.treats) if (now - t.born > PARTY.treatLifeMs) party.treats.delete(id);
+    const star = Math.random() < 0.12;
+    const t = { id: `${party.id}-${party.seq++}`, x: 0.05 + Math.random() * 0.9, y: 0.05 + Math.random() * 0.9, kind: star ? 'star' : 'bone', value: star ? 3 : 1, born: now };
+    party.treats.set(t.id, t);
+    this.io.to(this.channel(ownerId)).emit('party:treat', { id: t.id, x: t.x, y: t.y, kind: t.kind });
+  }
+
+  grabTreat(ownerId, userId, treatId, x, y) {
+    const party = this.parties.get(ownerId);
+    const t = party?.treats.get(treatId);
+    if (!t) return;
+    // 강아지 비율을 고려해 가로 거리는 조금 더 느슨하게 봐요
+    const d = Math.hypot((t.x - x) * 1.0, (t.y - y) * 0.5);
+    if (d > PARTY.grabRadius) return;
+    party.treats.delete(treatId);
+    party.scores.set(userId, (party.scores.get(userId) ?? 0) + t.value);
+    this.io.to(this.channel(ownerId)).emit('party:grabbed', { treatId, userId, value: t.value, scores: Object.fromEntries(party.scores) });
+  }
+
+  endParty(ownerId) {
+    const party = this.parties.get(ownerId);
+    if (!party) return;
+    clearInterval(party.spawner);
+    clearTimeout(party.ender);
+    this.parties.delete(ownerId);
+    const entries = [...party.scores.entries()];
+    const best = Math.max(0, ...entries.map(([, v]) => v));
+    const today = kstDate(Date.now());
+    const results = entries.map(([userId, score]) => {
+      const winner = best > 0 && score === best;
+      const key = `${userId}:${today}`;
+      const got = this.partyCoins.get(key) ?? 0;
+      const coins = Math.max(0, Math.min(Math.min(score, PARTY.maxCoins) + (winner ? PARTY.winnerBonus : 0), PARTY.dailyCoinCap - got));
+      this.partyCoins.set(key, got + coins);
+      this.game.addCoins(userId, coins);
+      return { userId, nickname: this.game.getUser(userId)?.nickname, score, coins, winner };
+    }).sort((a, b) => b.score - a.score);
+    if (this.partyCoins.size > 5000) this.partyCoins.clear();
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) this.addBond(ownerId, entries[i][0], entries[j][0], 'play');
+    }
+    this.io.to(this.channel(ownerId)).emit('party:end', { results });
   }
 
   inRoom(ownerId, userId) {
@@ -222,7 +302,11 @@ export class RoomHub {
     socket.join(this.channel(ownerId));
     socket.to(this.channel(ownerId)).emit('room:enter', this.memberView(m));
     const others = [...new Set([ownerId, ...this.rooms.get(ownerId).keys()])].filter((id) => id !== userId);
-    reply({ ok: true, room: this.roomState(ownerId), bonds: this.bonds.many(userId, others) });
+    const running = this.parties.get(ownerId);
+    reply({
+      ok: true, room: this.roomState(ownerId), bonds: this.bonds.many(userId, others),
+      party: running ? { endsAt: running.endsAt, scores: Object.fromEntries(running.scores), treats: [...running.treats.values()] } : null,
+    });
     for (const other of others) {
       const om = this.rooms.get(ownerId).get(other);
       const s = om && this.io.sockets.sockets.get(om.socketId);
@@ -238,7 +322,7 @@ export class RoomHub {
     const m = room?.get(socket.data.userId);
     if (m && m.socketId === socket.id) {
       room.delete(socket.data.userId);
-      if (room.size === 0) this.rooms.delete(ownerId);
+      if (room.size === 0) { this.rooms.delete(ownerId); this.endParty(ownerId); }
       socket.to(this.channel(ownerId)).emit('room:exit', { userId: socket.data.userId });
       this.updateChatPermissions(ownerId);
     }

@@ -295,6 +295,8 @@ export class Scene {
     this.bowlFull = 0;
     this.showNames = false;
     this.showBowl = true;
+    this.treats = new Map(); // 간식 파티용
+    this.partyMode = false;
     this.running = true;
     this.last = performance.now();
     canvas.addEventListener('pointerdown', (e) => this.onPointer(e));
@@ -450,6 +452,16 @@ export class Scene {
     }
   }
 
+  // ---------- 간식 파티 ----------
+  addTreat(t) {
+    const p = toLogical(t.x, t.y);
+    this.treats.set(t.id, { ...t, lx: p.x, ly: p.y, born: performance.now(), fall: 40 });
+  }
+
+  removeTreat(id) { this.treats.delete(id); }
+
+  clearTreats() { this.treats.clear(); }
+
   // 강아지를 톡 누르면 말랑하게 찌그러졌다가 폴짝! 연속으로 누르면 빙글 돌아요.
   poke(e) {
     const now = performance.now();
@@ -482,7 +494,7 @@ export class Scene {
     for (const e of this.entities.values()) {
       e.t += dt; e.stateT += dt;
       if (!e.dog || e.dog.atSchool) continue;
-      const speed = 30 * (PERSONALITIES[e.dog.personality]?.speed ?? 1);
+      const speed = 30 * (PERSONALITIES[e.dog.personality]?.speed ?? 1) * (this.partyMode ? 2.2 : 1);
       if (e.pokeT > 0) e.pokeT -= dt;
       if (e.state === 'walk' || e.state === 'toBed' || e.state === 'rush') {
         const dx = e.tx - e.x; const dy = e.ty - e.y;
@@ -510,7 +522,7 @@ export class Scene {
       } else if (e.state === 'sleep') {
         if (Math.random() < dt * 0.6) this.particles.push({ icon: 'sleepy', x: e.x + 8, y: e.y - 24, vx: 4, vy: -8, life: 1.6, age: 0, small: true });
         if (e.stateT > (e.sleepFor ?? 6)) { e.state = 'idle'; e.stateT = 0; e.idleFor = 2; }
-      } else if (e.state === 'idle' && e.auto && e.stateT > e.idleFor) {
+      } else if (e.state === 'idle' && e.auto && !(this.partyMode && e.mine) && e.stateT > e.idleFor) {
         // 혼자 놀기: 가끔 산책하고, 잠꾸러기는 침대로 가서 낮잠을 자요.
         const nap = PERSONALITIES[e.dog.personality]?.napChance ?? 0.1;
         if (Math.random() < nap) this.sleep(e.id, 5 + Math.random() * 6);
@@ -523,6 +535,22 @@ export class Scene {
       if (e.bubble && performance.now() > e.bubble.until) { e.bubble.node.remove(); e.bubble = null; }
     }
     if (this.bowlFull > 0) this.bowlFull -= dt;
+    const now = performance.now();
+    for (const [id, t] of this.treats) {
+      if (t.fall > 0) t.fall = Math.max(0, t.fall - dt * 160);
+      if (now - t.born > 6000) this.treats.delete(id);
+    }
+    if (this.treats.size && this.handlers.onTreatNear) {
+      const me = [...this.entities.values()].find((e) => e.mine);
+      if (me) {
+        for (const t of this.treats.values()) {
+          if (!t.pending && t.fall === 0 && Math.abs(t.lx - me.x) < 11 && Math.abs(t.ly - me.y) < 7) {
+            t.pending = true;
+            this.handlers.onTreatNear(t, toNorm(me.x, me.y));
+          }
+        }
+      }
+    }
     for (const p of this.particles) {
       p.age += dt;
       if (p.age < 0) continue;
@@ -614,6 +642,15 @@ export class Scene {
     const { ctx } = this;
     ctx.drawImage(this.bg, 0, 0);
     if (this.showBowl) drawBowl(ctx, this.bowlFull > 0);
+    // 파티 간식 (떨어지는 연출, 사라지기 전 깜빡깜빡)
+    const tnow = performance.now();
+    for (const t of this.treats.values()) {
+      const age = tnow - t.born;
+      if (age > 4500 && Math.floor(age / 120) % 2) continue;
+      const ic = iconCanvas(t.kind === 'star' ? 'star' : 'coin');
+      if (t.fall === 0) ellipse(ctx, t.lx, t.ly + 1, 4, 1.5, 'rgba(74,51,48,0.25)');
+      ctx.drawImage(ic, Math.round(t.lx - ic.width / 2), Math.round(t.ly - ic.height - t.fall + Math.sin(age / 150)));
+    }
     const list = [...this.entities.values()].filter((e) => e.dog && !e.dog.atSchool).sort((a, b) => a.y - b.y);
     const rect = this.canvas.getBoundingClientRect();
     const sx = rect.width / SCENE_W;

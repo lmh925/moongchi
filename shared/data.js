@@ -298,6 +298,17 @@ export const BOND_RULES = {
   dailyCap: 30,
 };
 
+// 친구와 실시간 미니게임: 간식 파티 (같은 방에서 30초 동안 간식 먼저 먹기)
+export const PARTY = {
+  seconds: 30,
+  spawnMs: 600,
+  treatLifeMs: 6000,
+  grabRadius: 0.16, // 바닥 크기를 1로 봤을 때 간식을 먹을 수 있는 거리
+  maxCoins: 10,
+  winnerBonus: 5,
+  dailyCoinCap: 60,
+};
+
 // 채팅: 표정 스티커와 정해진 문장
 export const STICKERS = {
   heart: '하트', laugh: '웃음', sweat: '땀방울', sparkle: '반짝',

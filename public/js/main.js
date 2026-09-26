@@ -28,6 +28,7 @@ const state = {
   schoolTimer: null,
   closetTab: 'dog',
   bonds: {},
+  party: null,
 };
 
 // 강아지 크기와 견종에 따라 짖는 소리 높낮이가 달라요
@@ -249,6 +250,7 @@ function enterGame(me) {
         state.socket?.emit('room:move', n);
       },
       onMove: (n) => state.socket?.emit('room:move', n),
+      onTreatNear: (t, pos) => state.socket?.emit('party:grab', { treatId: t.id, x: pos.x, y: pos.y }),
       onDogTap: (e, combo) => {
         sfx.bark(barkPitch(e.dog), combo === 'spin' ? 2 : 1);
         if (combo === 'spin') { sfx.whoosh(); state.socket?.emit('room:trick', { trick: 'spin' }); }
@@ -366,6 +368,17 @@ function connectSocket() {
     if (row) row.hidden = !allowed;
   });
   socket.on('room:kicked', ({ reason }) => toast(reason, 'bad'));
+  socket.on('party:start', ({ endsAt, players }) => startPartyView({ endsAt, scores: Object.fromEntries(players.map((p) => [p, 0])), treats: [] }));
+  socket.on('party:treat', (t) => state.scene.addTreat(t));
+  socket.on('party:grabbed', ({ treatId, userId, value, scores }) => {
+    state.scene.removeTreat(treatId);
+    if (!state.party) return;
+    state.party.scores = scores;
+    state.scene.effectAt(userId, value > 1 ? 'star' : 'heart', 1);
+    if (userId === myId()) { if (value > 1) sfx.star(); else sfx.catch(); }
+    renderPartyHud();
+  });
+  socket.on('party:end', ({ results }) => endPartyView(results));
   socket.on('invite', ({ fromId, nickname }) => {
     sfx.notify();
     modal({
@@ -398,6 +411,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   const room = res.room;
   state.room = room;
   state.bonds = res.bonds ?? {};
+  stopPartyView();
   state.roomOwnerId = ownerId;
   const scene = state.scene;
   scene.clear();
@@ -421,6 +435,10 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   $('#room-label').textContent = ownerId === me ? `${room.owner.nickname}네 집` : `${room.owner.nickname}네 집에 놀러 왔어요`;
   updateAway();
   if (!quiet && ownerId !== me) toast(`${room.owner.nickname}네 집에 도착했어요!`, 'good');
+  if (res.party) {
+    startPartyView(res.party, true);
+    for (const t of res.party.treats) state.scene.addTreat(t);
+  }
   if (state.tab === 'home' || ownerId !== me) setTab('home');
   return true;
 }
@@ -623,8 +641,82 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
+    partyButton(),
     bondList(),
     chatBar());
+}
+
+// ---------- 간식 파티 (친구와 실시간 대결) ----------
+function partyButton() {
+  const others = (state.room?.members ?? []).filter((m) => m.userId !== myId()).length;
+  if (!others) return null;
+  return el('div', { class: 'party-card' },
+    el('div', {},
+      el('div', { class: 'title' }, '간식 파티'),
+      el('div', { class: 'meta' }, '30초 동안 떨어지는 간식을 누가 더 많이 먹을까? 바닥을 눌러 달려가요!')),
+    el('button', {
+      class: 'btn primary', disabled: !!state.party || !!state.me.dog.school,
+      onclick: async () => {
+        unlock();
+        const res = await emitAck('party:start', {});
+        if (!res.ok) toast(res.reason, 'bad');
+      },
+    }, state.party ? '파티 중!' : '시작!'));
+}
+
+function startPartyView(party, quiet = false) {
+  state.party = { endsAt: party.endsAt - state.offset, scores: party.scores };
+  state.scene.partyMode = true;
+  state.scene.clearTreats();
+  const me = state.scene.entities.get(myId());
+  if (me && me.state === 'sleep') { me.state = 'idle'; me.stateT = 0; }
+  let hud = $('#party-hud');
+  if (!hud) { hud = el('div', { id: 'party-hud', class: 'party-hud' }); $('.stage').append(hud); }
+  if (!quiet) { sfx.bell(); toast('간식 파티 시작! 바닥을 눌러서 간식으로 달려가요!', 'good'); }
+  playBgm('play');
+  clearInterval(state.partyTimer);
+  state.partyTimer = setInterval(renderPartyHud, 250);
+  renderPartyHud();
+  if (state.tab === 'home') renderPanel();
+}
+
+function renderPartyHud() {
+  const hud = $('#party-hud');
+  if (!hud || !state.party) return;
+  const left = Math.max(0, Math.ceil((state.party.endsAt - Date.now()) / 1000));
+  const rows = Object.entries(state.party.scores)
+    .map(([id, score]) => ({ id: Number(id), score, name: state.scene.entities.get(Number(id))?.nickname ?? '친구' }))
+    .sort((a, b) => b.score - a.score);
+  hud.replaceChildren(
+    el('div', { class: 'party-time' }, `${left}초`),
+    ...rows.map((r) => el('div', { class: `party-row ${r.id === myId() ? 'me' : ''}` }, el('span', {}, r.name), el('b', {}, r.score))));
+}
+
+function stopPartyView() {
+  state.party = null;
+  clearInterval(state.partyTimer);
+  $('#party-hud')?.remove();
+  if (state.scene) { state.scene.partyMode = false; state.scene.clearTreats(); }
+}
+
+async function endPartyView(results) {
+  stopPartyView();
+  playBgm('home');
+  const mine = results.find((r) => r.userId === myId());
+  if (mine?.winner) sfx.levelUp(); else sfx.bell();
+  if (state.tab === 'home') renderPanel();
+  modal({
+    title: '간식 파티 결과!',
+    body: el('div', { class: 'party-results' }, results.map((r, i) => {
+      const dog = state.scene.entities.get(r.userId)?.dog;
+      return el('div', { class: `party-result ${r.userId === myId() ? 'me' : ''}` },
+        el('span', { class: 'rank' }, r.winner ? '👑' : `${i + 1}`),
+        dog ? el('img', { class: 'pixel', src: dogPortrait(dog.breed, dog.stage, { equip: dog.equip }), alt: '' }) : el('span'),
+        el('div', {}, el('b', {}, r.nickname ?? '친구'), el('div', { class: 'meta' }, `간식 ${r.score}개 · 코인 +${r.coins}`)));
+    }), el('p', { class: 'hint' }, '같이 놀아서 강아지들이 더 친해졌어요!')),
+    buttons: [{ label: '또 하자!' }],
+  });
+  refreshMe();
 }
 
 // 같은 방에 있는 강아지들과의 친밀도
@@ -704,6 +796,7 @@ function visitPanel() {
       actionBtn('개인기', 'star', openTricks, !!mine.school),
       actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school),
       actionBtn('집으로', 'paw', () => enterRoom(myId()), false)),
+    partyButton(),
     bondList(),
     chatBar());
 }
