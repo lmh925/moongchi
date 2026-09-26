@@ -1,6 +1,6 @@
 // 멍뭉 놀이터: 누구나 들어오는 공개 광장 (채널당 최대 20마리)
 // 흐름: 클라이언트 입력(plaza:pos, plaza:emote ...) → 서버 상태 갱신 → 같은 채널에 방송 → 각자 화면 그리기
-import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG } from '../shared/data.js';
+import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS } from '../shared/data.js';
 import { kstDate } from '../shared/rules.js';
 import { REPORT_REASONS } from './safety.js';
 
@@ -16,6 +16,7 @@ export class PlazaHub {
     this.bonds = bonds;
     this.channels = new Map(); // id -> { id, members: Map<userId, member>, tag }
     this.tagCoins = new Map();
+    this.treasureCoins = new Map();
     this.onLeave = null; // 협동 게임 등에서 알림 받기
     this.ticker = setInterval(() => this.tick(), 100);
     this.ticker.unref?.();
@@ -72,6 +73,7 @@ export class PlazaHub {
         ack(cb)({ ok: true });
       } catch (err) { ack(cb)({ ok: false, reason: err.message }); }
     });
+    socket.on('treasure:dig', (msg, cb) => ack(cb)(this.dig(socket, msg)));
     socket.on('tag:join', (_, cb) => ack(cb)(this.tagJoin(socket)));
     socket.on('tag:leave', () => this.tagLeave(socket.data.plaza, userId));
     socket.on('disconnect', () => this.leave(socket));
@@ -115,7 +117,7 @@ export class PlazaHub {
       }
     }
     const id = this.pickChannel(userId, Number(wanted) || null);
-    if (!this.channels.has(id)) this.channels.set(id, { id, members: new Map(), tag: null });
+    if (!this.channels.has(id)) this.channels.set(id, { id, members: new Map(), tag: null, treasures: [], nextTreasure: 0, diggers: new Map() });
     const ch = this.channels.get(id);
     const spot = PLAZA_SPOTS.fountain;
     const m = {
@@ -134,6 +136,7 @@ export class PlazaHub {
       channels: this.channelList(userId),
       members: [...ch.members.values()].filter((o) => !blocked.has(o.userId)).map((o) => this.view(o)),
       tag: this.tagView(ch),
+      treasures: ch.treasures.length,
       friends: this.friends.friendIds(userId),
     };
   }
@@ -208,6 +211,80 @@ export class PlazaHub {
         this.io.sockets.sockets.get(mb.socketId)?.emit('plaza:exit', { userId: a });
       }
     }
+  }
+
+  // ---------- 보물찾기 (모래밭) ----------
+  inSand(m) {
+    const s = PLAZA_SPOTS.sand;
+    return Math.abs(m.x - s.x) < s.w / 2 && Math.abs(m.y - s.y) < s.h / 2;
+  }
+
+  spawnTreasure(ch) {
+    const s = PLAZA_SPOTS.sand;
+    const total = Object.values(TREASURE.kinds).reduce((a, k) => a + k.weight, 0);
+    let roll = Math.random() * total;
+    let kind = 'coin';
+    for (const [k, v] of Object.entries(TREASURE.kinds)) { if (roll < v.weight) { kind = k; break; } roll -= v.weight; }
+    ch.treasures.push({
+      id: Math.random().toString(36).slice(2, 8), kind,
+      x: s.x - s.w / 2 + 6 + Math.random() * (s.w - 12), y: s.y - s.h / 2 + 8 + Math.random() * (s.h - 12),
+    });
+    this.io.to(`plaza:${ch.id}`).emit('treasure:count', { n: ch.treasures.length });
+  }
+
+  dig(socket, msg) {
+    const m = this.member(socket);
+    if (!m) return { ok: false, reason: '놀이터에 있을 때 할 수 있어요.' };
+    // 멈춘 자리가 마지막 위치 전송보다 조금 앞설 수 있어서, 가까운 거리면 보내 준 위치를 믿어요
+    if (msg && Number.isFinite(msg.x) && Number.isFinite(msg.y) && Math.hypot(msg.x - m.x, msg.y - m.y) < 40) {
+      m.x = clamp(msg.x, 0, PLAZA.worldW); m.y = clamp(msg.y, 0, PLAZA.worldH);
+    }
+    if (!this.inSand(m)) return { ok: false, reason: '모래밭 안에서 파 주세요!' };
+    const now = Date.now();
+    if (now - (m.lastDig ?? 0) < TREASURE.digGapMs) return { ok: false, reason: '영차영차… 조금만 천천히!' };
+    m.lastDig = now;
+    const ch = this.channels.get(socket.data.plaza);
+    ch.diggers.set(m.userId, now);
+    this.broadcast(m, 'treasure:dig', { userId: m.userId, x: m.x, y: m.y });
+    const near = ch.treasures.map((t) => ({ t, d: Math.hypot(t.x - m.x, (t.y - m.y) * 1.3) })).sort((a, b) => a.d - b.d)[0];
+    if (!near) return { ok: true, found: false, hint: 'none' };
+    if (near.d > TREASURE.findRadius) {
+      return { ok: true, found: false, hint: near.d < TREASURE.hotRadius ? 'hot' : near.d < TREASURE.warmRadius ? 'warm' : 'cold' };
+    }
+    // 찾았어요!
+    ch.treasures = ch.treasures.filter((t) => t !== near.t);
+    const kind = TREASURE.kinds[near.t.kind];
+    const coins = this.giveTreasureCoins(m.userId, kind.coins);
+    let item = null;
+    if (kind.item) {
+      const user = this.game.getUser(m.userId);
+      const pool = Object.keys(ITEMS).filter((id) => ITEMS[id].gacha !== false && !ITEMS[id].reward && !user.owned.includes(id) && ITEMS[id].rarity !== 'epic');
+      if (pool.length) {
+        item = pool[Math.floor(Math.random() * pool.length)];
+        user.owned.push(item);
+        this.game.db.prepare('UPDATE users SET owned = ? WHERE id = ?').run(JSON.stringify(user.owned), m.userId);
+      }
+    }
+    // 최근에 같이 판 친구들도 코인 1개씩
+    const helpers = [];
+    for (const [uid, at] of ch.diggers) {
+      if (uid === m.userId || now - at > TREASURE.helperMs || !ch.members.has(uid) || m.hidden.has(uid)) continue;
+      if (this.giveTreasureCoins(uid, 1)) helpers.push(uid);
+    }
+    this.io.to(`plaza:${ch.id}`).emit('treasure:found', {
+      userId: m.userId, nickname: m.nickname, kind: near.t.kind, x: near.t.x, y: near.t.y, helpers, n: ch.treasures.length,
+    });
+    return { ok: true, found: true, kind: near.t.kind, coins, item };
+  }
+
+  giveTreasureCoins(userId, amount) {
+    const key = `${userId}:${kstDate(Date.now())}`;
+    const got = this.treasureCoins.get(key) ?? 0;
+    const coins = Math.max(0, Math.min(amount, TREASURE.dailyCoins - got));
+    if (this.treasureCoins.size > 5000) this.treasureCoins.clear();
+    this.treasureCoins.set(key, got + coins);
+    this.game.addCoins(userId, coins);
+    return coins;
   }
 
   // ---------- 술래잡기 ----------
@@ -286,6 +363,10 @@ export class PlazaHub {
     const now = Date.now();
     for (const ch of this.channels.values()) {
       this.flushPositions(ch);
+      if (ch.treasures.length < TREASURE.max && now >= ch.nextTreasure) {
+        ch.nextTreasure = now + TREASURE.spawnMs;
+        this.spawnTreasure(ch);
+      }
       const t = ch.tag;
       if (!t) continue;
       if (t.status === 'waiting' && t.startsAt && now >= t.startsAt) {

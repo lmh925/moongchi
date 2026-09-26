@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG,
+  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE,
 } from '/shared/data.js';
 import { applyDecay, quizResult } from '/shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -1267,6 +1267,18 @@ function bindPlazaSocket(socket) {
     });
     refreshMe();
   });
+  socket.on('treasure:dig', ({ userId }) => state.plaza?.view.dig(userId));
+  socket.on('treasure:count', ({ n }) => { if (state.plaza) { state.plaza.treasures = n; renderSpotBox(); } });
+  socket.on('treasure:found', ({ userId, nickname, kind, x, y, helpers, n }) => {
+    if (!state.plaza) return;
+    state.plaza.treasures = n;
+    state.plaza.view.treasurePop(x, y, kind === 'bone' ? 'star' : kind === 'capsule' ? 'sparkle' : 'coin');
+    if (userId !== myId()) {
+      state.plaza.view.bubble(userId, 'text', '찾았다!');
+      if (helpers.includes(myId())) { sfx.coin(); toast(`${nickname}(이)가 보물을 찾았어요! 같이 파서 코인 +1`, 'good'); }
+    }
+    renderSpotBox();
+  });
   socket.on('coop:queue', ({ game, waiting }) => {
     if (!state.plaza) return;
     state.plaza.waiting[game] = waiting;
@@ -1306,7 +1318,7 @@ function mountPlaza(res) {
     onFloor: () => sfx.tap(),
   });
   for (const m of res.members) if (m.userId !== myId()) view.upsert({ ...m, friend: friends.has(m.userId) });
-  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends };
+  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null };
   view.tag = res.tag;
   $('#room-label').textContent = `멍뭉 놀이터 ${res.channel}번`;
   $('#away-sign').hidden = true;
@@ -1362,6 +1374,28 @@ function renderTagHud() {
   if (t?.status === 'play' || t?.startsAt) state.tagHudTimer = setTimeout(renderTagHud, 500);
 }
 
+async function digHere() {
+  const p = state.plaza;
+  if (!p) return;
+  sfx.tap();
+  const me = p.view.me;
+  const res = await emitAck('treasure:dig', { x: me.x, y: me.y });
+  if (!res.ok) { toast(res.reason); return; }
+  if (res.found) {
+    const kind = TREASURE.kinds[res.kind];
+    p.hint = null;
+    sfx.levelUp();
+    p.view.bubble(myId(), 'text', '찾았다!');
+    toast(`${kind.name}를 찾았어요! 코인 +${res.coins}${res.item ? ` · ${ITEMS[res.item].name}도 나왔어요!` : ''}`, 'good');
+    refreshMe();
+  } else {
+    p.hint = res.hint;
+    if (res.hint === 'hot') sfx.star(); else sfx.pop();
+    p.view.bubble(myId(), 'text', { hot: '뜨거워!', warm: '따뜻해~', cold: '차가워…', none: '텅~' }[res.hint]);
+  }
+  renderSpotBox();
+}
+
 async function queueCoop(game) {
   if (!state.plaza) return toast('놀이터에서 할 수 있어요!');
   const res = await emitAck('coop:queue', { game });
@@ -1382,6 +1416,15 @@ function renderSpotBox() {
   let content;
   if (!info) {
     content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자·줄넘기 터(왼쪽 아래), 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
+  } else if (spot === 'sand') {
+    const hints = {
+      hot: '뜨거워요! 바로 근처예요!', warm: '따뜻해요~ 가까워지고 있어요.', cold: '차가워요. 다른 곳을 파 봐요.',
+      none: '지금은 보물이 없어요. 곧 새로 숨겨져요!',
+    };
+    content = [el('b', {}, info.name),
+      el('div', { class: 'meta' }, p.treasures ? `보물이 ${p.treasures}개 숨어 있어요! 여기저기 파 보세요. 친구랑 같이 파면 친구가 찾아도 선물을 받아요.` : '보물이 곧 숨겨져요. 조금만 기다려요!'),
+      p.hint ? el('div', { class: `dig-hint ${p.hint}` }, hints[p.hint]) : null,
+      el('button', { class: 'btn primary', onclick: digHere }, '여기 파기!')];
   } else if (info.soon) {
     content = [el('b', {}, info.name), el('div', { class: 'meta' }, '곧 열려요! 조금만 기다려 주세요.')];
   } else if (spot === 'tag') {

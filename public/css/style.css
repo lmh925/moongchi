@@ -275,6 +275,10 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
   background: linear-gradient(135deg, #fff1c9, #d9f5e6);
 }
 .spot-box .meta { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.dig-hint { font-weight: 700; border-radius: 8px; padding: 4px 8px; background: #fff; border: 2px solid var(--ink); }
+.dig-hint.hot { background: #ffd9e3; color: var(--red); }
+.dig-hint.warm { background: #fff1c9; color: #c77a00; }
+.dig-hint.cold { background: #e3f3ff; color: #2f7fb0; }
 .emotes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .plaza-card { margin-bottom: 12px; }
 

@@ -17,7 +17,7 @@ import { RULES } from '../shared/data.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, 'data', 'meongmung.db'), speed = Number(process.env.GAME_SPEED) || 1, now } = {}) {
+export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, 'data', 'meongmung.db'), speed = Number(process.env.GAME_SPEED) || 1, now, rateLimit = true } = {}) {
   const db = openDb(dbFile);
   const game = new Game(db, { speed, now });
   const auth = new Auth(db, { now });
@@ -47,6 +47,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   // 간단한 IP별 요청 제한 (로그인/가입 무차별 시도 방지)
   const hits = new Map();
   const limiter = (max, windowMs) => (req, res, next) => {
+    if (!rateLimit) return next(); // 자동 테스트에서만 꺼요
     const key = `${req.ip}:${req.path}`;
     const t = Date.now();
     const rec = hits.get(key);

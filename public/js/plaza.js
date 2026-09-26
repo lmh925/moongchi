@@ -198,6 +198,21 @@ export class PlazaView {
     if (kind === 'jump') this.burst(e, 'sparkle', 1);
   }
 
+  // 보물찾기: 땅 파는 모습 + 흙 튀기기
+  dig(userId) {
+    const e = this.entities.get(userId);
+    if (!e) return;
+    e.emote = 'dig'; e.emoteT = 0;
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({ dirt: true, x: e.x + e.dir * 8, y: e.y - 2, vx: (Math.random() - 0.5) * 40 - e.dir * 20, vy: -30 - Math.random() * 30, life: 0.6, age: 0 });
+    }
+  }
+
+  treasurePop(x, y, icon) {
+    for (let i = 0; i < 5; i++) this.particles.push({ icon: 'sparkle', x: x + (Math.random() - 0.5) * 20, y: y - 10, vy: -20, life: 1, age: -i * 0.1 });
+    this.particles.push({ icon, x, y: y - 14, vy: -14, life: 1.6, age: 0 });
+  }
+
   bubble(userId, kind, value) {
     const e = this.entities.get(userId);
     if (!e) return;
@@ -331,7 +346,12 @@ export class PlazaView {
       if (inside) spot = key;
     }
     if (spot !== this.spot) { this.spot = spot; this.handlers.onSpot?.(spot); }
-    for (const p of this.particles) { p.age += dt; if (p.vy) p.y += p.vy * dt; }
+    for (const p of this.particles) {
+      p.age += dt;
+      if (p.vx) p.x += p.vx * dt;
+      if (p.vy) p.y += p.vy * dt;
+      if (p.dirt) p.vy += 120 * dt;
+    }
     this.particles = this.particles.filter((p) => p.age < p.life);
   }
 
@@ -353,6 +373,8 @@ export class PlazaView {
         ctx.globalAlpha = 1 - k;
         ctx.drawImage(iconCanvas('paw'), Math.round(p.x - 4), Math.round(p.y - 4), 8, 7);
         ctx.globalAlpha = 1;
+      } else if (p.dirt) {
+        rect(ctx, p.x, p.y, 2, 2, '#d9a95b');
       } else if (p.dust) {
         ctx.globalAlpha = 1 - p.age / p.life;
         rect(ctx, p.x, p.y, 2, 2, '#f5e6cf');
@@ -386,6 +408,7 @@ export class PlazaView {
     if (e.emote === 'bark') { opts.mouth = 'open'; pose = 'stand'; }
     if (e.emote === 'wave') { pose = 'paw'; opts.eyes = 'happy'; }
     if (e.emote === 'spin') { facing = Math.floor(e.emoteT * 10) % 2 ? 1 : -1; }
+    if (e.emote === 'dig') { pose = 'bow'; dy = Math.floor(e.emoteT * 12) % 2; opts.eyes = 'closed'; }
     const it = this.tag?.status === 'play' && this.tag.it === e.userId;
     ellipse(ctx, e.x, e.y + 1, 10, 2.5, it ? 'rgba(232,74,95,0.55)' : 'rgba(74,51,48,0.22)');
     const spr = dogSprite(e.dog.breed, e.dog.stage, pose, opts);

@@ -37,7 +37,7 @@ test('리본 풀기 규칙: 둘이 0.3초 안에 초록 칸에서 당겨야 성�
   assert.equal(gaugeAt(g, g.stageStart + p * 1.5), 0.5);
 });
 
-const { server, safety } = createServer({ dbFile: ':memory:' });
+const { server, safety, plaza: plazaHub } = createServer({ dbFile: ':memory:', rateLimit: false });
 await new Promise((r) => server.listen(0, r));
 const base = `http://localhost:${server.address().port}`;
 const sockets = [];
@@ -54,7 +54,7 @@ async function call(path, { token, body } = {}) {
 let n = 0;
 async function player(breed = 'bichon') {
   n += 1;
-  const nick = `놀이${'가나다라마바사아자차카타파하'[n]}`;
+  const nick = `놀이${'가나다라마바사아자차카타파하구누두루무부수우주'[n]}`;
   const { data } = await call('/signup', { body: { nickname: nick, pin: '1234' } });
   const me = await call('/dog', { token: data.token, body: { name: `멍${n}`, breed, personality: 'sweet' } });
   const socket = ioClient(base, { auth: { token: data.token }, transports: ['websocket'] });
@@ -186,4 +186,33 @@ test('실시간 줄넘기 규칙: 둘 다 판정 범위 안에서 뛰어야 넘�
   for (let i = 0; i < 2; i++) jumprope.tick(s, s.nextJ + 1000);
   assert.equal(s.status, 'over');
   assert.ok(jumprope.reward(s).coins >= 2);
+});
+
+test('보물찾기: 모래밭에서 파면 힌트를 주고, 가까이 파면 보물을 찾아요', async () => {
+  const a = await player(); const b = await player();
+  const ja = await ask(a.socket, 'plaza:join', {});
+  await ask(b.socket, 'plaza:join', {});
+  // 모래밭 밖에서는 못 파요
+  a.socket.emit('plaza:pos', { x: 300, y: 300 });
+  await wait(150);
+  assert.equal((await ask(a.socket, 'treasure:dig', {})).ok, false);
+  // 보물이 생길 때까지 기다린 뒤, 서버가 알려 준 채널의 보물 위치를 테스트에서 직접 꺼내 봐요
+  await wait(300);
+  const ch = plazaHub.channels.get(ja.channel);
+  assert.ok(ch.treasures.length >= 1);
+  const t = ch.treasures[0];
+  b.socket.emit('plaza:pos', { x: t.x + 30, y: t.y });
+  await wait(150);
+  const miss = await ask(b.socket, 'treasure:dig', {});
+  assert.equal(miss.found, false);
+  assert.ok(['warm', 'hot', 'cold'].includes(miss.hint));
+  a.socket.emit('plaza:pos', { x: t.x, y: t.y });
+  await wait(150);
+  const found = next(b.socket, 'treasure:found');
+  const res = await ask(a.socket, 'treasure:dig', {});
+  assert.equal(res.found, true);
+  const ev = await found;
+  assert.equal(ev.userId, a.id);
+  assert.deepEqual(ev.helpers, [b.id], '같이 판 친구도 선물을 받아요');
+  a.socket.emit('plaza:leave'); b.socket.emit('plaza:leave');
 });

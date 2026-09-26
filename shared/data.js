@@ -327,8 +327,24 @@ export const PLAZA_SPOTS = {
   tag: { name: '술래잡기 마당', x: 392, y: 76, w: 120, h: 96 },
   ribbon: { name: '대왕 선물 상자', x: 104, y: 250, game: 'ribbon' },
   jumprope: { name: '줄넘기 터', x: 150, y: 298, game: 'jumprope' },
-  sand: { name: '보물 모래밭', x: 90, y: 110, soon: true },
+  sand: { name: '보물 모래밭', x: 91, y: 119, w: 68, h: 38 },
   soccer: { name: '멍멍 축구장', x: 380, y: 280, soon: true },
+};
+
+export const TREASURE = {
+  max: 3, // 모래밭에 한 번에 숨어 있는 보물 수
+  spawnMs: 12000,
+  findRadius: 11,
+  hotRadius: 22,
+  warmRadius: 40,
+  digGapMs: 700,
+  helperMs: 10000, // 최근 10초 안에 같이 판 친구도 선물을 받아요
+  dailyCoins: 60,
+  kinds: {
+    coin: { name: '뼈다귀 코인 주머니', coins: 3, weight: 70 },
+    bone: { name: '황금 뼈다귀', coins: 6, weight: 22 },
+    capsule: { name: '반짝 캡슐', coins: 4, weight: 8, item: true },
+  },
 };
 
 export const TAG = { seconds: 60, radius: 14, immuneMs: 1500, minPlayers: 2, countdownMs: 4000, coins: 5, coinsPerTag: 2, maxCoins: 15 };
