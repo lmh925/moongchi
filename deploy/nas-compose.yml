@@ -1,0 +1,29 @@
+# NAS 자동 업데이트용 예시 (GitHub에서 만든 이미지를 받아 실행)
+# 기존 compose.server.yml에 image/labels와 watchtower 서비스를 옮겨 쓰면 돼요.
+services:
+  moongchi:
+    image: ghcr.io/lmh925/moongchi:latest
+    container_name: moongchi
+    restart: unless-stopped
+    environment:
+      - DB_FILE=/data/meongmung.db
+      - TRUST_PROXY=1
+    volumes:
+      - moongchi_data:/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    mem_limit: 512m
+    # networks: 기존 cloudflared 터널과 같은 네트워크를 지정하세요
+
+  # 5분마다 새 이미지를 확인해서, 라벨이 붙은 컨테이너(moongchi)만 업데이트해요.
+  watchtower:
+    image: containrrr/watchtower
+    container_name: moongchi-watchtower
+    restart: unless-stopped
+    command: --label-enable --interval 300 --cleanup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  moongchi_data:
+    external: true
