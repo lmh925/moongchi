@@ -199,6 +199,16 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: result.events }), result };
   }));
 
+  api.post('/school/boost', authed, wrap((req) => {
+    const res = game.useBoost(req.userId, String(req.body?.id ?? ''));
+    hub.dogChanged(req.userId);
+    return { ...me(req.userId, { events: res.events }), result: { boost: res.boost } };
+  }));
+  api.post('/shop/boost', authed, wrap((req) => {
+    game.buyBoost(req.userId, String(req.body?.id ?? ''));
+    return me(req.userId);
+  }));
+
   api.post('/school/leave', authed, wrap((req) => {
     const res = game.leaveSchool(req.userId);
     hub.dogChanged(req.userId);

@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, SCHOOL_BOOSTS, BOOST_RULES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -638,7 +638,7 @@ function mergeLevelUps(events) {
       const r = prev.rewards; const n = ev.rewards;
       out[out.length - 1] = {
         ...ev,
-        rewards: { coins: r.coins + n.coins, tickets: r.tickets + n.tickets, emotes: [...r.emotes, ...n.emotes], titles: [...r.titles, ...n.titles], frame: Math.max(r.frame, n.frame) },
+        rewards: { coins: r.coins + n.coins, tickets: r.tickets + n.tickets, emotes: [...r.emotes, ...n.emotes], titles: [...r.titles, ...n.titles], frame: Math.max(r.frame, n.frame), hourglass: (r.hourglass ?? 0) + (n.hourglass ?? 0) },
       };
     } else out.push(ev);
   }
@@ -816,7 +816,9 @@ function homePanel() {
       g ? `다음 성장: ${g.next} (${[g.level < g.needLevel ? `Lv ${g.needLevel}까지` : null, g.days < g.needDays ? `함께한 날 ${g.days}/${g.needDays}일` : null].filter(Boolean).join(' · ') || '곧 자라요!'})`
         : '늠름한 강아지로 다 자랐어요! 레벨은 앞으로도 계속 올라요.'),
     away ? el('div', { class: 'school-board' }, `${dog.name}(은)는 학교에서 공부 중이에요`, el('div', { class: 'big', id: 'school-left' }, ''), '돌아오면 알림장을 받을 수 있어요!',
-      el('div', {}, el('button', { class: 'btn small', onclick: leaveSchool }, '조퇴하고 데려오기'))) : null,
+      el('div', { class: 'row' },
+        el('button', { class: 'btn small', onclick: leaveSchool }, '조퇴하고 데려오기'),
+        el('button', { class: 'btn small primary', onclick: () => setTab('school') }, '빨리 오게 하기'))) : null,
     el('div', { class: 'actions' },
       actionBtn('밥주기', 'food', () => doCare('feed'), away),
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
@@ -1084,7 +1086,9 @@ function schoolPanel() {
     return el('div', {},
       el('h3', {}, '멍뭉 학교'),
       el('div', { class: 'school-board' }, `${c.name} 중이에요!`, el('div', { class: 'big', id: 'school-left' }, ''), `${dog.name}(이)가 열심히 배우고 있어요. 학교에 있는 동안은 선생님이 돌봐 주셔서 배고프지 않아요.`),
-      el('button', { class: 'btn secondary', style: { width: '100%' }, onclick: leaveSchool }, '조퇴하고 데려오기'));
+      boostCard(true),
+      el('button', { class: 'btn secondary', style: { width: '100%' }, onclick: leaveSchool }, '조퇴하고 데려오기'),
+      el('p', { class: 'hint' }, '조퇴하면 다닌 시간만큼만 선물을 받아요. 아이템으로 빨리 끝내면 선물을 다 받아요!'));
   }
   const real = (m) => fmtDuration((m * 60_000) / state.speed);
   const learnable = Object.entries(TRICKS).filter(([id, t]) => t.stage <= dog.stage && !dog.tricks.includes(id));
@@ -1096,7 +1100,7 @@ function schoolPanel() {
       el('div', { class: 'title' }, '함께 등교하기', el('span', { class: 'chip' }, '바로 시작!')),
       el('p', {}, `${dog.name}(이)랑 같이 교실에 가서 선생님 말씀대로 훈련해요. 잘하면 그 자리에서 새 개인기를 배워요!`),
       target
-        ? el('div', { class: 'meta' }, '배우는 중: ', el('b', {}, target[1].name), ` (${progress}/${TRAINING.learnHits})`)
+        ? el('div', { class: 'meta' }, '배우는 중: ', el('b', {}, target[1].name), ` (${progress}/${dog.effects?.learnHits ?? TRAINING.learnHits})`)
         : el('div', { class: 'meta' }, '지금 배울 수 있는 개인기를 다 배웠어요! 자라면 새 개인기가 열려요.'),
       el('button', { class: 'btn primary', onclick: startTraining }, '교실로 가기!')),
     el('div', { class: 'section-title' }, '혼자 보내기'),
@@ -1114,7 +1118,53 @@ function schoolPanel() {
         }),
       }, '보내기')),
       el('div', { class: 'meta' }, c.desc),
-      el('div', { class: 'meta' }, `⏰ ${real(c.minutes)} · 코인 ${c.coins} · 경험치 ${c.exp} · 개인기 배울 확률 ${Math.round(c.trickChance * 100)}%`)))));
+      el('div', { class: 'meta' }, `⏰ ${real(c.minutes)} · 코인 ${c.coins} · 경험치 ${c.exp} · 개인기 배울 확률 ${Math.round(c.trickChance * 100)}%`)))),
+    boostCard(false));
+}
+
+// 학교 시간 아이템: 셔틀버스표(코인으로 사요) · 반짝 모래시계(선물로만)
+function boostCard(atSchool) {
+  const { user } = state.me;
+  const today = new Date(serverNow() + 9 * 3600_000).toISOString().slice(0, 10);
+  const used = user.boostDay?.date === today ? user.boostDay.n : 0;
+  const left = Math.max(0, BOOST_RULES.dailyUses - used);
+  return el('div', { class: 'boost-card' },
+    el('div', { class: 'boost-head' },
+      el('b', {}, atSchool ? '시간 빨리 가게 하기' : '학교 시간 아이템'),
+      el('span', { class: 'meta' }, `오늘 ${left}번 더 쓸 수 있어요`)),
+    Object.entries(SCHOOL_BOOSTS).map(([id, b]) => {
+      const have = user.boosts?.[id] ?? 0;
+      return el('div', { class: 'boost-row' },
+        el('img', { class: 'pixel', src: iconURL(b.icon, 3), alt: '' }),
+        el('div', { class: 'boost-info' },
+          el('b', {}, b.name, el('span', { class: 'chip' }, `${have}개`)),
+          el('small', {}, b.desc),
+          b.price ? null : el('small', { class: 'gift-only' }, '선물로 받아요: 환영 편지 · 도장판 완성 · 5레벨마다')),
+        el('div', { class: 'boost-btns' },
+          atSchool ? el('button', { class: 'btn small primary', disabled: !have || !left, onclick: () => useBoost(id) }, '쓰기') : null,
+          b.price ? el('button', { class: 'btn small', onclick: () => buyBoost(id) },
+            el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), b.price) : null));
+    }));
+}
+
+async function buyBoost(id) {
+  try {
+    const res = await post('/shop/boost', { id });
+    applyMe(res);
+    sfx.coin();
+    toast(`${SCHOOL_BOOSTS[id].name}을(를) 샀어요!`, 'good');
+    renderPanel();
+  } catch (err) { sfx.error(); toast(err.message, 'bad'); }
+}
+
+async function useBoost(id) {
+  try {
+    const res = await post('/school/boost', { id });
+    applyMe(res);
+    if (id === 'bus') { sfx.whoosh(); toast('슝슝! 셔틀버스가 빨리 달려요. 남은 시간이 절반이 됐어요!', 'good'); } else sfx.star();
+    await handleEvents(res.events);
+    renderPanel();
+  } catch (err) { sfx.error(); toast(err.message, 'bad'); }
 }
 
 async function startTraining() {

@@ -1,7 +1,7 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
-  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -58,6 +58,7 @@ export function levelRewards(level) {
     emotes,
     titles,
     frame: level % LEVEL.frameEvery === 0 ? frameTier(level) : 0,
+    hourglass: level % BOOST_RULES.hourglassEvery === 0 ? 1 : 0,
   };
 }
 

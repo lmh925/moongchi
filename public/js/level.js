@@ -116,6 +116,7 @@ function rewardChips(r) {
     ...r.emotes.map((e) => el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('paw', 2), alt: '' }), `몸짓 "${EMOTES[e].name}"`)),
     ...r.titles.map((t) => el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('sparkle', 2), alt: '' }), `칭호 "${TITLES[t].name}"`)),
     r.frame ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('heart', 2), alt: '' }), '새 이름표 테두리') : null,
+    r.hourglass ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('hourglass', 2), alt: '' }), `반짝 모래시계${r.hourglass > 1 ? ` ${r.hourglass}개` : ''}`) : null,
   ].filter(Boolean);
 }
 

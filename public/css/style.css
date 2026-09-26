@@ -854,3 +854,16 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 /* 앱으로 설치 */
 .install-btn { margin-top: 14px; width: 100%; }
 .install-steps { text-align: left; padding-left: 20px; line-height: 1.8; margin: 0 0 10px; }
+
+/* 학교 시간 아이템 */
+.boost-card { border: 3px solid var(--ink); border-radius: 12px; background: #fff; padding: 8px 10px; margin: 10px 0; box-shadow: 0 3px 0 var(--line); }
+.boost-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.boost-head .meta { font-size: 11px; color: var(--ink-soft); }
+.boost-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 2px dashed var(--line); }
+.boost-row > img { width: 36px; height: auto; }
+.boost-info { display: flex; flex-direction: column; gap: 1px; }
+.boost-info b { font-size: 14px; display: flex; gap: 6px; align-items: center; }
+.boost-info small { font-size: 11px; color: var(--ink-soft); }
+.boost-info .gift-only { color: var(--pink-d); }
+.boost-btns { display: flex; flex-direction: column; gap: 4px; }
+.boost-btns .btn img { width: 14px; height: 14px; vertical-align: -2px; margin-right: 2px; }

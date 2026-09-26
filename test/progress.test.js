@@ -130,3 +130,40 @@ test('게임 속 활동이 약속과 배지로 이어져요 (돌봄 → feed 기
   assert.equal(stats.feed, 1);
   assert.ok(progress.view(userId).badgeProgress.carer.have >= 1);
 });
+
+test('학교 시간 아이템: 버스표는 남은 시간 절반, 모래시계는 바로 하교(선물 다 받음), 하루 3번까지', () => {
+  const { game, auth, progress, clock } = setup();
+  const userId = newDog(game, auth, '버스요');
+  progress.onMe(userId, game.loadDog(userId)); // 환영 편지에 모래시계
+  const welcome = progress.listMail(userId)[0];
+  assert.equal(welcome.boost, 'hourglass');
+  progress.openMail(userId, welcome.id);
+  assert.equal(game.getUser(userId).boosts.hourglass, 1);
+  assert.throws(() => game.buyBoost(userId, 'hourglass'), /선물로만/);
+  game.addCoins(userId, 100);
+  game.buyBoost(userId, 'bus');
+  game.buyBoost(userId, 'bus');
+  assert.equal(game.getUser(userId).boosts.bus, 2);
+  assert.throws(() => game.useBoost(userId, 'bus'), /학교에 가 있을 때/);
+
+  game.startSchool(userId, 'manner');
+  const before = game.loadDog(userId).school;
+  const left0 = before.endsAt - clock.now();
+  game.useBoost(userId, 'bus');
+  const after = game.loadDog(userId).school;
+  assert.ok(Math.abs((after.endsAt - clock.now()) - left0 / 2) <= 1, '남은 시간 절반');
+  assert.equal(after.endsAt - after.startedAt, before.endsAt - before.startedAt, '수업 길이는 그대로');
+
+  const coins0 = game.getUser(userId).coins;
+  const res = game.useBoost(userId, 'hourglass');
+  const done = res.events.find((e) => e.type === 'schoolDone');
+  assert.ok(done, '바로 하교');
+  assert.equal(done.report.early, false);
+  assert.ok(game.getUser(userId).coins >= coins0 + done.report.coins, '수업 선물을 다 받아요 (레벨업 코인은 덤)');
+  assert.equal(game.loadDog(userId).school, null);
+
+  game.startSchool(userId, 'manner');
+  game.useBoost(userId, 'bus'); // 오늘 3번째
+  game.buyBoost(userId, 'bus');
+  assert.throws(() => game.useBoost(userId, 'bus'), /다 썼어요/);
+});

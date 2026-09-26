@@ -1,5 +1,5 @@
 // 매일 오고 싶은 이유 + 자랑거리 화면: 오늘의 약속·도장판, 우편함(강아지 편지), 배지 보드, 도감, 포토카드, 친구 코드 QR
-import { BADGES, BREEDS, ITEMS, RARITY, SHOWCASE_MAX } from '../shared/data.js';
+import { BADGES, BREEDS, ITEMS, RARITY, SHOWCASE_MAX, SCHOOL_BOOSTS } from '../shared/data.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal, toast } from './ui.js';
 import { sfx } from './audio.js';
@@ -142,6 +142,7 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName }
     const gifts = [
       m.coins ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '' }), `코인 ${m.coins}`) : null,
       m.item ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('sparkle', 2), alt: '' }), itemName(m.item)) : null,
+      m.boost && SCHOOL_BOOSTS[m.boost] ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL(SCHOOL_BOOSTS[m.boost].icon, 2), alt: '' }), SCHOOL_BOOSTS[m.boost].name) : null,
     ].filter(Boolean);
     if (res.result.first && gifts.length) setTimeout(() => sfx.coin(), 400);
     modal({

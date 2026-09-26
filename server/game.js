@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
+  SPECIAL_CAPSULE, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -61,6 +61,8 @@ function rowToUser(row) {
     gachaDate: row.gacha_date,
     trainProgress: JSON.parse(row.train_progress ?? '{}'),
     gachaTickets: row.gacha_tickets ?? 0,
+    boosts: JSON.parse(row.boosts ?? '{}'),
+    boostDay: JSON.parse(row.boost_day ?? '{}'),
   };
 }
 
@@ -145,6 +147,7 @@ export class Game {
       const rewards = levelRewards(dog.level);
       this.addCoins(dog.userId, rewards.coins);
       if (rewards.tickets) this.db.prepare('UPDATE users SET gacha_tickets = gacha_tickets + ? WHERE id = ?').run(rewards.tickets, dog.userId);
+      if (rewards.hourglass) this.addBoost(dog.userId, 'hourglass', rewards.hourglass);
       events.push({
         type: 'levelUp', level: dog.level, rewards,
         emoteNames: rewards.emotes, titleNames: rewards.titles.map((t) => TITLES[t].name),
@@ -311,6 +314,58 @@ export class Game {
     this.addCoins(dog.userId, coins);
     report.id = Number(res.lastInsertRowid);
     return { dog: next, report, events };
+  }
+
+  // ---------- 학교 시간 아이템 ----------
+  addBoost(userId, id, n = 1) {
+    if (!SCHOOL_BOOSTS[id] || n <= 0) return 0;
+    const user = this.getUser(userId);
+    const have = user.boosts[id] ?? 0;
+    const add = Math.min(n, BOOST_RULES.maxHold - have);
+    if (add <= 0) return 0;
+    user.boosts[id] = have + add;
+    this.db.prepare('UPDATE users SET boosts = ? WHERE id = ?').run(JSON.stringify(user.boosts), userId);
+    return add;
+  }
+
+  buyBoost(userId, id) {
+    const b = SCHOOL_BOOSTS[id];
+    if (!b) throw new GameError('그런 아이템은 없어요.');
+    if (!b.price) throw new GameError('이건 선물로만 받을 수 있어요!');
+    return tx(this.db, () => {
+      const user = this.getUser(userId);
+      if ((user.boosts[id] ?? 0) >= BOOST_RULES.maxHold) throw new GameError(`${BOOST_RULES.maxHold}개까지만 가질 수 있어요.`);
+      if (user.coins < b.price) throw new GameError('뼈다귀 코인이 부족해요.');
+      this.addCoins(userId, -b.price);
+      this.addBoost(userId, id);
+      return this.getUser(userId);
+    });
+  }
+
+  // 셔틀버스표: 남은 시간 절반 / 모래시계: 바로 하교 (조퇴가 아니라서 선물을 다 받아요)
+  useBoost(userId, id) {
+    if (!SCHOOL_BOOSTS[id]) throw new GameError('그런 아이템은 없어요.');
+    const { dog } = this.refreshDog(userId);
+    if (!dog) throw new GameError('강아지가 없어요.', 404);
+    if (!dog.school) throw new GameError('학교에 가 있을 때 쓸 수 있어요.');
+    tx(this.db, () => {
+      const user = this.getUser(userId);
+      if (!(user.boosts[id] > 0)) throw new GameError('아이템이 없어요.');
+      const today = kstDate(this.now());
+      const used = user.boostDay.date === today ? user.boostDay.n : 0;
+      if (used >= BOOST_RULES.dailyUses) throw new GameError(`오늘은 ${BOOST_RULES.dailyUses}번 다 썼어요. 내일 또 써요!`);
+      user.boosts[id] -= 1;
+      this.db.prepare('UPDATE users SET boosts = ?, boost_day = ? WHERE id = ?')
+        .run(JSON.stringify(user.boosts), JSON.stringify({ date: today, n: used + 1 }), userId);
+      const now = this.now();
+      const left = Math.max(0, dog.school.endsAt - now);
+      // 시작 시각도 같이 당겨서 수업 길이(조퇴 계산용)가 그대로 유지돼요
+      const cut = id === 'hourglass' ? left : Math.ceil(left / 2);
+      dog.school = { ...dog.school, startedAt: dog.school.startedAt - cut, endsAt: dog.school.endsAt - cut };
+      this.saveDog(dog);
+    });
+    const res = this.refreshDog(userId); // 끝났으면 여기서 하교 + 알림장
+    return { dog: res.dog, events: res.events, boost: id };
   }
 
   leaveSchool(userId) {

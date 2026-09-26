@@ -615,3 +615,16 @@ export const LETTERS = {
   smart: ['{owner}, 오늘 혼자 "앉아"를 100번 연습했어. 이제 눈 감고도 할 수 있어!', '책장에 있는 책 냄새를 다 맡아 봤어. 제일 재밌는 책은 {owner} 사진첩!'],
   welcome: ['{owner}, 우리 오늘부터 가족이야! 매일매일 같이 놀자. 가끔 편지를 써서 우편함에 넣어 둘게!'],
 };
+
+// ---------- 학교 시간 아이템 ----------
+// 셔틀버스표는 코인으로 사고, 모래시계는 선물로만 받아요 (환영 편지, 도장판 완성, 5레벨마다, 가끔 편지).
+export const SCHOOL_BOOSTS = {
+  bus: { name: '슝슝 셔틀버스표', desc: '남은 수업 시간이 절반으로 줄어요.', price: 15, icon: 'bus' },
+  hourglass: { name: '반짝 모래시계', desc: '수업이 바로 끝나요! 선물도 다 받아요.', price: null, icon: 'hourglass' },
+};
+export const BOOST_RULES = {
+  dailyUses: 3, // 하루에 쓸 수 있는 횟수 (두 아이템 합쳐서)
+  maxHold: 9, // 한 종류당 가질 수 있는 최대 개수
+  hourglassEvery: 5, // 이 레벨마다 모래시계 선물
+  letterBusChance: 0.15, // 선물 편지에 셔틀버스표가 들어 있을 확률
+};

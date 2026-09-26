@@ -646,6 +646,10 @@ export function dogPortrait(breed, stage, opts = {}, pose = 'front') {
 
 // ---------- 스티커 & 아이콘 (12x12) ----------
 export const ICONS = {
+  bus: { colors: { o: '#4a3330', y: '#ffd23f', d: '#e0a800', w: '#bfe6ff', r: '#ff5d7a', g: '#5a4a48' },
+    map: ['.oooooooooo.', 'oyyyyyyyyyyo', 'oywwoywwoywo', 'oywwoywwoywo', 'oyyyyyyyyyyo', 'orrrrrrrrrro', 'oyyyyyyyyyyo', 'oddddddddddo', '.oggo..oggo.', '..oo....oo..'] },
+  hourglass: { colors: { o: '#4a3330', b: '#b9773f', s: '#ffd23f', w: '#e8f6ff', l: '#fff4b8' },
+    map: ['obbbbbbbbo', '.owwwwwwo.', '.oslsssso.', '..osssso..', '...osso...', '...owso...', '..owwsso..', '.owwssslo.', '.osssssso.', 'obbbbbbbbo'] },
   mail: { colors: { o: '#4a3330', w: '#fffaf0', l: '#f0dcc0', r: '#ff5d7a' },
     map: ['oooooooooooo', 'oowwwwwwwwoo', 'owowwwwwwowo', 'owwowwwwowwo', 'owwwwrrwwwwo', 'owwwrrrrwwwo', 'owwwwrrwwwwo', 'owwwwwwwwwwo', 'ollllllllllo', 'oooooooooooo'] },
   medal: { colors: { o: '#4a3330', b: '#5b8cff', r: '#ff5d7a', y: '#ffd23f', d: '#e0a800', w: '#fffbe0' },

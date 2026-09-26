@@ -1,7 +1,7 @@
 // 매일 들어오고 싶은 이유 + 자랑거리: 오늘의 약속 · 도장판 · 배지 · 견종 도감 · 우편함(강아지 편지)
 // game.js의 트랜잭션 안에서도 불려서, 여기서는 tx()를 쓰지 않아요.
 import {
-  QUESTS, STAMP, BADGES, BADGE_COINS, SHOWCASE_MAX, LETTER, LETTERS, BREEDS, TRICKS, ITEMS,
+  QUESTS, STAMP, BADGES, BADGE_COINS, SHOWCASE_MAX, LETTER, LETTERS, BREEDS, TRICKS, ITEMS, SCHOOL_BOOSTS, BOOST_RULES,
 } from '../shared/data.js';
 import { kstDate, levelFromExp, talentStage } from '../shared/rules.js';
 
@@ -91,7 +91,8 @@ export class Progress {
         p.stats.stampCard = (p.stats.stampCard ?? 0) + 1;
         this.sendMail(userId, 'capsule', {
           from: '멍뭉 우체부', title: '도장판 완성 선물!',
-          body: `도장 ${STAMP.card}개를 다 모았어요! 희귀 아이템 이상만 나오는 특별 캡슐을 보내요. 열어 보세요!`,
+          body: `도장 ${STAMP.card}개를 다 모았어요! 희귀 아이템 이상만 나오는 특별 캡슐과 반짝 모래시계를 보내요. 열어 보세요!`,
+          boost: 'hourglass',
         });
       }
       events.push({ type: 'stamp', stamps: full ? STAMP.card : p.stamps, card: STAMP.card, full });
@@ -188,6 +189,7 @@ export class Progress {
         this.db.prepare('UPDATE users SET owned = ? WHERE id = ?').run(JSON.stringify(user.owned), userId);
       } else { this.game.addCoins(userId, 10); result.duplicate = true; }
     }
+    if (data.boost && SCHOOL_BOOSTS[data.boost]) result.boostAdded = this.game.addBoost(userId, data.boost, 1);
     if (m.kind === 'capsule') result.capsule = this.game.gacha(userId, { special: true });
     if (m.kind === 'letter') result.events.push(...this.track(userId, 'letter'));
     return result;
@@ -226,8 +228,9 @@ export class Progress {
         if (pool2.length) data.item = pool2[Math.floor(this.rng() * pool2.length)];
       }
       if (!data.item) data.coins = 5 + Math.floor(this.rng() * 11);
+      if (this.rng() < BOOST_RULES.letterBusChance) data.boost = 'bus';
     }
-    if (pool === 'welcome') data.coins = 10;
+    if (pool === 'welcome') { data.coins = 10; data.boost = 'hourglass'; }
     this.sendMail(userId, 'letter', data);
     this.db.prepare('UPDATE users SET letter_at = ? WHERE id = ?').run(this.now(), userId);
   }
