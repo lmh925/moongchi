@@ -304,8 +304,10 @@ export class Scene {
       if (!this.running) return;
       const dt = Math.min(0.1, (t - this.last) / 1000);
       this.last = t;
-      this.update(dt);
-      this.draw();
+      if (!this.paused) {
+        this.update(dt);
+        this.draw();
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);

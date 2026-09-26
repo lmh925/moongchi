@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING,
+  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG,
 } from '/shared/data.js';
 import { applyDecay, quizResult } from '/shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -14,6 +14,8 @@ import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
 import { playJumpRope } from './jumprope.js';
+import { PlazaView } from './plaza.js';
+import { CoopClient } from './coop.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -31,6 +33,8 @@ const state = {
   closetTab: 'dog',
   bonds: {},
   party: null,
+  plaza: null, // 놀이터에 있을 때: { view, channel, count, tag, waiting, friends }
+  coopWaiting: null,
 };
 
 // 강아지 크기와 견종에 따라 짖는 소리 높낮이가 달라요
@@ -276,6 +280,7 @@ function enterGame(me) {
 }
 
 function setTab(tab) {
+  if (state.plaza && tab !== 'play') leavePlaza();
   state.tab = tab;
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
   renderPanel();
@@ -293,7 +298,16 @@ function connectSocket() {
   // eslint-disable-next-line no-undef
   const socket = io({ auth: { token: getToken() } });
   state.socket = socket;
-  socket.on('connect', () => enterRoom(state.roomOwnerId ?? myId(), { quiet: true }));
+  socket.on('connect', () => {
+    if (state.plaza) rejoinPlaza();
+    else enterRoom(state.roomOwnerId ?? myId(), { quiet: true });
+  });
+  bindPlazaSocket(socket);
+  state.coop = new CoopClient(socket, {
+    onStart: () => { state.coopWaiting = null; renderSpotBox(); },
+    onEnd: () => refreshMe(),
+    onRetry: (game) => queueCoop(game),
+  });
   socket.on('connect_error', (err) => {
     if (err.message === 'unauthorized') logout();
   });
@@ -1180,7 +1194,289 @@ async function shareLink(link) {
   }
 }
 
+// ---------- 멍뭉 놀이터 (공개 광장) ----------
+function bindPlazaSocket(socket) {
+  socket.on('plaza:enter', (m) => {
+    if (!state.plaza) return;
+    state.plaza.view.upsert({ ...m, friend: state.plaza.friends.has(m.userId) });
+    state.plaza.count += 1;
+    renderPlazaHeader();
+  });
+  socket.on('plaza:exit', ({ userId }) => {
+    if (!state.plaza) return;
+    state.plaza.view.remove(userId);
+    state.plaza.count = Math.max(1, state.plaza.count - 1);
+    renderPlazaHeader();
+  });
+  socket.on('plaza:pos', ({ userId, x, y, dir, moving }) => state.plaza?.view.move(userId, x, y, dir, moving));
+  socket.on('plaza:bubble', ({ userId, kind, value }) => {
+    if (!state.plaza) return;
+    state.plaza.view.bubble(userId, kind, value);
+    sfx.pop();
+  });
+  socket.on('plaza:emote', ({ userId, kind }) => {
+    if (!state.plaza) return;
+    state.plaza.view.emote(userId, kind);
+    const dog = state.plaza.view.entities.get(userId)?.dog;
+    if (kind === 'bark') sfx.bark(barkPitch(dog));
+    if (kind === 'jump') sfx.jump();
+    if (kind === 'wave') sfx.love();
+    if (kind === 'spin') sfx.whoosh();
+  });
+  socket.on('plaza:kicked', ({ reason }) => {
+    if (!state.plaza) return;
+    toast(reason, 'bad');
+    leavePlaza(false);
+  });
+  socket.on('tag:state', (t) => {
+    if (!state.plaza) return;
+    const before = state.plaza.tag;
+    state.plaza.tag = t;
+    state.plaza.view.tag = t;
+    if (t?.status === 'play' && before?.status !== 'play') { sfx.bell(); toast('술래잡기 시작! 빨간 깃발이 술래예요.', 'good'); }
+    renderTagHud();
+    renderSpotBox();
+  });
+  socket.on('tag:tagged', ({ from, to }) => {
+    if (!state.plaza) return;
+    state.plaza.view.bubble(to, 'text', '잡혔다!');
+    state.plaza.view.emote(to, 'jump');
+    sfx.hurt();
+    if (to === myId()) toast('내가 술래예요! 친구를 잡으러 가요!', 'bad');
+  });
+  socket.on('tag:end', ({ results }) => {
+    if (!state.plaza) return;
+    state.plaza.tag = null;
+    state.plaza.view.tag = null;
+    renderTagHud();
+    renderSpotBox();
+    sfx.levelUp();
+    modal({
+      title: '술래잡기 끝!',
+      body: el('div', { class: 'party-results' }, results.map((r, i) => el('div', { class: `party-result ${r.userId === myId() ? 'me' : ''}` },
+        el('span', { class: 'rank' }, `${i + 1}`),
+        el('span'),
+        el('div', {}, el('b', {}, r.nickname), el('div', { class: 'meta' }, `잡은 횟수 ${r.tags} · 코인 +${r.coins}`))))),
+      buttons: [{ label: '또 하자!' }],
+    });
+    refreshMe();
+  });
+  socket.on('coop:queue', ({ game, waiting }) => {
+    if (!state.plaza) return;
+    state.plaza.waiting[game] = waiting;
+    renderSpotBox();
+    renderTagHud();
+  });
+}
+
+async function enterPlaza(channel) {
+  const dog = state.me.dog;
+  if (dog.school) return toast(`${dog.name}(은)는 학교에 가 있어요!`);
+  unlock();
+  state.socket?.emit('room:leave');
+  const res = await emitAck('plaza:join', channel ? { channel } : {});
+  if (!res.ok) {
+    toast(res.reason, 'bad');
+    enterRoom(myId(), { quiet: true });
+    return;
+  }
+  mountPlaza(res);
+  sfx.notify();
+  toast(`${res.channel}번 놀이터에 왔어요! 조이스틱이나 바닥을 눌러 움직여요.`, 'good');
+}
+
+function mountPlaza(res) {
+  state.plaza?.view.destroy();
+  state.scene.paused = true;
+  document.querySelector('.stage').classList.add('plaza-mode');
+  const me = res.members.find((m) => m.userId === myId());
+  const friends = new Set(res.friends);
+  const view = new PlazaView(document.querySelector('.stage'), {
+    userId: myId(), nickname: state.me.user.nickname, dog: publicDog(state.me.dog), x: me?.x, y: me?.y,
+  }, {
+    onPos: (p) => state.socket?.emit('plaza:pos', p),
+    onTapDog: openPlazaDog,
+    onSpot: () => renderSpotBox(),
+    onFloor: () => sfx.tap(),
+  });
+  for (const m of res.members) if (m.userId !== myId()) view.upsert({ ...m, friend: friends.has(m.userId) });
+  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends };
+  view.tag = res.tag;
+  $('#room-label').textContent = `멍뭉 놀이터 ${res.channel}번`;
+  $('#away-sign').hidden = true;
+  playBgm('play');
+  if (state.tab !== 'play') { state.tab = 'play'; document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === 'play')); }
+  renderPanel();
+  renderTagHud();
+}
+
+async function rejoinPlaza() {
+  const res = await emitAck('plaza:join', { channel: state.plaza?.channel });
+  if (res.ok) mountPlaza(res); else leavePlaza(false);
+}
+
+function leavePlaza(backHome = true) {
+  if (!state.plaza) return;
+  state.socket?.emit('plaza:leave');
+  state.socket?.emit('coop:cancel');
+  state.plaza.view.destroy();
+  state.plaza = null;
+  state.coopWaiting = null;
+  document.querySelector('.stage').classList.remove('plaza-mode');
+  state.scene.paused = false;
+  playBgm('home');
+  if (backHome) enterRoom(myId(), { quiet: true });
+  else enterRoom(myId(), { quiet: true });
+  if (state.tab === 'play') renderPanel();
+}
+
+function renderPlazaHeader() {
+  const h = $('#plaza-count');
+  if (h && state.plaza) h.textContent = `${state.plaza.channel}번 놀이터 · ${state.plaza.count}/${PLAZA.cap}`;
+}
+
+function renderTagHud() {
+  const p = state.plaza;
+  if (!p) return;
+  const hud = p.view.hud;
+  const t = p.tag;
+  const lines = [];
+  if (t) {
+    const name = (id) => (id === myId() ? '나' : p.view.entities.get(id)?.nickname ?? '친구');
+    if (t.status === 'waiting') lines.push(`술래잡기 모집 중 (${t.players.length}명)${t.startsAt ? ' · 곧 시작!' : ''}`);
+    else lines.push(`술래잡기 ${Math.max(0, Math.ceil((t.endsAt - serverNow()) / 1000))}초 · 술래: ${name(t.it)}`);
+  }
+  const w = p.waiting.ribbon;
+  if (w && w.userId !== myId()) lines.push(`선물 상자에서 ${w.nickname}(이)가 친구를 기다려요!`);
+  hud.replaceChildren(...lines.map((l) => el('div', {}, l)));
+  hud.hidden = !lines.length;
+  clearTimeout(state.tagHudTimer);
+  if (t?.status === 'play' || t?.startsAt) state.tagHudTimer = setTimeout(renderTagHud, 500);
+}
+
+async function queueCoop(game) {
+  if (!state.plaza) return toast('놀이터에서 할 수 있어요!');
+  const res = await emitAck('coop:queue', { game });
+  if (!res.ok) return toast(res.reason, 'bad');
+  if (res.waiting) {
+    state.coopWaiting = game;
+    toast('친구를 기다리는 중이에요. 누가 오면 바로 시작해요!');
+  }
+  renderSpotBox();
+}
+
+function renderSpotBox() {
+  const box = $('#spot-box');
+  const p = state.plaza;
+  if (!box || !p) return;
+  const spot = p.view.spot;
+  const info = spot && PLAZA_SPOTS[spot];
+  let content;
+  if (!info) {
+    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자(왼쪽 아래)나 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
+  } else if (info.soon) {
+    content = [el('b', {}, info.name), el('div', { class: 'meta' }, '곧 열려요! 조금만 기다려 주세요.')];
+  } else if (spot === 'tag') {
+    const t = p.tag;
+    const joined = t?.players.includes(myId());
+    content = [el('b', {}, info.name),
+      el('div', { class: 'meta' }, `술래(빨간 깃발)에게 잡히면 내가 술래! ${TAG.seconds}초 동안 도망가요.`),
+      t?.status === 'play' ? el('div', { class: 'meta' }, joined ? '지금 하는 중!' : '한 판 하는 중이에요. 끝나면 같이 해요!')
+        : el('button', { class: 'btn primary', disabled: joined, onclick: async () => { const r = await emitAck('tag:join', {}); if (!r.ok) toast(r.reason, 'bad'); } }, joined ? '참가했어요! 친구를 기다려요' : '참가하기')];
+  } else if (info.game) {
+    const g = COOP_GAMES[info.game];
+    const w = p.waiting[info.game];
+    const mine = state.coopWaiting === info.game;
+    content = [el('b', {}, g.name), el('div', { class: 'meta' }, g.desc),
+      w && !mine ? el('div', { class: 'meta' }, `${w.nickname}(이)가 기다리고 있어요!`) : null,
+      mine
+        ? el('button', { class: 'btn secondary', onclick: () => { state.socket.emit('coop:cancel'); state.coopWaiting = null; renderSpotBox(); } }, '기다리는 중… (취소)')
+        : el('button', { class: 'btn primary', onclick: () => queueCoop(info.game) }, w ? '같이 하기!' : '같이 할 친구 기다리기')];
+  }
+  box.replaceChildren(...content.filter(Boolean));
+}
+
+function plazaPanel() {
+  const p = state.plaza;
+  const emotes = [['bark', '멍!'], ['jump', '점프'], ['wave', '인사'], ['spin', '빙글']];
+  return el('div', {},
+    el('div', { class: 'plaza-top' },
+      el('b', { id: 'plaza-count' }, `${p.channel}번 놀이터 · ${p.count}/${PLAZA.cap}`),
+      el('span', { class: 'btns' },
+        el('button', { class: 'btn small', onclick: openChannels }, '놀이터 바꾸기'),
+        el('button', { class: 'btn small secondary', onclick: () => leavePlaza() }, '집으로'))),
+    el('div', { id: 'spot-box', class: 'spot-box' }),
+    el('div', { class: 'emotes' }, emotes.map(([k, label]) => el('button', {
+      class: 'btn small', onclick: () => state.socket.emit('plaza:emote', { kind: k }),
+    }, label))),
+    el('div', { class: 'chatbar' },
+      el('div', { class: 'stickers' }, Object.entries(STICKERS).map(([id, name]) => el('button', {
+        class: 'sticker', title: name, 'aria-label': name, onclick: () => state.socket.emit('plaza:sticker', { id }),
+      }, el('img', { class: 'pixel', src: iconURL(id, 3), alt: '' })))),
+      el('div', { class: 'phrases' }, PHRASES.map((text, index) => el('button', {
+        class: 'phrase', onclick: () => state.socket.emit('plaza:phrase', { index }),
+      }, text)))),
+    el('p', { class: 'hint' }, '놀이터는 누구나 오는 곳이라 글자 채팅은 없어요. 모르는 친구에게 이름·학교·전화번호를 알려 주지 마세요. 불편한 친구는 강아지를 눌러 차단하거나 신고할 수 있어요.'));
+}
+
+async function openChannels() {
+  const list = await emitAck('plaza:channels', {});
+  modal({
+    title: '놀이터 고르기',
+    body: el('div', { class: 'cards' },
+      (Array.isArray(list) ? list : []).map((c) => el('button', {
+        class: 'card', style: { textAlign: 'left', cursor: 'pointer' }, disabled: c.full || c.id === state.plaza?.channel,
+        onclick: () => { closeAllModals(); enterPlaza(c.id); },
+      }, el('div', { class: 'title' }, `${c.id}번 놀이터`, el('span', { class: 'chip' }, `${c.count}/${PLAZA.cap}`)),
+      el('div', { class: 'meta' }, c.id === state.plaza?.channel ? '지금 여기 있어요' : c.friends ? `친구 ${c.friends}명이 있어요!` : c.full ? '꽉 찼어요' : '들어갈 수 있어요')))),
+    buttons: [{ label: '닫기', kind: 'secondary' }],
+  });
+}
+
+function openPlazaDog(e) {
+  const reasons = { mean: '나쁜 말이나 행동을 해요', follow: '자꾸 따라다녀요', spam: '스티커를 너무 많이 보내요', other: '기타' };
+  const report = () => {
+    closeAllModals();
+    modal({
+      title: `${e.nickname} 신고하기`,
+      body: el('div', { class: 'cards' },
+        el('p', { class: 'help' }, '어떤 점이 불편했나요? 신고하면 서로 안 보이게 되고, 여러 명이 신고하면 그 친구는 잠시 놀이터에 못 와요.'),
+        Object.entries(reasons).map(([k, label]) => el('button', {
+          class: 'btn', onclick: async () => {
+            closeAllModals();
+            const r = await emitAck('plaza:report', { userId: e.userId, reason: k });
+            toast(r.ok ? '신고했어요. 알려 줘서 고마워요!' : r.reason, r.ok ? 'good' : 'bad');
+            if (r.ok) state.plaza?.view.remove(e.userId);
+          },
+        }, label))),
+      buttons: [{ label: '취소', kind: 'secondary' }],
+    });
+  };
+  const block = async () => {
+    const r = await emitAck('plaza:block', { userId: e.userId });
+    toast(r.ok ? `${e.nickname}(을)를 차단했어요. 이제 서로 보이지 않아요.` : r.reason, r.ok ? 'good' : 'bad');
+    if (r.ok) state.plaza?.view.remove(e.userId);
+  };
+  modal({
+    title: e.nickname,
+    body: el('div', { class: 'center' },
+      el('img', { class: 'pixel', style: { width: '96px', height: '88px' }, src: dogPortrait(e.dog.breed, e.dog.stage, { equip: e.dog.equip }), alt: '' }),
+      el('p', {}, `${e.dog.name} · ${BREEDS[e.dog.breed].name} · ${STAGES[e.dog.stage].name}`),
+      e.friend ? el('p', { class: 'chip' }, '내 친구예요') : el('p', { class: 'hint' }, '친구가 되려면 친구 코드를 직접 주고받아야 해요.')),
+    buttons: [
+      { label: '반갑게 인사', onClick: () => { state.socket.emit('plaza:emote', { kind: 'wave' }); state.socket.emit('plaza:sticker', { id: 'heart' }); } },
+      { label: '차단', kind: 'secondary', onClick: block },
+      { label: '신고', kind: 'secondary', onClick: report },
+    ],
+  });
+}
+
 function playPanel() {
+  if (state.plaza) {
+    const node = plazaPanel();
+    setTimeout(renderSpotBox, 0);
+    return node;
+  }
   const dog = state.me.dog;
   const { user } = state.me;
   const today = new Date(serverNow() + 9 * 3600_000).toISOString().slice(0, 10);
@@ -1193,7 +1489,11 @@ function playPanel() {
     }, '놀기!')),
     el('div', { class: 'meta' }, desc));
   return el('div', {},
-    el('h3', {}, '놀이터'),
+    el('div', { class: 'together-card plaza-card' },
+      el('div', { class: 'title' }, '멍뭉 놀이터', el('span', { class: 'chip' }, '다 같이!')),
+      el('p', {}, '여러 친구 강아지들이 모이는 큰 공원! 조이스틱으로 뛰어다니고, 술래잡기와 대왕 리본 풀기를 같이 해요.'),
+      el('button', { class: 'btn primary', disabled: !!dog.school, onclick: () => enterPlaza() }, '놀이터 가기!')),
+    el('h3', {}, '혼자 하는 놀이'),
     el('p', { class: 'sub' }, dog.school ? '강아지가 학교에서 돌아오면 놀 수 있어요.' : `오늘 남은 횟수: ${left}번 · 한 판에 코인 최대 ${RULES.minigame.maxCoins}개 · 애정도 UP`),
     el('div', { class: 'cards' },
       el('div', { class: 'card' },

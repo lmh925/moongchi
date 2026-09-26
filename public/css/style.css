@@ -253,6 +253,56 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 }
 .school-board .big { font-size: 26px; font-weight: 700; color: var(--butter); }
 
+/* 멍뭉 놀이터 */
+.stage.plaza-mode > #stage-canvas, .stage.plaza-mode > #stage-overlay, .stage.plaza-mode > #party-hud { display: none; }
+.plaza-view { position: absolute; inset: 0; touch-action: none; }
+.plaza-canvas { width: 100%; height: 100%; display: block; }
+.plaza-name { font-size: 10px; padding: 0 4px; opacity: .92; }
+.plaza-name.friend { background: #d9f5e6; }
+.joystick {
+  position: absolute; left: 10px; bottom: 10px; width: 84px; height: 84px; border-radius: 50%;
+  background: rgba(255, 250, 240, .45); border: 3px solid rgba(74, 51, 48, .55); touch-action: none; display: grid; place-items: center;
+}
+.joystick.active { background: rgba(255, 250, 240, .7); }
+.joy-knob { width: 38px; height: 38px; border-radius: 50%; background: var(--pink); border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); pointer-events: none; }
+.plaza-hud {
+  position: absolute; left: 50%; top: 6px; transform: translateX(-50%); background: rgba(255, 250, 240, .92); border: 2px solid var(--ink);
+  border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 700; text-align: center; pointer-events: none; max-width: 90%;
+}
+.plaza-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.spot-box {
+  border: 3px solid var(--ink); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff1c9, #d9f5e6);
+}
+.spot-box .meta { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.emotes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.plaza-card { margin-bottom: 12px; }
+
+/* 2인 협동 게임 */
+.coop-card { max-width: 460px; padding: 12px; user-select: none; -webkit-user-select: none; }
+.coop-head .modal-title { margin-bottom: 6px; font-size: 18px; }
+.coop-players { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.coop-player { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; border: 2px solid var(--line); border-radius: 999px; padding: 0 8px 0 0; }
+.coop-player.me { border-color: var(--pink); background: var(--pink-l); }
+.coop-player img { width: 32px; height: 29px; }
+.coop-time { height: 10px; margin-bottom: 8px; }
+.coop-time > i { background: var(--grass-l); transition: none; }
+.gauge { position: relative; height: 26px; border: 3px solid var(--ink); border-radius: 10px; background: #f3e6d4; margin-bottom: 8px; overflow: hidden; }
+.gauge.hot { box-shadow: 0 0 0 3px var(--butter); }
+.gauge-zone { position: absolute; top: 0; bottom: 0; background: var(--grass-l); border-left: 2px solid var(--grass-d); border-right: 2px solid var(--grass-d); }
+.gauge-mark { position: absolute; top: -2px; bottom: -2px; width: 8px; margin-left: -4px; background: var(--pink-d); border: 2px solid var(--ink); border-radius: 4px; }
+.coop-stage { position: relative; aspect-ratio: 192 / 120; border: 3px solid var(--ink); border-radius: 10px; overflow: hidden; }
+.coop-canvas { width: 100%; height: 100%; display: block; }
+.coop-msg { position: absolute; top: 8px; left: 0; right: 0; text-align: center; font-weight: 700; font-size: 18px; opacity: 0; transition: opacity .2s; pointer-events: none; text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff; }
+.coop-msg.show { opacity: 1; }
+.coop-msg.good { color: var(--grass-d); }
+.coop-msg.bad { color: var(--red); }
+.knots { position: absolute; bottom: 6px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
+.knot { width: 14px; height: 14px; border-radius: 50%; background: var(--butter); border: 2px solid var(--ink); }
+.knot.done { background: var(--grass-l); }
+.coop-btn { width: 100%; margin-top: 10px; font-size: 24px; touch-action: manipulation; }
+.coop-btn.glow { background: var(--grass-l); text-shadow: 1px 1px 0 var(--grass-d); }
+
 /* 마이룸 미니게임 버튼 */
 .room-games { margin-top: 10px; }
 .room-games-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
