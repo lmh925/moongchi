@@ -1,0 +1,230 @@
+// 실시간 마이룸: 방문, 이동, 스티커/문장/채팅, 개인기, 초대
+import { STICKERS, PHRASES, TRICKS } from '../shared/data.js';
+import { checkText } from './filter.js';
+
+const clamp01 = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+const CHAT_GAP_MS = 1200;
+const INVITE_GAP_MS = 5000;
+
+export class RoomHub {
+  constructor(io, { auth, game, friends }) {
+    this.io = io;
+    this.auth = auth;
+    this.game = game;
+    this.friends = friends;
+    this.rooms = new Map(); // ownerId -> Map<userId, member>
+    this.sockets = new Map(); // userId -> Set<socket>
+    io.use((socket, next) => {
+      const userId = auth.userIdForToken(socket.handshake.auth?.token);
+      if (!userId) return next(new Error('unauthorized'));
+      socket.data.userId = userId;
+      socket.data.lastChat = 0;
+      socket.data.lastInvite = 0;
+      next();
+    });
+    io.on('connection', (socket) => this.onConnect(socket));
+  }
+
+  online(userId) {
+    return (this.sockets.get(userId)?.size ?? 0) > 0;
+  }
+
+  emitToUser(userId, event, payload) {
+    for (const s of this.sockets.get(userId) ?? []) s.emit(event, payload);
+  }
+
+  onConnect(socket) {
+    const { userId } = socket.data;
+    if (!this.sockets.has(userId)) this.sockets.set(userId, new Set());
+    const set = this.sockets.get(userId);
+    set.add(socket);
+    if (set.size === 1) this.broadcastPresence(userId, true);
+
+    socket.on('friends:online', (_, ack) => {
+      if (typeof ack !== 'function') return;
+      ack(this.friends.friendIds(userId).filter((id) => this.online(id)));
+    });
+    socket.on('room:join', (msg, ack) => this.join(socket, Number(msg?.ownerId), ack));
+    socket.on('room:leave', () => this.leave(socket));
+    socket.on('room:move', (msg) => {
+      const m = this.member(socket);
+      if (!m) return;
+      m.x = clamp01(msg?.x);
+      m.y = clamp01(msg?.y);
+      socket.to(this.channel(socket.data.room)).emit('room:move', { userId, x: m.x, y: m.y });
+    });
+    socket.on('room:sticker', (msg) => {
+      if (!STICKERS[msg?.id] || !this.chatGate(socket)) return;
+      this.bubble(socket, 'sticker', msg.id);
+    });
+    socket.on('room:phrase', (msg) => {
+      const text = PHRASES[msg?.index];
+      if (!text || !this.chatGate(socket)) return;
+      this.bubble(socket, 'text', text);
+    });
+    socket.on('room:chat', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const m = this.member(socket);
+      if (!m) return reply({ ok: false, reason: '방에 들어가 있지 않아요.' });
+      if (!this.canChat(socket.data.room, userId)) {
+        return reply({ ok: false, reason: '모두와 친구일 때만 글자를 쓸 수 있어요. 스티커를 써 보세요!' });
+      }
+      const res = checkText(msg?.text);
+      if (!res.ok) return reply(res);
+      if (!this.chatGate(socket)) return reply({ ok: false, reason: '조금 천천히 보내 주세요~' });
+      this.bubble(socket, 'text', res.text);
+      reply({ ok: true });
+    });
+    socket.on('room:pet', (msg) => {
+      const m = this.member(socket);
+      const target = Number(msg?.userId);
+      if (!m || !this.chatGate(socket, 600)) return;
+      this.io.to(this.channel(socket.data.room)).emit('room:pet', { from: userId, to: target });
+    });
+    socket.on('room:trick', (msg) => {
+      const m = this.member(socket);
+      if (!m || !TRICKS[msg?.trick]) return;
+      const dog = this.game.loadDog(userId);
+      if (!dog?.tricks.includes(msg.trick) || !this.chatGate(socket, 1500)) return;
+      socket.to(this.channel(socket.data.room)).emit('room:trick', { userId, trick: msg.trick });
+    });
+    socket.on('invite', (msg, ack) => {
+      const reply = typeof ack === 'function' ? ack : () => {};
+      const friendId = Number(msg?.friendId);
+      if (!this.friends.areFriends(userId, friendId) || friendId === userId) return reply({ ok: false, reason: '친구만 초대할 수 있어요.' });
+      if (!this.online(friendId)) return reply({ ok: false, reason: '친구가 지금 접속해 있지 않아요.' });
+      const now = Date.now();
+      if (now - socket.data.lastInvite < INVITE_GAP_MS) return reply({ ok: false, reason: '조금 뒤에 다시 초대해 주세요.' });
+      socket.data.lastInvite = now;
+      const me = this.game.getUser(userId);
+      this.emitToUser(friendId, 'invite', { fromId: userId, nickname: me.nickname });
+      reply({ ok: true });
+    });
+    socket.on('disconnect', () => {
+      this.leave(socket);
+      set.delete(socket);
+      if (set.size === 0) {
+        this.sockets.delete(userId);
+        this.broadcastPresence(userId, false);
+      }
+    });
+  }
+
+  broadcastPresence(userId, online) {
+    for (const fid of this.friends.friendIds(userId)) this.emitToUser(fid, 'presence', { userId, online });
+  }
+
+  channel(ownerId) {
+    return `room:${ownerId}`;
+  }
+
+  member(socket) {
+    const room = this.rooms.get(socket.data.room);
+    const m = room?.get(socket.data.userId);
+    return m && m.socketId === socket.id ? m : null;
+  }
+
+  chatGate(socket, gap = CHAT_GAP_MS) {
+    if (!this.member(socket)) return false;
+    const now = Date.now();
+    if (now - socket.data.lastChat < gap) return false;
+    socket.data.lastChat = now;
+    return true;
+  }
+
+  bubble(socket, kind, value) {
+    this.io.to(this.channel(socket.data.room)).emit('room:bubble', { userId: socket.data.userId, kind, value });
+  }
+
+  // 글자 채팅은 방 안의 모든 사람과 서로 친구일 때만 허용해요.
+  canChat(ownerId, userId) {
+    const room = this.rooms.get(ownerId);
+    if (!room) return false;
+    for (const other of room.keys()) {
+      if (other !== userId && !this.friends.areFriends(userId, other)) return false;
+    }
+    return true;
+  }
+
+  memberView(m) {
+    const { dog } = this.game.refreshDog(m.userId);
+    return { userId: m.userId, nickname: m.nickname, x: m.x, y: m.y, dog: this.game.publicDog(dog) };
+  }
+
+  roomState(ownerId) {
+    const owner = this.game.getUser(ownerId);
+    const { dog } = this.game.refreshDog(ownerId);
+    const room = this.rooms.get(ownerId) ?? new Map();
+    return {
+      owner: { id: owner.id, nickname: owner.nickname },
+      decor: owner.room,
+      homeDog: this.game.publicDog(dog),
+      members: [...room.values()].map((m) => this.memberView(m)),
+    };
+  }
+
+  join(socket, ownerId, ack) {
+    const reply = typeof ack === 'function' ? ack : () => {};
+    const { userId } = socket.data;
+    if (!this.game.getUser(ownerId)) return reply({ ok: false, reason: '그런 집은 없어요.' });
+    if (!this.friends.areFriends(userId, ownerId)) return reply({ ok: false, reason: '친구의 집에만 놀러 갈 수 있어요.' });
+    this.leave(socket);
+    // 같은 계정의 다른 창이 방에 있다면 내보내요.
+    for (const [rid, room] of this.rooms) {
+      const old = room.get(userId);
+      if (old) {
+        const oldSocket = this.io.sockets.sockets.get(old.socketId);
+        if (oldSocket) this.leave(oldSocket, '다른 창에서 접속했어요.');
+        else room.delete(userId);
+        if (room.size === 0) this.rooms.delete(rid);
+      }
+    }
+    const user = this.game.getUser(userId);
+    if (!this.rooms.has(ownerId)) this.rooms.set(ownerId, new Map());
+    const m = { userId, nickname: user.nickname, socketId: socket.id, x: 0.3 + Math.random() * 0.4, y: 0.55 + Math.random() * 0.3 };
+    this.rooms.get(ownerId).set(userId, m);
+    socket.data.room = ownerId;
+    socket.join(this.channel(ownerId));
+    socket.to(this.channel(ownerId)).emit('room:enter', this.memberView(m));
+    reply({ ok: true, room: this.roomState(ownerId) });
+    this.updateChatPermissions(ownerId);
+  }
+
+  leave(socket, reason) {
+    const ownerId = socket.data.room;
+    if (ownerId === undefined) return;
+    const room = this.rooms.get(ownerId);
+    const m = room?.get(socket.data.userId);
+    if (m && m.socketId === socket.id) {
+      room.delete(socket.data.userId);
+      if (room.size === 0) this.rooms.delete(ownerId);
+      socket.to(this.channel(ownerId)).emit('room:exit', { userId: socket.data.userId });
+      this.updateChatPermissions(ownerId);
+    }
+    socket.leave(this.channel(ownerId));
+    socket.data.room = undefined;
+    if (reason) socket.emit('room:kicked', { reason });
+  }
+
+  updateChatPermissions(ownerId) {
+    const room = this.rooms.get(ownerId);
+    if (!room) return;
+    for (const m of room.values()) {
+      this.io.sockets.sockets.get(m.socketId)?.emit('room:chat-allowed', { allowed: this.canChat(ownerId, m.userId) });
+    }
+  }
+
+  // 강아지 모습(옷, 성장 등)이 바뀌면 같은 방 친구들에게 알려요.
+  dogChanged(userId) {
+    const { dog } = this.game.refreshDog(userId);
+    const payload = { userId, dog: this.game.publicDog(dog) };
+    for (const [ownerId, room] of this.rooms) {
+      if (room.has(userId) || ownerId === userId) this.io.to(this.channel(ownerId)).emit('room:dog', payload);
+    }
+  }
+
+  roomDecorChanged(ownerId) {
+    const owner = this.game.getUser(ownerId);
+    this.io.to(this.channel(ownerId)).emit('room:decor', { decor: owner.room });
+  }
+}

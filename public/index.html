@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#8a5429">
+  <meta name="description" content="강아지를 돌보고, 멍뭉 학교에 보내고, 친구 집에 놀러 가는 힐링 돌봄 게임">
+  <title>멍뭉고치</title>
+  <link rel="preload" href="/fonts/Galmuri11.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main id="app">
+    <!-- 타이틀 -->
+    <section id="screen-title" class="screen">
+      <div class="title-card">
+        <canvas id="title-canvas" class="pixel" width="192" height="96" aria-hidden="true"></canvas>
+        <h1 class="logo">멍뭉고치</h1>
+        <p class="tagline">나만의 강아지와 함께하는 포근한 하루</p>
+        <div class="stack">
+          <button class="btn primary big" data-go="signup">처음 왔어요!</button>
+          <button class="btn secondary big" data-go="login">다시 왔어요</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 가입 / 로그인 -->
+    <section id="screen-auth" class="screen">
+      <div class="paper">
+        <h2 id="auth-title">반가워요!</h2>
+        <p id="auth-help" class="help"></p>
+        <label class="field">
+          <span>닉네임</span>
+          <input id="auth-nick" maxlength="8" autocomplete="username" placeholder="2~8글자">
+        </label>
+        <p class="label">비밀번호 (숫자 4개)</p>
+        <div id="auth-pin"></div>
+        <p id="auth-error" class="error" role="alert"></p>
+        <div class="row">
+          <button class="btn ghost" data-go="title">뒤로</button>
+          <button id="auth-submit" class="btn primary" disabled>시작하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 심리테스트 -->
+    <section id="screen-quiz" class="screen">
+      <div class="paper quiz">
+        <div id="quiz-progress" class="paws"></div>
+        <h2 id="quiz-q"></h2>
+        <div id="quiz-options" class="options"></div>
+      </div>
+    </section>
+
+    <!-- 운명의 강아지 -->
+    <section id="screen-result" class="screen">
+      <div class="paper result">
+        <p class="kicker">두근두근… 운명의 강아지를 만났어요!</p>
+        <img id="result-img" class="pixel result-dog" alt="">
+        <h2 id="result-breed"></h2>
+        <p id="result-personality" class="badge"></p>
+        <p id="result-desc" class="help"></p>
+        <label class="field">
+          <span>이름을 지어 주세요</span>
+          <input id="result-name" maxlength="8" placeholder="예: 뭉치">
+        </label>
+        <p id="result-error" class="error" role="alert"></p>
+        <button id="result-submit" class="btn primary big">우리 가족이 되어 줘!</button>
+      </div>
+    </section>
+
+    <!-- 게임 -->
+    <section id="screen-game" class="screen">
+      <header class="topbar">
+        <div class="who">
+          <strong id="top-name"></strong>
+          <span id="top-stage" class="chip"></span>
+        </div>
+        <div class="coins" title="뼈다귀 코인"><img id="coin-icon" class="pixel" alt=""><span id="top-coins">0</span></div>
+      </header>
+      <div class="stage-wrap">
+        <div class="stage">
+          <canvas id="stage-canvas" class="pixel"></canvas>
+          <div id="stage-overlay" class="overlay"></div>
+          <div id="room-label" class="room-label"></div>
+          <div id="away-sign" class="away-sign" hidden></div>
+        </div>
+      </div>
+      <div id="panel" class="panel"></div>
+      <nav class="tabs" aria-label="메뉴">
+        <button data-tab="home" class="tab active"><span class="ti ti-home"></span>우리집</button>
+        <button data-tab="school" class="tab"><span class="ti ti-school"></span>학교</button>
+        <button data-tab="closet" class="tab"><span class="ti ti-closet"></span>꾸미기</button>
+        <button data-tab="friends" class="tab"><span class="ti ti-friends"></span>친구<i id="badge-friends" class="dot" hidden></i></button>
+        <button data-tab="play" class="tab"><span class="ti ti-play"></span>놀이</button>
+        <button data-tab="notebook" class="tab"><span class="ti ti-notebook"></span>알림장<i id="badge-notebook" class="dot" hidden></i></button>
+      </nav>
+    </section>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.min.js"></script>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

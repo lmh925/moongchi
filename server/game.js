@@ -1,0 +1,320 @@
+// 강아지/유저 데이터 로직 (서버가 최종 판정)
+import crypto from 'node:crypto';
+import {
+  PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, TRICKS,
+  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
+} from '../shared/data.js';
+import {
+  applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
+} from '../shared/rules.js';
+import { tx } from './db.js';
+
+export class GameError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const pick = (arr, rng) => arr[Math.floor(rng() * arr.length)];
+
+function rowToDog(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    breed: row.breed,
+    personality: row.personality,
+    fullness: row.fullness,
+    cleanliness: row.cleanliness,
+    affection: row.affection,
+    fluff: row.fluff,
+    exp: row.exp,
+    stage: row.stage,
+    tricks: JSON.parse(row.tricks),
+    equip: JSON.parse(row.equip),
+    school: row.school ? JSON.parse(row.school) : null,
+    bornAt: row.born_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function rowToUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    nickname: row.nickname,
+    friendCode: row.friend_code,
+    coins: row.coins,
+    owned: JSON.parse(row.owned),
+    room: { ...DEFAULT_ROOM, ...JSON.parse(row.room) },
+    lastDaily: row.last_daily,
+    minigameDate: row.minigame_date,
+    minigamePlays: row.minigame_plays,
+  };
+}
+
+export class Game {
+  constructor(db, { speed = 1, now = () => Date.now(), rng = Math.random } = {}) {
+    this.db = db;
+    this.speed = speed;
+    this.now = now;
+    this.rng = rng;
+  }
+
+  // ---------- 유저 ----------
+  getUser(userId) {
+    return rowToUser(this.db.prepare('SELECT * FROM users WHERE id = ?').get(userId));
+  }
+
+  getUserByCode(code) {
+    return rowToUser(this.db.prepare('SELECT * FROM users WHERE friend_code = ?').get(String(code).toUpperCase()));
+  }
+
+  addCoins(userId, amount) {
+    if (!amount) return;
+    this.db.prepare('UPDATE users SET coins = MAX(0, coins + ?) WHERE id = ?').run(amount, userId);
+  }
+
+  // 하루 한 번 출석 보상
+  claimDaily(userId) {
+    const today = kstDate(this.now());
+    const res = this.db.prepare('UPDATE users SET last_daily = ?, coins = coins + ? WHERE id = ? AND (last_daily IS NULL OR last_daily <> ?)')
+      .run(today, RULES.dailyCoins, userId, today);
+    return res.changes > 0 ? RULES.dailyCoins : 0;
+  }
+
+  // ---------- 강아지 ----------
+  loadDog(userId) {
+    return rowToDog(this.db.prepare('SELECT * FROM dogs WHERE user_id = ?').get(userId));
+  }
+
+  saveDog(dog) {
+    this.db.prepare(`UPDATE dogs SET fullness=?, cleanliness=?, affection=?, fluff=?, exp=?, stage=?, tricks=?, equip=?, school=?, updated_at=? WHERE id=?`)
+      .run(dog.fullness, dog.cleanliness, dog.affection, dog.fluff, dog.exp, dog.stage,
+        JSON.stringify(dog.tricks), JSON.stringify(dog.equip), dog.school ? JSON.stringify(dog.school) : null,
+        dog.updatedAt, dog.id);
+  }
+
+  createDog(userId, { name, breed, personality }) {
+    if (!BREEDS[breed] || !PERSONALITIES[personality]) throw new GameError('강아지 정보가 올바르지 않아요.');
+    if (this.loadDog(userId)) throw new GameError('이미 함께 사는 강아지가 있어요.');
+    const now = this.now();
+    this.db.prepare(`INSERT INTO dogs (user_id, name, breed, personality, fullness, cleanliness, affection, fluff, exp, stage, tricks, equip, born_at, updated_at)
+      VALUES (?, ?, ?, ?, 80, 80, 60, 0, 0, 0, ?, '{}', ?, ?)`)
+      .run(userId, name, breed, personality, JSON.stringify(STARTING_TRICKS), now, now);
+    return this.loadDog(userId);
+  }
+
+  // 시간 경과 반영: 학교 하교 처리 → 수치 감소 → 성장 확인. 발생한 이벤트를 함께 돌려줍니다.
+  refreshDog(userId) {
+    return tx(this.db, () => {
+      let dog = this.loadDog(userId);
+      if (!dog) return { dog: null, events: [] };
+      const now = this.now();
+      const events = [];
+      if (dog.school && now >= dog.school.endsAt) {
+        const { dog: back, report, events: grew } = this.finishSchool(dog);
+        dog = back;
+        events.push(...grew, { type: 'schoolDone', report });
+      }
+      dog = applyDecay(dog, now, this.speed);
+      events.push(...this.checkGrowth(dog, now));
+      this.saveDog(dog);
+      return { dog, events };
+    });
+  }
+
+  checkGrowth(dog, now) {
+    const events = [];
+    const stage = computeStage(dog, now, this.speed);
+    while (dog.stage < stage) {
+      dog.stage += 1;
+      const gift = STAGE_GIFT_TRICK[dog.stage];
+      if (gift && !dog.tricks.includes(gift)) dog.tricks.push(gift);
+      events.push({ type: 'grew', stage: dog.stage, stageName: STAGES[dog.stage].name, trick: gift ?? null });
+    }
+    return events;
+  }
+
+  act(userId, action) {
+    if (!RULES.actions[action]) throw new GameError('알 수 없는 돌봄이에요.');
+    const { dog: fresh, events } = this.refreshDog(userId);
+    if (!fresh) throw new GameError('강아지가 없어요.', 404);
+    if (fresh.school) throw new GameError(`${fresh.name}(이)가 학교에 가 있어요!`);
+    return tx(this.db, () => {
+      const res = applyAction(fresh, action);
+      const dog = res.dog;
+      events.push(...this.checkGrowth(dog, this.now()));
+      this.saveDog(dog);
+      this.addCoins(userId, res.coins);
+      return { dog, coins: res.coins, exp: res.exp, reaction: res.reaction, events };
+    });
+  }
+
+  startSchool(userId, courseId) {
+    const course = SCHOOL_COURSES[courseId];
+    if (!course) throw new GameError('그런 수업은 없어요.');
+    const { dog, events } = this.refreshDog(userId);
+    if (!dog) throw new GameError('강아지가 없어요.', 404);
+    if (dog.school) throw new GameError('벌써 학교에 가 있어요!');
+    const now = this.now();
+    dog.school = { course: courseId, startedAt: now, endsAt: now + schoolDurationMs(courseId, this.speed) };
+    this.saveDog(dog);
+    return { dog, events };
+  }
+
+  finishSchool(dog) {
+    const course = SCHOOL_COURSES[dog.school.course];
+    const endsAt = dog.school.endsAt;
+    const next = { ...dog, tricks: [...dog.tricks], school: null, updatedAt: endsAt };
+    next.exp += course.exp;
+    const events = this.checkGrowth(next, endsAt);
+    let trick = null;
+    const chance = course.trickChance + (dog.personality === 'smart' ? 0.2 : 0);
+    const learnable = learnableTricks(next);
+    if (learnable.length && this.rng() < chance) {
+      trick = pick(learnable, this.rng);
+      next.tricks.push(trick);
+    }
+    const bias = {
+      hyper: { '달리기': 1 }, foodie: { '간식 예절': 1 }, sweet: { '친구 사귀기': 1 },
+      smart: { '집중력': 1 }, sleepy: { '집중력': -1 }, shy: { '친구 사귀기': -1 },
+    }[dog.personality] ?? {};
+    const stamps = Object.fromEntries(REPORT_SUBJECTS.map((s) => {
+      const base = 1 + Math.floor(this.rng() * 3);
+      return [s, Math.max(1, Math.min(3, base + (bias[s] ?? 0)))];
+    }));
+    const report = {
+      dogName: dog.name,
+      breed: dog.breed,
+      personality: dog.personality,
+      stage: next.stage,
+      course: dog.school.course,
+      courseName: course.name,
+      stamps,
+      comment: pick(TEACHER_COMMENTS[dog.personality], this.rng),
+      trick,
+      trickName: trick ? TRICKS[trick].name : null,
+      coins: course.coins,
+      exp: course.exp,
+      date: endsAt,
+    };
+    const res = this.db.prepare('INSERT INTO reports (user_id, data, created_at) VALUES (?, ?, ?)')
+      .run(dog.userId, JSON.stringify(report), endsAt);
+    this.addCoins(dog.userId, course.coins);
+    report.id = Number(res.lastInsertRowid);
+    return { dog: next, report, events };
+  }
+
+  listReports(userId) {
+    return this.db.prepare('SELECT id, data, read, created_at FROM reports WHERE user_id = ? ORDER BY created_at DESC LIMIT 50')
+      .all(userId)
+      .map((r) => ({ id: r.id, read: !!r.read, ...JSON.parse(r.data) }));
+  }
+
+  markReportRead(userId, reportId) {
+    this.db.prepare('UPDATE reports SET read = 1 WHERE id = ? AND user_id = ?').run(reportId, userId);
+  }
+
+  unreadReports(userId) {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM reports WHERE user_id = ? AND read = 0').get(userId).n;
+  }
+
+  // ---------- 상점/꾸미기 ----------
+  buy(userId, itemId) {
+    const item = ITEMS[itemId];
+    if (!item) throw new GameError('그런 물건은 없어요.');
+    return tx(this.db, () => {
+      const user = this.getUser(userId);
+      if (user.owned.includes(itemId)) throw new GameError('이미 가지고 있어요!');
+      const dog = this.loadDog(userId);
+      if (DOG_SLOTS.includes(item.slot) && (dog?.stage ?? 0) < item.stage) {
+        throw new GameError(`${STAGES[item.stage].name}(으)로 자라면 살 수 있어요.`);
+      }
+      if (user.coins < item.price) throw new GameError('뼈다귀 코인이 부족해요.');
+      user.owned.push(itemId);
+      this.db.prepare('UPDATE users SET coins = coins - ?, owned = ? WHERE id = ?')
+        .run(item.price, JSON.stringify(user.owned), userId);
+      return this.getUser(userId);
+    });
+  }
+
+  equip(userId, slot, itemId) {
+    const user = this.getUser(userId);
+    if (itemId !== null) {
+      const item = ITEMS[itemId];
+      if (!item || item.slot !== slot) throw new GameError('그 자리에는 놓을 수 없어요.');
+      if (!user.owned.includes(itemId)) throw new GameError('아직 가지고 있지 않아요.');
+    }
+    if (DOG_SLOTS.includes(slot)) {
+      const dog = this.loadDog(userId);
+      if (!dog) throw new GameError('강아지가 없어요.', 404);
+      if (itemId) dog.equip[slot] = itemId; else delete dog.equip[slot];
+      this.saveDog(dog);
+      return { dog, user };
+    }
+    if (ROOM_SLOTS.includes(slot)) {
+      if (itemId === null && (slot === 'wallpaper' || slot === 'bed')) throw new GameError('이건 꼭 하나 있어야 해요.');
+      user.room[slot] = itemId;
+      this.db.prepare('UPDATE users SET room = ? WHERE id = ?').run(JSON.stringify(user.room), userId);
+      return { dog: this.loadDog(userId), user };
+    }
+    throw new GameError('알 수 없는 자리예요.');
+  }
+
+  // ---------- 미니게임 (간식 받아먹기) ----------
+  startMinigame(userId) {
+    const user = this.getUser(userId);
+    const today = kstDate(this.now());
+    const plays = user.minigameDate === today ? user.minigamePlays : 0;
+    if (plays >= RULES.minigame.dailyPlays) throw new GameError('오늘은 충분히 놀았어요! 내일 또 놀아요.');
+    const id = crypto.randomBytes(12).toString('hex');
+    this.db.prepare('INSERT INTO minigames (id, user_id, started_at) VALUES (?, ?, ?)').run(id, userId, this.now());
+    this.db.prepare('UPDATE users SET minigame_date = ?, minigame_plays = ? WHERE id = ?').run(today, plays + 1, userId);
+    return { gameId: id, playsLeft: RULES.minigame.dailyPlays - plays - 1 };
+  }
+
+  finishMinigame(userId, gameId, score) {
+    return tx(this.db, () => {
+      const game = this.db.prepare('SELECT * FROM minigames WHERE id = ? AND user_id = ?').get(String(gameId), userId);
+      if (!game || game.finished) throw new GameError('이미 끝난 놀이예요.');
+      const elapsed = this.now() - game.started_at;
+      if (elapsed < (RULES.minigame.seconds - 3) * 1000) throw new GameError('조금 더 놀아야 해요!');
+      this.db.prepare('UPDATE minigames SET finished = 1 WHERE id = ?').run(gameId);
+      const safeScore = Math.max(0, Math.min(200, Math.floor(Number(score) || 0)));
+      const coins = Math.min(RULES.minigame.maxCoins, Math.floor(safeScore / 2));
+      this.addCoins(userId, coins);
+      // 함께 놀면 애정도도 올라요
+      const dog = this.loadDog(userId);
+      if (dog && !dog.school && safeScore > 0) {
+        dog.affection = Math.min(RULES.statMax, dog.affection + 5);
+        this.saveDog(dog);
+      }
+      return { coins };
+    });
+  }
+
+  // ---------- 화면용 정리 ----------
+  dogView(dog) {
+    if (!dog) return null;
+    const now = this.now();
+    return {
+      ...dog,
+      mood: mood(dog),
+      growth: growthProgress(dog, now, this.speed),
+      learnable: learnableTricks(dog).length,
+    };
+  }
+
+  // 다른 친구에게 보여주는 강아지 모습
+  publicDog(dog) {
+    if (!dog) return null;
+    return {
+      name: dog.name, breed: dog.breed, personality: dog.personality, stage: dog.stage,
+      equip: dog.equip, fluff: dog.fluff, tricks: dog.tricks, mood: mood(dog),
+      atSchool: !!dog.school,
+    };
+  }
+}
