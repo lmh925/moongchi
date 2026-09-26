@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -46,6 +46,7 @@ function rowToDog(row) {
     special: row.special ?? null,
     baseBreed: row.base_breed ?? null,
     original: !!row.original,
+    poop: JSON.parse(row.poop ?? '{}'),
   };
 }
 
@@ -66,6 +67,9 @@ function rowToUser(row) {
     gachaTickets: row.gacha_tickets ?? 0,
     boosts: JSON.parse(row.boosts ?? '{}'),
     boostDay: JSON.parse(row.boost_day ?? '{}'),
+    kibble: row.kibble ?? FOOD.kibbleMax,
+    kibbleAt: row.kibble_at ?? null,
+    treats: JSON.parse(row.treats ?? '{}'),
   };
 }
 
@@ -165,11 +169,11 @@ export class Game {
 
   saveDog(dog) {
     this.db.prepare(`UPDATE dogs SET fullness=?, cleanliness=?, affection=?, fluff=?, exp=?, stage=?, tricks=?, equip=?, school=?, updated_at=?,
-      level=?, talents=?, talent_day=?, title=?, name=?, breed=?, special=?, base_breed=?, original=? WHERE id=?`)
+      level=?, talents=?, talent_day=?, title=?, name=?, breed=?, special=?, base_breed=?, original=?, poop=? WHERE id=?`)
       .run(dog.fullness, dog.cleanliness, dog.affection, dog.fluff, dog.exp, dog.stage,
         JSON.stringify(dog.tricks), JSON.stringify(dog.equip), dog.school ? JSON.stringify(dog.school) : null,
         dog.updatedAt, dog.level, JSON.stringify(dog.talents ?? {}), JSON.stringify(dog.talentDay ?? {}), dog.title ?? null,
-        dog.name, dog.breed, dog.special ?? null, dog.baseBreed ?? null, dog.original ? 1 : 0, dog.id);
+        dog.name, dog.breed, dog.special ?? null, dog.baseBreed ?? null, dog.original ? 1 : 0, JSON.stringify(dog.poop ?? {}), dog.id);
   }
 
   createDog(userId, { name, breed, personality }) {
@@ -256,6 +260,7 @@ export class Game {
         dog = back;
         events.push(...grew, { type: 'schoolDone', report });
       }
+      dog = this.materializePoop(dog, now);
       dog = applyDecay(dog, now, this.speed);
       events.push(...this.checkGrowth(dog, now));
       this.saveDog(dog);
@@ -378,8 +383,15 @@ export class Game {
     if (!fresh) throw new GameError('강아지가 없어요.', 404);
     if (fresh.school) throw new GameError(`${fresh.name}(이)가 학교에 가 있어요!`);
     return tx(this.db, () => {
+      // 밥: 사료 그릇에서 한 번 분량을 써요 (배부르면 안 먹으니까 쓰지 않아요)
+      if (action === 'feed' && fresh.fullness < RULES.actions.feed.fullAt) {
+        const food = this.kibble(userId);
+        if (food.n <= 0) throw new GameError('사료가 다 떨어졌어요! 조금 있으면 다시 채워져요. 간식을 줘도 돼요.');
+        this.useKibble(userId, food);
+      }
       const res = applyAction(fresh, action);
       const dog = res.dog;
+      if (action === 'feed' && res.reaction !== 'full') this.schedulePoop(dog);
       if (res.reaction !== 'full') events.push(...this.addTalents(dog, TALENT_GAINS[action]));
       events.push(...this.checkGrowth(dog, this.now()));
       this.saveDog(dog);
@@ -450,6 +462,97 @@ export class Game {
     this.addCoins(dog.userId, coins);
     report.id = Number(res.lastInsertRowid);
     return { dog: next, report, events };
+  }
+
+  // ---------- 사료 · 간식 · 똥 ----------
+  // 사료 그릇: 쓸수록 줄고, refillMs마다 하나씩 다시 채워져요 (계정 전체가 함께 써요)
+  kibble(userId) {
+    const user = this.getUser(userId);
+    const now = this.now();
+    const step = FOOD.refillMs / this.speed;
+    let n = user.kibble; let at = user.kibbleAt ?? now;
+    if (n >= FOOD.kibbleMax) return { n: FOOD.kibbleMax, at: now, nextAt: null };
+    const gained = Math.floor((now - at) / step);
+    n = Math.min(FOOD.kibbleMax, n + gained);
+    at = n >= FOOD.kibbleMax ? now : at + gained * step;
+    return { n, at, nextAt: n >= FOOD.kibbleMax ? null : at + step };
+  }
+
+  useKibble(userId, food) {
+    const at = food.n >= FOOD.kibbleMax ? this.now() : food.at; // 가득 찬 상태에서 쓰면 지금부터 다시 채우기 시작
+    this.db.prepare('UPDATE users SET kibble = ?, kibble_at = ? WHERE id = ?').run(food.n - 1, at, userId);
+  }
+
+  // 먹고 나면 조금 뒤에 똥을 쌀 수도 있어요
+  schedulePoop(dog) {
+    const p = { list: [], ...(dog.poop ?? {}) };
+    if (p.pending || p.list.length >= POOP.max || this.rng() >= POOP.chance) return;
+    p.pending = this.now() + POOP.delayMs / this.speed;
+    dog.poop = p;
+  }
+
+  materializePoop(dog, now) {
+    const p = dog.poop;
+    if (!p?.pending || now < p.pending || dog.school) return dog;
+    const list = [...(p.list ?? [])];
+    if (list.length < POOP.max) {
+      list.push({ id: crypto.randomBytes(4).toString('hex'), x: 0.15 + this.rng() * 0.7, y: 0.25 + this.rng() * 0.65, at: p.pending });
+    }
+    return { ...dog, poop: { list } };
+  }
+
+  cleanPoop(userId, poopId) {
+    const { dog: fresh, events } = this.refreshDog(userId);
+    if (!fresh) throw new GameError('강아지가 없어요.', 404);
+    const list = fresh.poop?.list ?? [];
+    if (!list.some((x) => x.id === poopId)) throw new GameError('이미 치웠어요!');
+    return tx(this.db, () => {
+      const dog = { ...fresh, poop: { ...fresh.poop, list: list.filter((x) => x.id !== poopId) } };
+      dog.cleanliness = Math.min(RULES.statMax, dog.cleanliness + POOP.cleanliness);
+      events.push(...this.addTalents(dog, { kind: 1 }));
+      this.saveDog(dog);
+      this.addCoins(userId, POOP.cleanCoins);
+      events.push(...this.track(userId, 'clean'));
+      return { dog, coins: POOP.cleanCoins, events };
+    });
+  }
+
+  buyTreat(userId, treatId) {
+    const t = TREATS[treatId];
+    if (!t) throw new GameError('그런 간식은 없어요.');
+    return tx(this.db, () => {
+      const user = this.getUser(userId);
+      if ((user.treats[treatId] ?? 0) >= TREAT_RULES.maxHold) throw new GameError(`${TREAT_RULES.maxHold}개까지만 가질 수 있어요.`);
+      if (user.coins < t.price) throw new GameError('뼈다귀 코인이 부족해요.');
+      user.treats[treatId] = (user.treats[treatId] ?? 0) + 1;
+      this.db.prepare('UPDATE users SET coins = coins - ?, treats = ? WHERE id = ?').run(t.price, JSON.stringify(user.treats), userId);
+      return this.getUser(userId);
+    });
+  }
+
+  giveTreat(userId, treatId) {
+    const t = TREATS[treatId];
+    if (!t) throw new GameError('그런 간식은 없어요.');
+    const { dog: fresh, events } = this.refreshDog(userId);
+    if (!fresh) throw new GameError('강아지가 없어요.', 404);
+    if (fresh.school) throw new GameError(`${fresh.name}(이)가 학교에 가 있어요!`);
+    if (fresh.fullness >= TREAT_RULES.fullAt) throw new GameError('배가 너무 불러요! 간식은 조금 있다가 줘요.');
+    return tx(this.db, () => {
+      const user = this.getUser(userId);
+      if (!(user.treats[treatId] > 0)) throw new GameError('그 간식이 없어요. 간식 가게에서 사 주세요!');
+      user.treats[treatId] -= 1;
+      this.db.prepare('UPDATE users SET treats = ? WHERE id = ?').run(JSON.stringify(user.treats), userId);
+      const fav = t.fav.includes(fresh.personality);
+      const dog = { ...fresh };
+      dog.fullness = Math.min(RULES.statMax, dog.fullness + t.fullness);
+      dog.affection = Math.min(RULES.statMax, dog.affection + t.affection + (fav ? TREAT_RULES.favBonus : 0));
+      dog.exp += TREAT_RULES.exp;
+      this.schedulePoop(dog);
+      events.push(...this.addTalents(dog, { kind: 1 }), ...this.checkGrowth(dog, this.now()));
+      this.saveDog(dog);
+      events.push(...this.track(userId, 'feed'));
+      return { dog, fav, events };
+    });
   }
 
   // ---------- 학교 시간 아이템 ----------

@@ -594,6 +594,7 @@ export const CHAT_MAX_LEN = 20;
 // group마다 하나씩 뽑아요: 돌봄(care) · 놀이(play) · 바깥(out)
 export const QUESTS = {
   feed: { text: '밥 주기 2번', n: 2, group: 'care' },
+  clean: { text: '똥 치워 주기', n: 1, group: 'care' },
   brush: { text: '빗질해 주기', n: 1, group: 'care' },
   pet: { text: '쓰다듬기 3번', n: 3, group: 'care' },
   trick: { text: '개인기 보여 주기', n: 1, group: 'care' },
@@ -741,4 +742,30 @@ export const TRADE = {
   lockMs: 24 * 3600_000, // 받은 아이템은 하루 동안 다시 거래 못 해요
   value: { common: 1, rare: 3, epic: 8 }, // 공평한지 알려 줄 때 쓰는 점수
   unfairRatio: 2.5, // 한쪽이 이만큼 더 많이 주면 "정말 괜찮아요?" 확인
+};
+
+// ---------- 사료 · 간식 · 똥 ----------
+// 사료는 공짜로 조금씩 채워져요 (다 쓰면 기다리거나 간식을 줘요). 사료가 없어도 강아지가 아프거나 떠나지 않아요.
+export const FOOD = {
+  kibbleMax: 6, // 사료 그릇에 쌓이는 최대 횟수
+  refillMs: 2 * 3600_000, // 사료 1번 분량이 다시 채워지는 시간
+};
+// 간식: 상점에서 코인으로 사요. 성격마다 좋아하는 간식이 있어요.
+export const TREATS = {
+  milk: { name: '강아지 우유', price: 6, fullness: 12, affection: 6, fav: ['sleepy'], color: '#ffffff' },
+  bone: { name: '뼈다귀 껌', price: 8, fullness: 10, affection: 8, fav: ['hyper'], color: '#f5e6cf' },
+  cookie: { name: '하트 쿠키', price: 10, fullness: 12, affection: 12, fav: ['sweet', 'shy'], color: '#ff9fb8' },
+  potato: { name: '고구마 말랭이', price: 10, fullness: 25, affection: 6, fav: ['foodie'], color: '#f2a65a' },
+  jerky: { name: '소고기 육포', price: 12, fullness: 30, affection: 7, fav: ['foodie', 'smart'], color: '#b0563a' },
+  cake: { name: '멍멍 케이크', price: 30, fullness: 40, affection: 20, fav: ['sleepy', 'hyper', 'foodie', 'sweet', 'shy', 'smart'], color: '#ffe066' },
+};
+export const TREAT_RULES = { maxHold: 20, favBonus: 6, exp: 4, fullAt: 98 };
+// 밥을 먹고 조금 지나면 방에 똥을 싸요. 치우면 청결도·코인이 조금 올라요. 오래 두면 청결도가 조금 더 빨리 줄어요.
+export const POOP = {
+  delayMs: 45 * 60_000,
+  chance: 0.7,
+  max: 3,
+  cleanCoins: 1,
+  cleanliness: 6,
+  decayBoost: 0.3, // 똥 하나마다 청결도가 30% 더 빨리 줄어요
 };

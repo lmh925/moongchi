@@ -131,6 +131,10 @@ export function openDb(file) {
   ensure('dogs', 'base_breed', 'TEXT');
   ensure('dogs', 'original', 'INTEGER NOT NULL DEFAULT 0');
   ensure('users', 'active_dog', 'INTEGER');
+  ensure('users', 'kibble', 'INTEGER NOT NULL DEFAULT 6');
+  ensure('users', 'kibble_at', 'INTEGER');
+  ensure('users', 'treats', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('dogs', 'poop', "TEXT NOT NULL DEFAULT '{}'");
   ensure('abuse_reports', 'resolved', 'INTEGER NOT NULL DEFAULT 0');
   ensure('users', 'trade_locks', "TEXT NOT NULL DEFAULT '{}'");
   allowManyDogs(db);

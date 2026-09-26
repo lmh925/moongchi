@@ -953,3 +953,22 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .quick-closet .item { padding: 6px 4px; }
 .quick-closet .item img { width: 48px; height: auto; display: block; margin: 0 auto 2px; }
 .quick-closet .item .name { font-size: 11px; }
+
+/* 밥 그릇 · 간식 */
+.food-bowl .kibble-row { display: grid; gap: 6px; justify-items: center; text-align: center; margin-bottom: 6px; }
+.kibble-dots { display: flex; gap: 5px; }
+.kibble { width: 18px; height: 14px; border-radius: 50% 50% 40% 40%; border: 2px solid var(--ink); background: #efe2d0; }
+.kibble.on { background: #c98a4b; box-shadow: inset -3px -2px 0 #a86b35; }
+.food-bowl .meta { font-size: 12px; color: var(--ink-soft); }
+.treat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.treat {
+  position: relative; font: inherit; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 10px;
+  padding: 6px 3px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; text-align: center;
+}
+.treat b { font-size: 11px; }
+.treat small { font-size: 9px; color: var(--ink-soft); }
+.treat.fav::after { content: '♥'; position: absolute; top: 2px; right: 5px; color: var(--pink-d); font-size: 12px; }
+.treat .price { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
+.treat .price img { width: 14px; height: 13px; }
+.treat-icon { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; }
+.treat-icon img { width: 18px; height: 18px; }

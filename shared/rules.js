@@ -1,7 +1,7 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
-  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -20,7 +20,8 @@ export function applyDecay(dog, now, speed = 1) {
   for (const stat of STATS) {
     const cur = dog[stat];
     if (cur <= RULES.statFloor) continue;
-    const drop = RULES.decayPerHour[stat] * (mult[stat] ?? 1) * hours;
+    const poops = stat === 'cleanliness' ? (dog.poop?.list?.length ?? 0) : 0; // 똥을 오래 두면 청결도가 더 빨리 줄어요
+    const drop = RULES.decayPerHour[stat] * (mult[stat] ?? 1) * (1 + poops * POOP.decayBoost) * hours;
     next[stat] = Math.max(RULES.statFloor, cur - drop);
   }
   next.fluff = Math.max(0, (dog.fluff ?? 0) - RULES.fluffDecayPerHour * hours);

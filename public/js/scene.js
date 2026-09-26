@@ -298,6 +298,7 @@ export class Scene {
     this.bowlFull = 0;
     this.showNames = false;
     this.showBowl = true;
+    this.poops = [];
     this.treats = new Map(); // 간식 파티용
     this.partyMode = false;
     this.running = true;
@@ -447,10 +448,21 @@ export class Scene {
     return best;
   }
 
+  // 똥 (정규화 좌표). 누르면 치워요.
+  setPoops(list = []) {
+    this.poops = list.map((p) => ({ ...p, ...toLogical(p.x, p.y) }));
+  }
+
   onPointer(ev) {
     const r = this.canvas.getBoundingClientRect();
     const x = ((ev.clientX - r.left) / r.width) * SCENE_W;
     const y = ((ev.clientY - r.top) / r.height) * SCENE_H;
+    const poop = this.poops.find((p) => Math.abs(p.x - x) < 8 && y > p.y - 11 && y < p.y + 3);
+    if (poop && this.handlers.onPoopTap) {
+      this.poops = this.poops.filter((p) => p !== poop);
+      for (let i = 0; i < 3; i++) this.particles.push({ icon: 'sparkle', x: poop.x + (Math.random() - 0.5) * 10, y: poop.y - 12, vx: (Math.random() - 0.5) * 14, vy: -12, life: 1, age: -i * 0.1 });
+      return this.handlers.onPoopTap(poop.id);
+    }
     const e = this.hit(x, y);
     if (e) {
       const combo = this.poke(e);
@@ -659,6 +671,15 @@ export class Scene {
     const { ctx } = this;
     ctx.drawImage(this.bg, 0, 0);
     if (this.showBowl) drawBowl(ctx, this.bowlFull > 0);
+    // 똥 (냄새 선이 살랑살랑)
+    const pic = iconCanvas('poop');
+    for (const p of this.poops) {
+      ctx.drawImage(pic, Math.round(p.x - 5), Math.round(p.y - 9));
+      const w = Math.floor(performance.now() / 300) % 2;
+      ctx.fillStyle = 'rgba(122,154,74,0.7)';
+      ctx.fillRect(Math.round(p.x - 3 + w), Math.round(p.y - 14), 1, 3);
+      ctx.fillRect(Math.round(p.x + 2 - w), Math.round(p.y - 15), 1, 3);
+    }
     // 파티 간식 (떨어지는 연출, 사라지기 전 깜빡깜빡)
     const tnow = performance.now();
     for (const t of this.treats.values()) {

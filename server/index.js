@@ -145,6 +145,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       user,
       dog: game.dogView(dog),
       dogs: game.dogList(userId),
+      food: dog ? game.kibble(userId) : null,
       slots: game.dogSlots(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
@@ -204,6 +205,18 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction } };
   }));
 
+  api.post('/dog/clean', authed, wrap((req) => {
+    const res = game.cleanPoop(req.userId, String(req.body?.id ?? ''));
+    return { ...me(req.userId, { events: res.events }), result: { coins: res.coins } };
+  }));
+  api.post('/dog/treat', authed, wrap((req) => {
+    const res = game.giveTreat(req.userId, String(req.body?.id ?? ''));
+    return { ...me(req.userId, { events: res.events }), result: { fav: res.fav } };
+  }));
+  api.post('/shop/treat', authed, wrap((req) => {
+    game.buyTreat(req.userId, String(req.body?.id ?? ''));
+    return me(req.userId);
+  }));
   api.post('/dog/switch', authed, wrap((req) => {
     const res = game.switchDog(req.userId, req.body?.dogId);
     hub.dogsChanged(req.userId);

@@ -666,6 +666,8 @@ export function dogPortrait(breed, stage, opts = {}, pose = 'front') {
 
 // ---------- 스티커 & 아이콘 (12x12) ----------
 export const ICONS = {
+  poop: { colors: { o: '#4a3330', b: '#9a5b2e', l: '#c47f45', w: '#ffffff', p: '#ff9fb8' },
+    map: ['....oo....', '...olbo...', '..obbbbo..', '..oooooo..', '.olbbbbbo.', '.obwobwoo.', 'oolbbbbboo', 'obbpbbpbbo', '.oooooooo.'] },
   bus: { colors: { o: '#4a3330', y: '#ffd23f', d: '#e0a800', w: '#bfe6ff', r: '#ff5d7a', g: '#5a4a48' },
     map: ['.oooooooooo.', 'oyyyyyyyyyyo', 'oywwoywwoywo', 'oywwoywwoywo', 'oyyyyyyyyyyo', 'orrrrrrrrrro', 'oyyyyyyyyyyo', 'oddddddddddo', '.oggo..oggo.', '..oo....oo..'] },
   hourglass: { colors: { o: '#4a3330', b: '#b9773f', s: '#ffd23f', w: '#e8f6ff', l: '#fff4b8' },

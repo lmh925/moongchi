@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, FOOD, TREATS, POOP, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -366,7 +366,96 @@ function applyMe(me) {
     if (e) e.dog = publicDog(me.dog);
     if (atHome()) updateAway();
   }
+  syncPoops(me.dog);
   scheduleSchool();
+}
+
+// 방에 있는 똥 (우리 집에 있을 때만 보여요). 새로 생기면 "끙차!"
+function syncPoops(dog) {
+  if (!state.scene) return;
+  const list = atHome() && !dog.school ? dog.poop?.list ?? [] : [];
+  const before = state.poopIds ?? new Set();
+  if (list.some((p) => !before.has(p.id)) && state.poopIds) {
+    state.scene.bubble(myId(), 'text', '끙차!');
+    sfx.pop();
+  }
+  state.poopIds = new Set(list.map((p) => p.id));
+  state.scene.setPoops(list);
+  clearTimeout(state.poopTimer);
+  const pending = dog.poop?.pending;
+  if (pending) state.poopTimer = setTimeout(refreshMe, Math.min(2 ** 31 - 1, Math.max(500, pending - serverNow() + 500)));
+}
+
+async function cleanPoop(id) {
+  try {
+    const res = await post('/dog/clean', { id });
+    sfx.brush();
+    setTimeout(sfx.coin, 250);
+    toast(`깨끗하게 치웠어요! 청결도 UP · 코인 +${res.result.coins}`, 'good');
+    applyMe(res);
+    await handleEvents(res.events);
+    if (state.tab === 'home') renderPanel();
+  } catch (err) { toast(err.message, 'bad'); refreshMe(); }
+}
+
+// 밥 그릇: 사료 + 가지고 있는 간식 + 간식 가게
+function openFoodBowl() {
+  const render = () => {
+    const { food, user, dog } = state.me;
+    const next = food?.nextAt ? fmtDuration(food.nextAt - serverNow()) : null;
+    const owned = Object.entries(TREATS).filter(([id]) => (user.treats?.[id] ?? 0) > 0);
+    const likes = (t) => t.fav.includes(dog.personality);
+    return el('div', { class: 'food-bowl' },
+      el('div', { class: 'kibble-row' },
+        el('div', { class: 'kibble-dots' }, Array.from({ length: FOOD.kibbleMax }, (_, i) => el('span', { class: `kibble ${i < (food?.n ?? 0) ? 'on' : ''}` }))),
+        el('div', { class: 'meta' }, food?.n ? `사료 ${food.n}번 남았어요` : '사료가 다 떨어졌어요!', next ? ` · 다음 사료까지 ${next}` : ''),
+        el('button', { class: 'btn primary', disabled: !food?.n || !!dog.school, onclick: () => { closeAllModals(); doCare('feed'); } }, '사료 주기')),
+      el('div', { class: 'section-title' }, '가지고 있는 간식'),
+      owned.length ? el('div', { class: 'treat-grid' }, owned.map(([id, t]) => el('button', {
+        class: `treat ${likes(t) ? 'fav' : ''}`, disabled: !!dog.school, onclick: () => giveTreat(id),
+      }, treatIcon(t), el('b', {}, t.name), el('small', {}, `${user.treats[id]}개${likes(t) ? ' · 좋아해요!' : ''}`))))
+        : el('p', { class: 'help' }, '아직 간식이 없어요. 아래 간식 가게에서 사 보세요!'),
+      el('div', { class: 'section-title' }, `간식 가게 (코인 ${user.coins})`),
+      el('div', { class: 'treat-grid' }, Object.entries(TREATS).map(([id, t]) => el('button', { class: `treat shop ${likes(t) ? 'fav' : ''}`, onclick: () => buyTreat(id) },
+        treatIcon(t), el('b', {}, t.name),
+        el('small', {}, `포만감 +${t.fullness} · 애정 +${t.affection}`),
+        el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), t.price)))),
+      el('p', { class: 'hint' }, `${dog.name}(이)가 좋아하는 간식에는 하트가 붙어요. 좋아하는 간식을 주면 애정도가 더 올라요!`));
+  };
+  const box = modal({ title: '밥 그릇', className: 'trade-modal', body: render(), buttons: [{ label: '닫기', kind: 'secondary' }] });
+  state.foodBox = { box, render };
+}
+
+function treatIcon(t) {
+  return el('span', { class: 'treat-icon', style: { background: t.color } }, el('img', { class: 'pixel', src: iconURL('food', 2), alt: '' }));
+}
+
+function refreshFoodBox() {
+  const fb = state.foodBox;
+  if (fb && document.body.contains(fb.box.card)) fb.box.card.querySelector('.modal-body').replaceChildren(fb.render());
+}
+
+async function buyTreat(id) {
+  try {
+    applyMe(await post('/shop/treat', { id }));
+    sfx.coin();
+    refreshFoodBox();
+  } catch (err) { sfx.error(); toast(err.message, 'bad'); }
+}
+
+async function giveTreat(id) {
+  try {
+    const res = await post('/dog/treat', { id });
+    closeAllModals();
+    applyMe(res);
+    const scene = state.scene;
+    scene.care(myId(), 'feed');
+    sfx.eat();
+    if (res.result.fav) { setTimeout(sfx.love, 300); scene.burst(scene.entities.get(myId()), 'heart', 4); }
+    scene.bubble(myId(), 'text', res.result.fav ? `${TREATS[id].name} 최고야!` : '냠냠 맛있다!');
+    await handleEvents(res.events);
+    if (state.tab === 'home') renderPanel();
+  } catch (err) { toast(err.message, 'bad'); }
 }
 
 function scheduleSchool() {
@@ -406,6 +495,7 @@ function enterGame(me) {
         state.socket?.emit('room:move', n);
       },
       onMove: (n) => state.socket?.emit('room:move', n),
+      onPoopTap: (id) => { if (atHome()) cleanPoop(id); },
       onTreatNear: (t, pos) => state.socket?.emit('party:grab', { treatId: t.id, x: pos.x, y: pos.y }),
       onDogTap: (e, combo) => {
         sfx.bark(barkPitch(e.dog), combo === 'spin' ? 2 : 1);
@@ -615,6 +705,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
     mine: ownerId === me, home: true, auto: ownerId === me || !ownerMember,
   });
   addExtras(room.extras);
+  syncPoops(state.me.dog);
   for (const m of room.members) {
     if (m.userId === ownerId) continue;
     scene.upsert(m.userId, {
@@ -974,13 +1065,12 @@ function homePanel() {
         el('button', { class: 'btn small', onclick: leaveSchool }, '조퇴하고 데려오기'),
         el('button', { class: 'btn small primary', onclick: () => setTab('school') }, '빨리 오게 하기'))) : null,
     el('div', { class: 'actions' },
-      actionBtn('밥주기', 'food', () => doCare('feed'), away),
+      actionBtn(`밥주기${state.me.food ? ` ${state.me.food.n}/${FOOD.kibbleMax}` : ''}`, 'food', openFoodBowl, away),
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
     questCard(state.me.progress),
     dogsRow(),
-    roomGames(),
     partyButton(),
     bondList(),
     chatBar());
@@ -993,18 +1083,6 @@ const NEIGHBOR = { name: '초코', breed: 'shiba', personality: 'hyper', stage: 
 function partner() {
   const e = [...(state.scene?.entities.values() ?? [])].find((x) => x.id !== myId() && x.dog && !x.dog.atSchool);
   return e ? { dog: e.dog, name: e.dog.name } : { dog: NEIGHBOR, name: '이웃집 초코' };
-}
-
-function roomGames() {
-  const mine = state.me.dog;
-  const p = partner();
-  return el('div', { class: 'room-games' },
-    el('div', { class: 'section-title' }, `${p.name}(이)랑 같이 놀기`),
-    el('div', { class: 'room-games-row' },
-      el('button', { class: 'btn game-btn', disabled: !!mine.school, onclick: startPhotobooth },
-        el('img', { class: 'pixel', src: iconURL('camera', 3), alt: '' }), '네컷 포토부스'),
-      el('button', { class: 'btn game-btn', disabled: !!mine.school, onclick: startJumpRope },
-        el('img', { class: 'pixel', src: iconURL('rope', 3), alt: '' }), '합동 줄넘기')));
 }
 
 async function startPhotobooth() {
@@ -1204,7 +1282,6 @@ function visitPanel() {
       actionBtn('개인기', 'star', openTricks, !!mine.school),
       actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school),
       actionBtn('집으로', 'paw', () => enterRoom(myId()), false)),
-    roomGames(),
     partyButton(),
     bondList(),
     chatBar());
@@ -2090,17 +2167,20 @@ function playPanel() {
       el('div', { class: 'title' }, '멍뭉 놀이터', el('span', { class: 'chip' }, '다 같이!')),
       el('p', {}, '여러 친구 강아지들이 모이는 큰 공원! 조이스틱으로 뛰어다니고, 술래잡기와 대왕 리본 풀기를 같이 해요.'),
       el('button', { class: 'btn primary', disabled: !!dog.school, onclick: () => enterPlaza() }, '놀이터 가기!')),
-    el('h3', {}, '혼자 하는 놀이'),
-    el('p', { class: 'sub' }, dog.school ? '강아지가 학교에서 돌아오면 놀 수 있어요.' : `오늘 남은 횟수: ${left}번 · 한 판에 코인 최대 ${RULES.minigame.maxCoins}개 · 애정도 UP`),
+    el('h3', {}, '둘이 놀기'),
+    el('p', { class: 'sub' }, `${partner().name}(이)랑 함께해요. 친구가 우리 집에 놀러 와 있으면 그 친구와 놀아요!`),
     el('div', { class: 'cards' },
       el('div', { class: 'card' },
         el('div', { class: 'title' }, '네컷 포토부스', el('span', { class: 'btns' },
           el('button', { class: 'btn small', onclick: openAlbum }, '앨범'),
           el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startPhotobooth }, '찍기!'))),
-        el('div', { class: 'meta' }, `${partner().name}(이)랑 나란히 서서 소품을 씌우고 네 컷 사진을 찍어요.`)),
+        el('div', { class: 'meta' }, '나란히 서서 소품을 씌우고 네 컷 사진을 찍어요.')),
       el('div', { class: 'card' },
         el('div', { class: 'title' }, '합동 줄넘기', el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startJumpRope }, '놀기!')),
-        el('div', { class: 'meta' }, '밧줄이 발밑 선에 닿을 때 톡! 둘이 같이 깡총 뛰어요. 몇 콤보까지 갈 수 있을까?')),
+        el('div', { class: 'meta' }, '밧줄이 발밑 선에 닿을 때 톡! 둘이 같이 깡총 뛰어요. 몇 콤보까지 갈 수 있을까?'))),
+    el('h3', {}, '혼자 놀기'),
+    el('p', { class: 'sub' }, dog.school ? '강아지가 학교에서 돌아오면 놀 수 있어요.' : `오늘 남은 횟수: ${left}번 · 한 판에 코인 최대 ${RULES.minigame.maxCoins}개 · 애정도 UP`),
+    el('div', { class: 'cards' },
       card('run', '멍뭉 런', `${dog.name}(이)가 들판을 신나게 달려요! 점프(두 번까지)와 슬라이드로 장애물을 피하고 간식을 모아요.`),
       card('catch', '간식 받아먹기', `하늘에서 떨어지는 간식을 ${dog.name}(이)가 받아먹어요! 화면을 누르거나 끌어서 움직여요.`)));
 }
