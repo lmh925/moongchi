@@ -85,9 +85,14 @@ export function openDb(file) {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   db.exec(SCHEMA);
-  // 이전 버전 DB 업그레이드
-  const cols = db.prepare('PRAGMA table_info(minigames)').all().map((c) => c.name);
-  if (!cols.includes('type')) db.exec("ALTER TABLE minigames ADD COLUMN type TEXT NOT NULL DEFAULT 'catch'");
+  // 이전 버전 DB 업그레이드 (없는 칸만 추가해요)
+  const ensure = (table, col, def) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+    if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+  };
+  ensure('minigames', 'type', "TEXT NOT NULL DEFAULT 'catch'");
+  ensure('users', 'gacha_date', 'TEXT');
+  ensure('users', 'train_progress', "TEXT NOT NULL DEFAULT '{}'");
   return db;
 }
 

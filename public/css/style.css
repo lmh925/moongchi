@@ -253,6 +253,38 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 }
 .school-board .big { font-size: 26px; font-weight: 700; color: var(--butter); }
 
+/* 캡슐 뽑기 */
+.gacha-box {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 12px;
+  border: 3px solid var(--ink); border-radius: 12px; background: linear-gradient(135deg, #ffe3ef, #e8f6ff);
+}
+.gacha-box .title { font-weight: 700; font-size: 17px; }
+.gacha-box .meta { font-size: 12px; color: var(--ink-soft); }
+.gacha-box .price, .gacha-box .btn .price { display: inline-flex; align-items: center; gap: 4px; }
+.gacha-box .btn img { width: 16px; height: 14px; }
+.link { background: none; border: 0; padding: 0; color: var(--pink-d); text-decoration: underline; cursor: pointer; font-size: 12px; }
+.item.r-rare { border-color: #8a5fd1; }
+.item.r-epic { border-color: #e0a800; box-shadow: 0 0 0 2px #ffe28a; }
+.item.mystery .thumb img { filter: grayscale(.7) opacity(.55); }
+.rarity-tag { border-radius: 999px; padding: 0 6px; color: #fff; font-size: 11px; border: 2px solid var(--ink); }
+.rarity-tag.common { background: #8fb0c8; }
+.rarity-tag.rare { background: #b07cff; }
+.rarity-tag.epic { background: #ffb000; }
+.item .tag.rarity-tag { color: #fff; }
+.gacha-card { text-align: center; }
+.gacha-canvas { width: 240px; height: 264px; display: block; margin: 0 auto; }
+.gacha-reveal { display: grid; justify-items: center; gap: 6px; }
+.gacha-reveal h3 { margin: 4px 0 0; font-size: 20px; }
+.gacha-item {
+  width: 140px; height: 140px; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 4px solid var(--ink);
+  box-shadow: 0 0 0 6px var(--glow), 0 0 30px 10px var(--glow); animation: pop .3s ease-out;
+}
+.gacha-item img { max-width: 100px; max-height: 90px; }
+.gacha-item.epic { animation: pop .3s ease-out, spinGlow 1.6s linear infinite; }
+@keyframes spinGlow { 50% { box-shadow: 0 0 0 10px var(--glow), 0 0 50px 20px var(--glow); } }
+.gacha-reveal .rarity { color: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 2px 12px; font-weight: 700; }
+.gacha-reveal .modal-buttons { width: 100%; }
+
 /* 소리 버튼 */
 .top-right { display: flex; gap: 6px; align-items: center; }
 .icon-btn { background: var(--cream); border: 2px solid var(--ink); border-radius: 999px; width: 34px; height: 30px; padding: 0; display: grid; place-items: center; cursor: pointer; }

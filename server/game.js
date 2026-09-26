@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
-  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
+  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -52,6 +52,7 @@ function rowToUser(row) {
     lastDaily: row.last_daily,
     minigameDate: row.minigame_date,
     minigamePlays: row.minigame_plays,
+    gachaDate: row.gacha_date,
   };
 }
 
@@ -245,6 +246,7 @@ export class Game {
     if (!item) throw new GameError('그런 물건은 없어요.');
     return tx(this.db, () => {
       const user = this.getUser(userId);
+      if (item.shop === false) throw new GameError('이건 뽑기에서만 나와요!');
       if (user.owned.includes(itemId)) throw new GameError('이미 가지고 있어요!');
       const dog = this.loadDog(userId);
       if (DOG_SLOTS.includes(item.slot) && (dog?.stage ?? 0) < item.stage) {
@@ -268,6 +270,7 @@ export class Game {
     if (DOG_SLOTS.includes(slot)) {
       const dog = this.loadDog(userId);
       if (!dog) throw new GameError('강아지가 없어요.', 404);
+      if (itemId && dog.stage < ITEMS[itemId].stage) throw new GameError(`${STAGES[ITEMS[itemId].stage].name}(으)로 자라면 쓸 수 있어요.`);
       if (itemId) dog.equip[slot] = itemId; else delete dog.equip[slot];
       this.saveDog(dog);
       return { dog, user };
@@ -279,6 +282,31 @@ export class Game {
       return { dog: this.loadDog(userId), user };
     }
     throw new GameError('알 수 없는 자리예요.');
+  }
+
+  // ---------- 캡슐 뽑기 ----------
+  gacha(userId) {
+    return tx(this.db, () => {
+      const user = this.getUser(userId);
+      const today = kstDate(this.now());
+      const free = user.gachaDate !== today;
+      if (!free && user.coins < GACHA.price) throw new GameError('뼈다귀 코인이 부족해요.');
+      const total = Object.values(RARITY).reduce((a, r) => a + r.weight, 0);
+      let roll = this.rng() * total;
+      let rarity = 'common';
+      for (const [k, r] of Object.entries(RARITY)) {
+        if (roll < r.weight) { rarity = k; break; }
+        roll -= r.weight;
+      }
+      const pool = Object.keys(ITEMS).filter((id) => ITEMS[id].gacha !== false && ITEMS[id].rarity === rarity);
+      const itemId = pick(pool, this.rng);
+      const duplicate = user.owned.includes(itemId);
+      const refund = duplicate ? RARITY[rarity].refund : 0;
+      if (!duplicate) user.owned.push(itemId);
+      this.db.prepare('UPDATE users SET coins = coins - ? + ?, owned = ?, gacha_date = ? WHERE id = ?')
+        .run(free ? 0 : GACHA.price, refund, JSON.stringify(user.owned), today, userId);
+      return { itemId, rarity, duplicate, refund, free };
+    });
   }
 
   // ---------- 미니게임 (간식 받아먹기) ----------

@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS,
+  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA,
 } from '/shared/data.js';
 import { applyDecay, quizResult } from '/shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -10,6 +10,7 @@ import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './s
 import { Scene, renderRoom } from './scene.js';
 import { playMinigame } from './minigame.js';
 import { playRunner, enterLandscape, exitLandscape } from './runner.js';
+import { playGacha } from './gacha.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -796,18 +797,31 @@ function closetPanel() {
     const on = current(item.slot) === id;
     const locked = dogTab && dog.stage < item.stage;
     const thumb = dogTab ? accessoryURL(id, 5) : roomThumb(id);
+    const gachaOnly = item.shop === false && !owned;
     return el('button', {
-      class: `item ${on ? 'equipped' : ''} ${locked ? 'locked' : ''}`,
+      class: `item r-${item.rarity} ${on ? 'equipped' : ''} ${locked ? 'locked' : ''} ${gachaOnly ? 'mystery' : ''}`,
       onclick: () => itemClick(id, { owned, on, locked }),
     },
-    on ? el('span', { class: 'tag' }, '사용 중') : null,
+    on ? el('span', { class: 'tag' }, '사용 중') : item.rarity !== 'common' ? el('span', { class: `tag rarity-tag ${item.rarity}` }, RARITY[item.rarity].name) : null,
     el('div', { class: 'thumb' }, el('img', { class: 'pixel', src: thumb, alt: '' })),
     el('span', {}, item.name),
-    owned ? el('span', { class: 'meta' }, on ? '벗기' : '갖고 있어요')
-      : locked ? el('span', { class: 'meta' }, item.stage === 1 ? '꼬마부터' : '다 크면')
-        : el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), item.price));
+    owned ? el('span', { class: 'meta' }, locked ? (item.stage === 1 ? '꼬마부터' : '다 크면') : on ? '벗기' : '갖고 있어요')
+      : gachaOnly ? el('span', { class: 'meta' }, '뽑기에서 나와요')
+        : locked ? el('span', { class: 'meta' }, item.stage === 1 ? '꼬마부터' : '다 크면')
+          : el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), item.price));
   };
+  const today = new Date(serverNow() + 9 * 3600_000).toISOString().slice(0, 10);
+  const free = user.gachaDate !== today;
+  const ownedCount = user.owned.filter((id) => ITEMS[id]?.gacha !== false).length;
+  const totalCount = Object.values(ITEMS).filter((i) => i.gacha !== false).length;
   return el('div', {},
+    el('div', { class: 'gacha-box' },
+      el('div', {},
+        el('div', { class: 'title' }, '캡슐 뽑기'),
+        el('div', { class: 'meta' }, `모은 아이템 ${ownedCount} / ${totalCount}`),
+        el('button', { class: 'link', onclick: showOdds }, '확률 보기')),
+      el('button', { class: 'btn primary', onclick: doGacha },
+        free ? '오늘 무료 뽑기!' : el('span', { class: 'price' }, '뽑기 ', el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), GACHA.price))),
     el('div', { class: 'segmented' },
       el('button', { class: dogTab ? 'on' : '', onclick: () => { state.closetTab = 'dog'; renderPanel(); } }, '강아지 꾸미기'),
       el('button', { class: !dogTab ? 'on' : '', onclick: () => { state.closetTab = 'room'; renderPanel(); } }, '방 꾸미기')),
@@ -819,9 +833,41 @@ function closetPanel() {
     }));
 }
 
+function itemThumb(id) {
+  return ['head', 'neck', 'face'].includes(ITEMS[id].slot) ? accessoryURL(id, 5) : roomThumb(id);
+}
+
+function showOdds() {
+  const total = Object.values(RARITY).reduce((a, r) => a + r.weight, 0);
+  modal({
+    title: '뽑기 확률',
+    body: el('div', {},
+      el('div', { class: 'cards' }, Object.entries(RARITY).map(([k, r]) => {
+        const list = Object.entries(ITEMS).filter(([, i]) => i.gacha !== false && i.rarity === k);
+        return el('div', { class: 'card' },
+          el('div', { class: 'title' }, el('span', { class: `rarity-tag ${k}` }, r.name), `${Math.round((r.weight / total) * 100)}%`),
+          el('div', { class: 'meta' }, list.map(([, i]) => i.name).join(', ')),
+          el('div', { class: 'meta' }, `이미 가진 아이템이 나오면 코인 ${r.refund}개로 바꿔 줘요.`));
+      })),
+      el('p', { class: 'hint' }, `같은 등급 안에서는 모두 같은 확률이에요. 하루 ${GACHA.freePerDay}번은 무료! 뽑기는 게임 코인으로만 할 수 있어요.`)),
+    buttons: [{ label: '알겠어요' }],
+  });
+}
+
+async function doGacha() {
+  try {
+    const res = await post('/gacha');
+    applyMe(res);
+    const again = await playGacha(res.result, itemThumb);
+    renderPanel();
+    if (again) doGacha();
+  } catch (err) { sfx.error(); toast(err.message, 'bad'); }
+}
+
 async function itemClick(id, { owned, on, locked }) {
   const item = ITEMS[id];
   try {
+    if (!owned && item.shop === false) return toast('캡슐 뽑기에서만 나오는 아이템이에요!');
     if (locked) return toast(`${STAGES[item.stage].name}(으)로 자라면 쓸 수 있어요!`);
     let res;
     if (!owned) {

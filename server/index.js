@@ -132,6 +132,11 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId);
   }));
 
+  api.post('/gacha', authed, wrap((req) => {
+    const result = game.gacha(req.userId);
+    return { ...me(req.userId), result };
+  }));
+
   api.post('/equip', authed, wrap((req) => {
     const slot = req.body?.slot;
     game.equip(req.userId, slot, req.body?.itemId ?? null);

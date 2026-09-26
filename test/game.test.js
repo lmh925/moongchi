@@ -209,3 +209,21 @@ test('강아지 친밀도: 단계가 오르고 하루 최대치가 있어요', a
   bonds.add(a, b, 'together');
   assert.equal(bonds.get(a, b).points, 31);
 });
+
+test('캡슐 뽑기: 하루 1번 무료, 그다음은 코인, 중복은 환급', () => {
+  const { auth, game, db } = setup();
+  const { userId } = auth.signup('뽑기', '1111');
+  game.createDog(userId, { name: '콩', breed: 'bichon', personality: 'sweet' });
+  const coins0 = game.getUser(userId).coins;
+  const r1 = game.gacha(userId);
+  assert.equal(r1.free, true);
+  assert.equal(game.getUser(userId).coins, coins0);
+  assert.ok(game.getUser(userId).owned.includes(r1.itemId));
+  const r2 = game.gacha(userId); // rng=0 → 항상 같은 아이템 → 중복
+  assert.equal(r2.free, false);
+  assert.equal(r2.duplicate, true);
+  assert.equal(game.getUser(userId).coins, coins0 - 30 + r2.refund);
+  db.prepare('UPDATE users SET coins = 0 WHERE id = ?').run(userId);
+  assert.throws(() => game.gacha(userId), /부족/);
+  assert.throws(() => game.buy(userId, 'halo'), /뽑기에서만/);
+});

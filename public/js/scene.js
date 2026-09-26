@@ -42,6 +42,32 @@ function drawWall(ctx, id) {
     const stars = [[8, 8], [30, 20], [50, 6], [140, 12], [160, 30], [178, 8], [128, 40], [18, 44], [60, 50], [150, 52]];
     for (const [x, y] of stars) { rect(ctx, x, y, 1, 1, '#fff6c2'); rect(ctx, x - 1, y, 3, 1, '#c9c2ff'); rect(ctx, x, y - 1, 1, 3, '#c9c2ff'); rect(ctx, x, y, 1, 1, '#fffbe0'); }
     ellipse(ctx, 164, 18, 6, 6, '#fff3b0'); ellipse(ctx, 167, 16, 5, 5, '#2f3a6b');
+  } else if (id === 'wall_candy') {
+    for (let x = -FLOOR_TOP; x < SCENE_W; x += 12) {
+      for (let y = 0; y < FLOOR_TOP; y++) {
+        rect(ctx, x + y, y, 6, 1, '#ffe3ef');
+        rect(ctx, x + y + 6, y, 6, 1, '#fff6fa');
+      }
+    }
+    for (let x = 6; x < SCENE_W; x += 24) { rect(ctx, x, 30, 3, 3, '#ff9fb8'); rect(ctx, x + 12, 50, 3, 3, '#9fe0c8'); }
+  } else if (id === 'wall_sky') {
+    const bands = ['#9fd6ff', '#b0ddff', '#c2e6ff', '#d4eeff'];
+    bands.forEach((c, i) => rect(ctx, 0, i * 17, SCENE_W, 18, c));
+    for (const [x, y, r] of [[20, 14, 7], [150, 22, 9], [60, 44, 6], [175, 52, 5], [130, 48, 4]]) {
+      ellipse(ctx, x, y, r * 1.6, r * 0.6, '#ffffff'); ellipse(ctx, x + r * 0.5, y - r * 0.4, r * 0.9, r * 0.5, '#ffffff');
+    }
+    for (const [x, y] of [[40, 30], [110, 8]]) { rect(ctx, x, y, 3, 1, '#4a3330'); rect(ctx, x + 4, y - 1, 3, 1, '#4a3330'); }
+  } else if (id === 'wall_forest') {
+    rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#8a5a34');
+    for (let y = 0; y < FLOOR_TOP; y += 8) {
+      rect(ctx, 0, y, SCENE_W, 7, (y / 8) % 2 ? '#9c6a3f' : '#a87444');
+      rect(ctx, 0, y + 7, SCENE_W, 1, '#6b4225');
+      for (let x = (y * 3) % 20; x < SCENE_W; x += 40) ellipse(ctx, x, y + 3, 1.5, 1, '#7a4b2a');
+    }
+    // 덩굴과 잎사귀
+    for (let x = 0; x < SCENE_W; x += 3) rect(ctx, x, 3 + Math.round(Math.sin(x / 8) * 2), 2, 2, '#3f8f3a');
+    for (let x = 4; x < SCENE_W; x += 14) { ellipse(ctx, x, 7 + Math.round(Math.sin(x / 8) * 2), 3, 2, '#57a84b'); rect(ctx, x, 10, 1, 4 + (x % 3) * 2, '#3f8f3a'); }
+    for (const x of [14, 62, 172]) { ellipse(ctx, x, 34, 4, 3, '#ff9fb8'); rect(ctx, x, 34, 1, 1, '#ffe066'); }
   } else {
     rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#d7a067');
     for (let x = 0; x < SCENE_W; x += 12) {
@@ -122,6 +148,22 @@ function drawRug(ctx, id) {
       const x = cx - 40 + ((i * 37) % 80); const y = cy - 8 + ((i * 13) % 16);
       rect(ctx, x, y, 1, 2, i % 3 ? '#57a84b' : '#2f6f2c');
     }
+  } else if (id === 'rug_check') {
+    ellipse(ctx, cx, cy, 45, 12, '#e84a5f');
+    for (let y = cy - 12; y <= cy + 12; y++) {
+      for (let x = cx - 45; x <= cx + 45; x++) {
+        const dx = (x - cx) / 45; const dy = (y - cy) / 12;
+        if (dx * dx + dy * dy > 0.92) continue;
+        if ((Math.floor((x - cx + 60) / 6) + Math.floor((y - cy + 60) / 4)) % 2) rect(ctx, x, y, 1, 1, '#fff6e6');
+      }
+    }
+  } else if (id === 'rug_star') {
+    ellipse(ctx, cx, cy, 45, 12, '#3d4a8a');
+    ellipse(ctx, cx, cy, 40, 10, '#4a5aa8');
+    for (const [x, y] of [[-30, -3], [-14, 4], [0, -5], [16, 3], [32, -2], [-22, -7], [24, 7], [8, 8]]) {
+      rect(ctx, cx + x, cy + y, 1, 1, '#fff6c2'); rect(ctx, cx + x - 1, cy + y, 3, 1, '#ffe066'); rect(ctx, cx + x, cy + y - 1, 1, 3, '#ffe066');
+    }
+    ellipse(ctx, cx - 4, cy, 5, 4, '#fff3a0'); ellipse(ctx, cx - 2, cy - 1, 4, 3, '#4a5aa8');
   } else if (id === 'rug_rainbow') {
     const bands = ['#ff7f9f', '#ffb86b', '#ffe066', '#8fe08a', '#7cc7ff', '#b69cff'];
     bands.forEach((c, i) => ellipse(ctx, cx, cy, 45 - i * 6.5, 12 - i * 1.8, c));
@@ -136,6 +178,27 @@ function drawBed(ctx, id) {
     for (const [dx, dy] of [[-14, -6], [-4, -9], [8, -8], [17, -4]]) { ellipse(ctx, x + dx, y + dy, 7, 5, OUT); ellipse(ctx, x + dx, y + dy, 6, 4, '#ffffff'); }
     ellipse(ctx, x, y + 3, 20, 5, '#dde9ff');
     ellipse(ctx, x, y - 1, 16, 5, '#eaf2ff');
+  } else if (id === 'bed_tent') {
+    for (let i = 0; i < 26; i++) {
+      const w = Math.round(i * 1.1);
+      rect(ctx, x - w - 1, y - 26 + i, w * 2 + 2, 1, OUT);
+      rect(ctx, x - w, y - 26 + i, w * 2, 1, i % 6 < 3 ? '#6cc070' : '#57a84b');
+    }
+    rect(ctx, x - 29, y, 58, 2, OUT);
+    for (let i = 0; i < 18; i++) rect(ctx, x - Math.round(i * 0.55), y - 17 + i, Math.round(i * 1.1) + 1, 1, '#2d4a2a');
+    rect(ctx, x - 1, y - 30, 2, 5, OUT); rect(ctx, x + 1, y - 30, 5, 3, '#ffe066');
+    ellipse(ctx, x, y - 2, 8, 2.5, '#ff9fb8');
+  } else if (id === 'bed_castle') {
+    rect(ctx, x - 25, y - 14, 50, 22, OUT);
+    rect(ctx, x - 24, y - 13, 48, 20, '#ffd9e3');
+    for (const tx of [x - 24, x + 16]) {
+      rect(ctx, tx - 1, y - 27, 10, 14, OUT); rect(ctx, tx, y - 26, 8, 13, '#ffc2d3');
+      for (let i = 0; i < 6; i++) rect(ctx, tx + 4 - i * 0.8, y - 33 + i, i * 1.6 + 1, 1, '#b07cff');
+      rect(ctx, tx + 3, y - 20, 2, 3, '#b07cff');
+    }
+    for (let i = x - 14; i < x + 14; i += 4) rect(ctx, i, y - 17, 3, 3, '#ffc2d3');
+    ellipse(ctx, x, y - 2, 13, 4, '#ffffff'); ellipse(ctx, x - 5, y - 4, 5, 2, '#ffe3ef');
+    rect(ctx, x - 3, y - 24, 6, 3, '#ffd23f'); rect(ctx, x - 3, y - 26, 1, 2, '#ffd23f'); rect(ctx, x, y - 26, 1, 2, '#ffd23f'); rect(ctx, x + 2, y - 26, 1, 2, '#ffd23f');
   } else if (id === 'bed_house') {
     rect(ctx, x - 22, y - 26, 44, 34, OUT);
     rect(ctx, x - 21, y - 20, 42, 27, '#f5d7a1');
@@ -162,6 +225,24 @@ function drawToy(ctx, id) {
     rect(ctx, x - 6, y - 1, 12, 4, OUT);
     for (const dx of [-6, 6]) { ellipse(ctx, x + dx, y - 1, 1.6, 1.6, '#fff6e6'); ellipse(ctx, x + dx, y + 2, 1.6, 1.6, '#fff6e6'); }
     rect(ctx, x - 6, y, 12, 2, '#fff6e6');
+  } else if (id === 'toy_duck') {
+    ellipse(ctx, x, y, 7, 5, OUT); ellipse(ctx, x + 4, y - 6, 4, 4, OUT);
+    ellipse(ctx, x, y, 6, 4, '#ffe066'); ellipse(ctx, x + 4, y - 6, 3, 3, '#ffe066');
+    rect(ctx, x + 7, y - 6, 3, 2, '#ff9f3a'); rect(ctx, x + 5, y - 7, 1, 1, OUT);
+    ellipse(ctx, x - 1, y - 1, 3, 1.5, '#fff3a0');
+  } else if (id === 'toy_cactus') {
+    rect(ctx, x - 5, y - 4, 10, 7, OUT); rect(ctx, x - 4, y - 3, 8, 6, '#e07a5f');
+    ellipse(ctx, x, y - 11, 3.5, 7, OUT); ellipse(ctx, x, y - 11, 2.5, 6, '#57a84b');
+    rect(ctx, x - 6, y - 13, 3, 5, OUT); rect(ctx, x - 5, y - 12, 1, 3, '#57a84b');
+    rect(ctx, x + 3, y - 15, 3, 5, OUT); rect(ctx, x + 4, y - 14, 1, 3, '#57a84b');
+    rect(ctx, x, y - 18, 2, 2, '#ff9fb8');
+  } else if (id === 'toy_rocket') {
+    ellipse(ctx, x, y - 10, 5, 11, OUT); ellipse(ctx, x, y - 10, 4, 10, '#f5f5ff');
+    rect(ctx, x - 7, y - 4, 4, 6, OUT); rect(ctx, x + 3, y - 4, 4, 6, OUT);
+    rect(ctx, x - 6, y - 3, 3, 4, '#e84a5f'); rect(ctx, x + 3, y - 3, 3, 4, '#e84a5f');
+    ellipse(ctx, x, y - 12, 2, 2, '#5bc0ff'); rect(ctx, x - 1, y - 13, 1, 1, '#fff');
+    rect(ctx, x - 4, y - 19, 8, 3, '#e84a5f');
+    rect(ctx, x - 2, y + 1, 4, 2, '#ffb000'); rect(ctx, x - 1, y + 3, 2, 1, '#ffe066');
   } else if (id === 'toy_bear') {
     ellipse(ctx, x, y - 2, 6, 7, OUT); ellipse(ctx, x, y - 10, 5, 5, OUT);
     ellipse(ctx, x - 4, y - 14, 2, 2, OUT); ellipse(ctx, x + 4, y - 14, 2, 2, OUT);
