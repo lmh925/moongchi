@@ -9,7 +9,7 @@ import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.j
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
 import { Scene, renderRoom } from './scene.js';
 import { playMinigame } from './minigame.js';
-import { playRunner } from './runner.js';
+import { playRunner, enterLandscape, exitLandscape } from './runner.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -953,6 +953,8 @@ function playPanel() {
 }
 
 async function startGame(type) {
+  // 멍뭉 런은 가로 전체 화면으로 (버튼을 누른 바로 그 순간에 요청해야 브라우저가 허락해요)
+  if (type === 'run') enterLandscape();
   try {
     unlock();
     const { gameId } = await post('/minigame/start', { type });
@@ -962,7 +964,7 @@ async function startGame(type) {
     if (res.result.coins) sfx.coin();
     toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}`, 'good');
     renderPanel();
-  } catch (err) { toast(err.message, 'bad'); renderPanel(); }
+  } catch (err) { exitLandscape(); toast(err.message, 'bad'); renderPanel(); }
 }
 
 async function notebookPanel() {

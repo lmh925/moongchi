@@ -2,13 +2,14 @@
 // 강아지가 자동으로 달려요. 점프(2단 점프)와 슬라이드로 장애물을 피하고 간식을 모아요.
 // 체력은 시간이 지나면 조금씩 줄어들고, 하트를 먹으면 다시 차요.
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
-import { el, modal } from './ui.js';
+import { el } from './ui.js';
 import { sfx, playBgm } from './audio.js';
 
-const W = 240;
+// 가로 폭은 기기 화면 비율에 맞춰 게임마다 정해요 (240~340)
+let W = 240;
 const H = 144;
 const GROUND = 122;
-const DOG_X = 52;
+let DOG_X = 52; // 넓은 가로 화면에서는 점프 버튼에 가리지 않게 오른쪽으로 옮겨요
 const GRAVITY = 760;
 const JUMP_V = -270;
 const DOUBLE_V = -235;
@@ -133,25 +134,50 @@ function makeChunk(x, t, rnd) {
 
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
+// 전체 화면 + 가로 고정 (안드로이드 크롬에서 동작, 아이폰은 안내 화면으로 대신해요)
+// 사용자가 버튼을 누른 직후에 불러야 해요.
+export function enterLandscape() {
+  try {
+    const p = document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
+    Promise.resolve(p).then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  } catch { /* 지원하지 않는 브라우저 */ }
+}
+
+export function exitLandscape() {
+  try { screen.orientation?.unlock?.(); } catch { /* 무시 */ }
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+}
+
 export function playRunner(dog) {
   return new Promise((resolve) => {
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const portrait = matchMedia('(orientation: portrait)');
+    const aspect = touch
+      ? Math.max(innerWidth, innerHeight) / Math.min(innerWidth, innerHeight)
+      : innerWidth / innerHeight;
+    W = Math.round(Math.min(340, Math.max(240, H * aspect)));
+    DOG_X = W >= 280 ? 92 : 52;
+    let allowPortrait = false;
+    const needRotate = () => touch && portrait.matches && !allowPortrait;
+
     const canvas = el('canvas', { width: W, height: H, class: 'pixel runner-canvas' });
-    const hud = { score: el('span', {}, '0'), hp: el('i', {}) };
-    const jumpBtn = el('button', { class: 'btn primary big run-btn', type: 'button' }, '점프');
-    const slideBtn = el('button', { class: 'btn secondary big run-btn', type: 'button' }, '슬라이드');
-    const { close } = modal({
-      title: '멍뭉 런!',
-      className: 'game-card runner',
-      body: el('div', {},
-        el('div', { class: 'game-hud' },
-          el('span', { class: 'hp' }, '체력 ', el('span', { class: 'bar hp-bar' }, hud.hp)),
-          el('span', {}, '간식 ', hud.score)),
-        canvas,
-        el('div', { class: 'run-controls' }, jumpBtn, slideBtn),
-        el('p', { class: 'hint' }, '점프는 두 번까지! 빨래는 슬라이드로 피해요. 하트를 먹으면 체력이 차요.')),
-      buttons: [],
-      dismissable: false,
-    });
+    const hud = { score: el('span', {}, '0개'), hp: el('i', {}) };
+    const jumpBtn = el('button', { class: 'run-btn jump', type: 'button', 'aria-label': '점프' }, '점프');
+    const slideBtn = el('button', { class: 'run-btn slide', type: 'button', 'aria-label': '슬라이드' }, '슬라이드');
+    const quitBtn = el('button', { class: 'run-quit', type: 'button' }, '그만하기');
+    const rotateHint = el('div', { class: 'rotate-hint', hidden: true },
+      el('div', { class: 'phone' }),
+      el('p', {}, '휴대폰을 가로로 돌려 주세요!'),
+      el('p', { class: 'small' }, '가로로 하면 앞이 더 멀리 보여서 장애물을 피하기 쉬워요.'),
+      el('button', { class: 'btn small secondary', type: 'button', onclick: () => { allowPortrait = true; } }, '세로로 그냥 할래요'));
+    const root = el('div', { class: 'runner-screen', role: 'dialog', 'aria-label': '멍뭉 런' },
+      canvas,
+      el('div', { class: 'run-hud' },
+        el('span', { class: 'hp' }, '체력', el('span', { class: 'bar hp-bar' }, hud.hp)),
+        el('span', { class: 'score' }, '간식 ', hud.score),
+        quitBtn),
+      jumpBtn, slideBtn, rotateHint);
+    document.body.append(root);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     const layers = Object.fromEntries(Object.entries(LAYERS).map(([k, f]) => [k, f()]));
@@ -161,11 +187,12 @@ export function playRunner(dog) {
     const s = {
       t: 0, dist: 0, speed: 95, hp: 100, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
       hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 14, countdown: 3, over: false, overT: 0, pops: [], dust: [],
+      paused: false,
     };
     s.nextChunk = 30;
 
     const jump = () => {
-      if (s.over || s.countdown > 0) return;
+      if (s.over || s.countdown > 0 || s.paused) return;
       if (s.jumps < 2) {
         s.vy = s.jumps === 0 ? JUMP_V : DOUBLE_V;
         s.jumps += 1;
@@ -175,14 +202,22 @@ export function playRunner(dog) {
     };
     const slide = (on) => {
       s.slideHeld = on;
-      if (on && s.jumps === 0 && !s.over && s.countdown <= 0) { if (!s.sliding) sfx.slide(); s.sliding = true; }
+      if (on && s.jumps === 0 && !s.over && s.countdown <= 0 && !s.paused) { if (!s.sliding) sfx.slide(); s.sliding = true; }
       if (!on) s.sliding = false;
     };
-    jumpBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); jump(); });
-    slideBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); slideBtn.setPointerCapture(e.pointerId); slide(true); });
-    slideBtn.addEventListener('pointerup', () => slide(false));
-    slideBtn.addEventListener('pointercancel', () => slide(false));
+    jumpBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); jumpBtn.classList.add('down'); jump(); });
+    jumpBtn.addEventListener('pointerup', () => jumpBtn.classList.remove('down'));
+    jumpBtn.addEventListener('pointercancel', () => jumpBtn.classList.remove('down'));
+    slideBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); slideBtn.setPointerCapture(e.pointerId); slideBtn.classList.add('down'); slide(true); });
+    const slideUp = () => { slideBtn.classList.remove('down'); slide(false); };
+    slideBtn.addEventListener('pointerup', slideUp);
+    slideBtn.addEventListener('pointercancel', slideUp);
     canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); if (s.over && s.overT > 1) finish(); else jump(); });
+    quitBtn.addEventListener('click', () => {
+      if (s.over) finish();
+      else { s.over = true; s.hp = Math.max(0, s.hp); sfx.gameOver(); }
+    });
+    root.addEventListener('contextmenu', (e) => e.preventDefault());
     const onKey = (e) => {
       if (e.repeat && e.type === 'keydown') return;
       if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) { e.preventDefault(); if (e.type === 'keydown') jump(); }
@@ -198,7 +233,8 @@ export function playRunner(dog) {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKey);
       playBgm('home');
-      close();
+      exitLandscape();
+      root.remove();
       resolve(s.score);
     };
     playBgm('play');
@@ -352,7 +388,16 @@ export function playRunner(dog) {
       if (done) return;
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      update(dt);
+      // 세로로 들고 있으면 가로로 돌릴 때까지 잠깐 멈춰요
+      const wait = needRotate();
+      rotateHint.hidden = !wait;
+      root.classList.toggle('portrait', portrait.matches);
+      if (wait) {
+        if (!s.paused) { s.paused = true; s.sliding = false; }
+      } else {
+        if (s.paused) { s.paused = false; if (!s.over) s.countdown = Math.max(s.countdown, 2); }
+        update(dt);
+      }
       draw();
       if (s.over && s.overT > 4) { finish(); return; }
       requestAnimationFrame(frame);
