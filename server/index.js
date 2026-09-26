@@ -118,6 +118,13 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId, { events: res.events });
   }));
 
+  api.post('/training/start', authed, wrap((req) => game.startTraining(req.userId)));
+  api.post('/training/finish', authed, wrap((req) => {
+    const result = game.finishTraining(req.userId, req.body?.trainingId, req.body ?? {});
+    if (result.learned || result.events.length) hub.dogChanged(req.userId);
+    return { ...me(req.userId, { events: result.events }), result };
+  }));
+
   api.post('/school/leave', authed, wrap((req) => {
     const res = game.leaveSchool(req.userId);
     hub.dogChanged(req.userId);

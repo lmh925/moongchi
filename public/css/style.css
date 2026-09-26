@@ -253,6 +253,35 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 }
 .school-board .big { font-size: 26px; font-weight: 700; color: var(--butter); }
 
+/* 함께 등교 (훈련) */
+.together-card {
+  border: 3px solid var(--ink); border-radius: 12px; padding: 12px; margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff1c9, #ffe3ef); display: grid; gap: 6px; box-shadow: 0 4px 0 var(--line);
+}
+.together-card .title { font-weight: 700; font-size: 17px; display: flex; gap: 8px; align-items: center; }
+.together-card p { margin: 0; font-size: 14px; line-height: 1.5; }
+.together-card .meta { font-size: 13px; color: var(--ink-soft); }
+.together-card .btn { justify-self: stretch; }
+.train-card { max-width: 460px; padding: 12px; }
+.train-card .modal-title { margin-bottom: 6px; }
+.train-target { text-align: center; font-size: 14px; margin-bottom: 8px; }
+.train-stage { border: 3px solid var(--ink); border-radius: 8px; }
+.board-text {
+  position: absolute; left: 26%; width: 48%; top: 9.7%; height: 25%; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: clamp(16px, 6vw, 26px); text-shadow: 2px 2px 0 #1f4a28; pointer-events: none;
+}
+.time-bar { height: 12px; margin: 6px 0 10px; }
+.time-bar > i { background: var(--butter); transition: none; }
+.combo { color: var(--pink-d); }
+.train-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; min-height: 118px; }
+.train-opt {
+  border: 3px solid var(--ink); border-radius: 12px; background: #fff; padding: 6px 2px; display: grid; justify-items: center;
+  gap: 2px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 0 var(--ink); touch-action: manipulation;
+}
+.train-opt img { width: 72px; height: 66px; }
+.train-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.train-opt:disabled { opacity: .5; }
+
 /* 캡슐 뽑기 */
 .gacha-box {
   display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 12px;

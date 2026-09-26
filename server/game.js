@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
-  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
+  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -53,6 +53,7 @@ function rowToUser(row) {
     minigameDate: row.minigame_date,
     minigamePlays: row.minigame_plays,
     gachaDate: row.gacha_date,
+    trainProgress: JSON.parse(row.train_progress ?? '{}'),
   };
 }
 
@@ -282,6 +283,58 @@ export class Game {
       return { dog: this.loadDog(userId), user };
     }
     throw new GameError('알 수 없는 자리예요.');
+  }
+
+  // ---------- 함께 등교: 훈련 수업 ----------
+  trainingsToday(userId) {
+    const dayStart = Date.parse(`${kstDate(this.now())}T00:00:00+09:00`);
+    return this.db.prepare("SELECT COUNT(*) AS n FROM minigames WHERE user_id = ? AND type = 'train' AND started_at >= ?")
+      .get(userId, dayStart).n;
+  }
+
+  startTraining(userId) {
+    const { dog } = this.refreshDog(userId);
+    if (!dog) throw new GameError('강아지가 없어요.', 404);
+    if (dog.school) throw new GameError(`${dog.name}(은)는 벌써 학교에 가 있어요!`);
+    const used = this.trainingsToday(userId);
+    if (used >= TRAINING.dailyLimit) throw new GameError('오늘은 훈련을 많이 했어요! 내일 또 해요.');
+    const id = crypto.randomBytes(12).toString('hex');
+    this.db.prepare("INSERT INTO minigames (id, user_id, started_at, type) VALUES (?, ?, ?, 'train')").run(id, userId, this.now());
+    const learnable = learnableTricks(dog);
+    const target = learnable[0] ?? null;
+    const progress = target ? (this.getUser(userId).trainProgress[target] ?? 0) : 0;
+    return { trainingId: id, target, progress, need: TRAINING.learnHits, left: TRAINING.dailyLimit - used - 1 };
+  }
+
+  finishTraining(userId, trainingId, { correct, targetHits, target }) {
+    return tx(this.db, () => {
+      const row = this.db.prepare("SELECT * FROM minigames WHERE id = ? AND user_id = ? AND type = 'train'").get(String(trainingId), userId);
+      if (!row || row.finished) throw new GameError('이미 끝난 수업이에요.');
+      if (this.now() - row.started_at < TRAINING.minSeconds * 1000) throw new GameError('수업을 조금 더 해야 해요!');
+      this.db.prepare('UPDATE minigames SET finished = 1 WHERE id = ?').run(row.id);
+      const ok = Math.max(0, Math.min(TRAINING.rounds, Math.floor(Number(correct) || 0)));
+      const hits = Math.max(0, Math.min(ok, TRAINING.targetRounds, Math.floor(Number(targetHits) || 0)));
+      const dog = this.loadDog(userId);
+      const coins = ok * TRAINING.coinsPerCorrect;
+      const exp = ok * TRAINING.expPerCorrect;
+      dog.exp += exp;
+      dog.affection = Math.min(RULES.statMax, dog.affection + Math.min(8, ok));
+      const events = this.checkGrowth(dog, this.now());
+      let learned = null;
+      const user = this.getUser(userId);
+      if (target && hits > 0 && learnableTricks(dog).includes(target)) {
+        const progress = (user.trainProgress[target] ?? 0) + hits;
+        if (progress >= TRAINING.learnHits) {
+          dog.tricks.push(target);
+          learned = target;
+          delete user.trainProgress[target];
+        } else user.trainProgress[target] = progress;
+        this.db.prepare('UPDATE users SET train_progress = ? WHERE id = ?').run(JSON.stringify(user.trainProgress), userId);
+      }
+      this.saveDog(dog);
+      this.addCoins(userId, coins);
+      return { coins, exp, learned, learnedName: learned ? TRICKS[learned].name : null, progress: target ? (this.getUser(userId).trainProgress[target] ?? (learned ? TRAINING.learnHits : 0)) : 0, events };
+    });
   }
 
   // ---------- 캡슐 뽑기 ----------

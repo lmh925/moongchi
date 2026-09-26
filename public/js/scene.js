@@ -294,6 +294,7 @@ export class Scene {
     this.bg = renderRoom({});
     this.bowlFull = 0;
     this.showNames = false;
+    this.showBowl = true;
     this.running = true;
     this.last = performance.now();
     canvas.addEventListener('pointerdown', (e) => this.onPointer(e));
@@ -612,7 +613,7 @@ export class Scene {
   draw() {
     const { ctx } = this;
     ctx.drawImage(this.bg, 0, 0);
-    drawBowl(ctx, this.bowlFull > 0);
+    if (this.showBowl) drawBowl(ctx, this.bowlFull > 0);
     const list = [...this.entities.values()].filter((e) => e.dog && !e.dog.atSchool).sort((a, b) => a.y - b.y);
     const rect = this.canvas.getBoundingClientRect();
     const sx = rect.width / SCENE_W;

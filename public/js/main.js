@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA,
+  STICKERS, PHRASES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING,
 } from '/shared/data.js';
 import { applyDecay, quizResult } from '/shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -11,6 +11,7 @@ import { Scene, renderRoom } from './scene.js';
 import { playMinigame } from './minigame.js';
 import { playRunner, enterLandscape, exitLandscape } from './runner.js';
 import { playGacha } from './gacha.js';
+import { playTraining } from './training.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -741,9 +742,20 @@ function schoolPanel() {
       el('button', { class: 'btn secondary', style: { width: '100%' }, onclick: leaveSchool }, '조퇴하고 데려오기'));
   }
   const real = (m) => fmtDuration((m * 60_000) / state.speed);
+  const learnable = Object.entries(TRICKS).filter(([id, t]) => t.stage <= dog.stage && !dog.tricks.includes(id));
+  const target = learnable[0];
+  const progress = target ? (state.me.user.trainProgress?.[target[0]] ?? 0) : 0;
   return el('div', {},
     el('h3', {}, '멍뭉 학교'),
-    el('p', { class: 'sub' }, '수업을 고르면 강아지가 학교에 가요. 돌아오면 알림장과 선물을 받아요!'),
+    el('div', { class: 'together-card' },
+      el('div', { class: 'title' }, '함께 등교하기', el('span', { class: 'chip' }, '바로 시작!')),
+      el('p', {}, `${dog.name}(이)랑 같이 교실에 가서 선생님 말씀대로 훈련해요. 잘하면 그 자리에서 새 개인기를 배워요!`),
+      target
+        ? el('div', { class: 'meta' }, '배우는 중: ', el('b', {}, target[1].name), ` (${progress}/${TRAINING.learnHits})`)
+        : el('div', { class: 'meta' }, '지금 배울 수 있는 개인기를 다 배웠어요! 자라면 새 개인기가 열려요.'),
+      el('button', { class: 'btn primary', onclick: startTraining }, '교실로 가기!')),
+    el('div', { class: 'section-title' }, '혼자 보내기'),
+    el('p', { class: 'sub' }, '수업을 고르면 강아지가 혼자 학교에 가요. 돌아오면 알림장과 선물을 받아요!'),
     el('div', { class: 'cards' }, Object.entries(SCHOOL_COURSES).map(([id, c]) => el('div', { class: 'card' },
       el('div', { class: 'title' }, c.name, el('button', {
         class: 'btn small green',
@@ -758,6 +770,35 @@ function schoolPanel() {
       }, '보내기')),
       el('div', { class: 'meta' }, c.desc),
       el('div', { class: 'meta' }, `⏰ ${real(c.minutes)} · 코인 ${c.coins} · 경험치 ${c.exp} · 개인기 배울 확률 ${Math.round(c.trickChance * 100)}%`)))));
+}
+
+async function startTraining() {
+  const dog = state.me.dog;
+  try {
+    unlock();
+    const info = await post('/training/start');
+    const score = await playTraining(publicDog(dog), info);
+    const res = await post('/training/finish', { trainingId: info.trainingId, target: info.target, ...score });
+    applyMe(res);
+    const r = res.result;
+    if (r.learned) {
+      sfx.levelUp();
+      await waitModal({
+        title: '새 개인기를 배웠어요!',
+        className: 'celebrate',
+        body: el('div', { class: 'center' },
+          el('img', { class: 'pixel', src: dogPortrait(dog.breed, dog.stage, { equip: dog.equip }), alt: '' }),
+          el('p', {}, el('span', { class: 'learned' }, r.learnedName), ` 개인기를 할 수 있게 됐어요!`),
+          el('p', { class: 'help' }, '우리집에서 개인기 버튼으로 보여 줄 수 있어요.')),
+        buttons: [{ label: '최고야!' }],
+      });
+    } else {
+      if (r.coins) sfx.coin();
+      toast(`훈련 끝! 성공 ${score.correct}번 · 코인 +${r.coins} · 경험치 +${r.exp}${info.target ? ` · ${TRICKS[info.target].name} ${r.progress}/${TRAINING.learnHits}` : ''}`, 'good');
+    }
+    await handleEvents(res.events);
+    renderPanel();
+  } catch (err) { toast(err.message, 'bad'); renderPanel(); }
 }
 
 async function goSchool(course) {

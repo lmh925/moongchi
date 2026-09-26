@@ -262,6 +262,17 @@ export const TEACHER_COMMENTS = {
   ],
 };
 
+// 함께 등교 (훈련 수업): 선생님 명령에 맞춰 버튼을 눌러 강아지를 훈련해요.
+export const TRAINING = {
+  rounds: 10,
+  targetRounds: 3, // 한 번 수업에서 배울 개인기가 나오는 횟수
+  learnHits: 3, // 배울 개인기를 이만큼 성공하면 바로 배워요 (여러 번에 나눠도 돼요)
+  minSeconds: 10,
+  dailyLimit: 15,
+  coinsPerCorrect: 1,
+  expPerCorrect: 3,
+};
+
 // 조퇴했을 때 선생님 한마디
 export const EARLY_COMMENTS = [
   '오늘은 보호자님이 일찍 데리러 오셨어요. 다음엔 끝까지 함께해요!',
