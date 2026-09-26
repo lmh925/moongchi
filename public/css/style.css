@@ -673,3 +673,8 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 .quick-login.small .quick-pick { width: 70px; }
 .quick-login.small .quick-pick img { width: 48px; }
 .quick-login.small .quick-noimg { width: 48px; height: 42px; }
+
+/* 게임 화면에서는 꾹 누르거나 끌어도 글자 선택·복사 메뉴가 뜨지 않게 (입력칸은 예외) */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+.plaza-view, .plaza-view * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

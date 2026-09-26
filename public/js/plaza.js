@@ -264,6 +264,12 @@ export class PlazaView {
       this.joyVec = d < 6 ? null : { x: dx / joyR, y: dy / joyR };
       if (this.joyVec) this.target = null;
     };
+    // iOS는 꾹 누르면 글자 선택·돋보기가 떠요 → 터치 기본 동작을 막아요
+    const noTouchDefault = (e) => { if (e.cancelable) e.preventDefault(); };
+    for (const t of [this.joy, this.canvas]) {
+      t.addEventListener('touchstart', noTouchDefault, { passive: false });
+      t.addEventListener('touchmove', noTouchDefault, { passive: false });
+    }
     this.joy.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       joyId = ev.pointerId;
