@@ -215,8 +215,64 @@ async function afterLogin() {
 let answers = [];
 function startQuiz() {
   answers = [];
+  document.querySelectorAll('.adopt-cancel').forEach((b) => { b.hidden = !state.adopting; });
   show('quiz');
   showQuestion(0);
+}
+
+// ---------- 둘째 입양 ----------
+function startAdopt() {
+  const { slots } = state.me;
+  if (slots.used >= slots.max) return toast(slots.nextLevel ? `강아지가 Lv ${slots.nextLevel}이 되면 입양할 수 있어요!` : '더 이상 입양할 수 없어요.');
+  modal({
+    title: '새 가족을 맞이할까요?',
+    body: el('div', { class: 'center' },
+      el('p', {}, '심리테스트를 다시 해서 운명의 강아지를 만나요.'),
+      el('p', { class: 'help' }, '지금 강아지들은 집에서 함께 지내요. 코인·아이템·배지·도감은 다 같이 써요!')),
+    buttons: [
+      { label: '다음에', kind: 'secondary' },
+      { label: '입양하러 가기!', onClick: () => { state.adopting = true; startQuiz(); } },
+    ],
+  });
+}
+
+function cancelAdopt() {
+  state.adopting = false;
+  show('game');
+  renderPanel();
+}
+document.querySelectorAll('.adopt-cancel').forEach((b) => b.addEventListener('click', cancelAdopt));
+
+async function switchDog(d) {
+  try {
+    const res = await post('/dog/switch', { dogId: d.id });
+    applyMe(res);
+    await enterRoom(myId(), { quiet: true });
+    sfx.bark(barkPitch(res.dog), 2);
+    toast(`오늘의 대표는 ${res.dog.name}!`, 'good');
+    await handleEvents(res.events);
+    renderPanel();
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+// 우리 강아지들: 대표를 고르거나 새 가족을 입양해요
+function dogsRow() {
+  const { dogs = [], slots } = state.me;
+  if (!slots) return null;
+  const cells = dogs.map((d) => el('button', {
+    type: 'button', class: `dog-slot ${d.active ? 'active' : ''}`,
+    onclick: () => (d.active ? openMyCard() : modal({
+      title: `${d.name}(으)로 바꿀까요?`,
+      body: el('p', { class: 'center' }, `${d.name}(이)가 오늘의 대표가 돼서 돌봄·학교·놀이터에 함께 가요.`),
+      buttons: [{ label: '아니요', kind: 'secondary' }, { label: '바꿀래요!', onClick: () => switchDog(d) }],
+    })),
+  },
+  el('img', { class: 'pixel', src: dogPortrait(d.breed, d.stage, { equip: d.equip }), alt: '' }),
+  el('b', {}, d.name),
+  el('small', {}, d.active ? '대표' : d.atSchool ? '학교' : `Lv ${d.level}`)));
+  if (slots.used < slots.max) cells.push(el('button', { type: 'button', class: 'dog-slot add', onclick: startAdopt }, el('span', { class: 'plus' }, '+'), el('b', {}, '입양하기')));
+  else if (slots.nextLevel) cells.push(el('div', { class: 'dog-slot locked' }, el('span', { class: 'plus' }, '🔒'), el('small', {}, `Lv ${slots.nextLevel}에 열려요`)));
+  return el('div', { class: 'dogs-row' }, el('div', { class: 'section-title' }, '우리 강아지들'), el('div', { class: 'dog-slots' }, cells));
 }
 
 function showQuestion(i) {
@@ -252,6 +308,17 @@ $('#result-submit').addEventListener('click', async () => {
   try {
     const me = await post('/dog', { name, ...chosen });
     applyMe(me);
+    if (state.adopting) {
+      state.adopting = false;
+      const sp = me.events.find((e) => e.type === 'special');
+      if (sp) await playSpecialReveal(me.dog, sp);
+      show('game');
+      await enterRoom(myId(), { quiet: true });
+      setTab('home');
+      sfx.levelUp();
+      modal({ title: `${name}(이)가 새 가족이 되었어요!`, body: el('p', { class: 'center' }, '오늘의 대표로 함께해요. 우리 강아지들 칸에서 언제든 대표를 바꿀 수 있어요.'), buttons: [{ label: '환영해!' }] });
+      return;
+    }
     // 이스터에그: 스페셜 이름이면 여기서 변신 연출부터!
     const sp = me.events.find((e) => e.type === 'special');
     if (sp) {
@@ -337,6 +404,7 @@ function enterGame(me) {
       onTreatNear: (t, pos) => state.socket?.emit('party:grab', { treatId: t.id, x: pos.x, y: pos.y }),
       onDogTap: (e, combo) => {
         sfx.bark(barkPitch(e.dog), combo === 'spin' ? 2 : 1);
+        if (String(e.id).startsWith('dog:')) { state.scene.burst(e, 'heart', 2); return; } // 집에서 쉬는 강아지
         if (combo === 'spin') { sfx.whoosh(); state.socket?.emit('room:trick', { trick: 'spin' }); }
         if (e.mine) doCare('pet', { quiet: true });
         else state.socket?.emit('room:pet', { userId: e.id });
@@ -462,6 +530,11 @@ function connectSocket() {
     if (e && userId !== myId()) e.dog = dog;
     if (userId === state.roomOwnerId && state.room) { state.room.homeDog = dog; updateAway(); }
   });
+  socket.on('room:extras', ({ ownerId, extras }) => {
+    if (ownerId !== state.roomOwnerId) return;
+    if (state.room) state.room.extras = extras;
+    addExtras(extras);
+  });
   socket.on('room:decor', ({ decor }) => { state.scene.setDecor(decor); if (state.room) state.room.decor = decor; });
   socket.on('room:chat-allowed', ({ allowed }) => {
     state.chatAllowed = allowed;
@@ -525,6 +598,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
     x: ownerMember?.x, y: ownerMember?.y,
     mine: ownerId === me, home: true, auto: ownerId === me || !ownerMember,
   });
+  addExtras(room.extras);
   for (const m of room.members) {
     if (m.userId === ownerId) continue;
     scene.upsert(m.userId, {
@@ -532,7 +606,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
       mine: m.userId === me, auto: m.userId === me,
     });
   }
-  scene.showNames = ownerId !== me || room.members.length > 1;
+  scene.showNames = ownerId !== me || room.members.length > 1 || (room.extras?.length ?? 0) > 0;
   $('#room-label').textContent = ownerId === me ? `${room.owner.nickname}네 집` : `${room.owner.nickname}네 집에 놀러 왔어요`;
   updateAway();
   if (!quiet && ownerId !== me) toast(`${room.owner.nickname}네 집에 도착했어요!`, 'good');
@@ -542,6 +616,13 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   }
   if (state.tab === 'home' || ownerId !== me) setTab('home');
   return true;
+}
+
+// 집에서 함께 지내는 대표가 아닌 강아지들 (알아서 돌아다녀요)
+function addExtras(extras = []) {
+  const scene = state.scene;
+  for (const id of [...scene.entities.keys()]) if (String(id).startsWith('dog:')) scene.remove(id);
+  for (const x of extras) scene.upsert(`dog:${x.id}`, { dog: x.dog, nickname: x.dog.name, auto: true });
 }
 
 function updateAway() {
@@ -882,6 +963,7 @@ function homePanel() {
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
     questCard(state.me.progress),
+    dogsRow(),
     roomGames(),
     partyButton(),
     bondList(),

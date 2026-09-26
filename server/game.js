@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -101,7 +101,66 @@ export class Game {
 
   // ---------- 강아지 ----------
   loadDog(userId) {
-    return rowToDog(this.db.prepare('SELECT * FROM dogs WHERE user_id = ?').get(userId));
+    // 대표 강아지 (여러 마리면 users.active_dog, 없으면 첫째)
+    return rowToDog(this.db.prepare(`SELECT d.* FROM dogs d JOIN users u ON u.id = d.user_id WHERE d.user_id = ?
+      ORDER BY (d.id = u.active_dog) DESC, d.id LIMIT 1`).get(userId));
+  }
+
+  loadDogById(dogId) {
+    return rowToDog(this.db.prepare('SELECT * FROM dogs WHERE id = ?').get(dogId));
+  }
+
+  loadDogs(userId) {
+    return this.db.prepare('SELECT * FROM dogs WHERE user_id = ? ORDER BY id').all(userId).map(rowToDog);
+  }
+
+  // ---------- 둘째 입양 ----------
+  dogSlots(userId) {
+    const dogs = this.loadDogs(userId);
+    const best = Math.max(0, ...dogs.map((d) => levelFromExp(d.exp)));
+    const max = 1 + ADOPT.slotLevels.filter((lv) => best >= lv).length;
+    const next = ADOPT.slotLevels.find((lv) => best < lv) ?? null;
+    return { used: dogs.length, max, nextLevel: dogs.length && next ? next : null, best };
+  }
+
+  dogList(userId) {
+    const active = this.loadDog(userId)?.id;
+    return this.loadDogs(userId).map((d) => ({
+      id: d.id, name: d.name, breed: d.breed, stage: d.stage, equip: d.equip, level: levelFromExp(d.exp),
+      special: d.special, original: d.original, active: d.id === active, atSchool: !!d.school,
+    }));
+  }
+
+  // 대표 강아지 바꾸기. 쉬고 있던 동안은 수치가 절반 속도로만 줄어요.
+  switchDog(userId, dogId) {
+    const target = this.loadDogById(Number(dogId));
+    if (!target || target.userId !== userId) throw new GameError('우리 집 강아지가 아니에요.');
+    const current = this.loadDog(userId);
+    if (current?.id === target.id) throw new GameError('이미 대표 강아지예요!');
+    this.refreshDog(userId); // 지금 대표의 상태를 저장해 둬요
+    const now = this.now();
+    if (!target.school) {
+      const rested = applyDecay(target, now, this.speed * ADOPT.inactiveDecay);
+      this.saveDog(rested);
+    }
+    this.db.prepare('UPDATE users SET active_dog = ? WHERE id = ?').run(target.id, userId);
+    return this.refreshDog(userId);
+  }
+
+  // 대표가 아닌 강아지가 학교에서 돌아올 시간이 됐으면 하교시켜요
+  refreshOthers(userId) {
+    const active = this.loadDog(userId)?.id;
+    const now = this.now();
+    const events = [];
+    for (const d of this.loadDogs(userId)) {
+      if (d.id === active || !d.school || now < d.school.endsAt) continue;
+      tx(this.db, () => {
+        const { dog, report, events: grew } = this.finishSchool(d);
+        this.saveDog(dog);
+        events.push(...grew, { type: 'schoolDone', report });
+      });
+    }
+    return events;
   }
 
   saveDog(dog) {
@@ -115,12 +174,18 @@ export class Game {
 
   createDog(userId, { name, breed, personality }) {
     if (!BREEDS[breed] || !PERSONALITIES[personality]) throw new GameError('강아지 정보가 올바르지 않아요.');
-    if (this.loadDog(userId)) throw new GameError('이미 함께 사는 강아지가 있어요.');
+    const slots = this.dogSlots(userId);
+    if (slots.used >= slots.max) {
+      throw new GameError(slots.nextLevel ? `강아지가 Lv ${slots.nextLevel}이 되면 새 친구를 입양할 수 있어요.` : '더 이상 입양할 수 없어요.');
+    }
     const now = this.now();
     this.db.prepare(`INSERT INTO dogs (user_id, name, breed, personality, fullness, cleanliness, affection, fluff, exp, stage, tricks, equip, born_at, updated_at, level, title)
       VALUES (?, ?, ?, ?, 80, 80, 60, 0, 0, 0, ?, '{}', ?, ?, 1, 'sprout')`)
       .run(userId, name, breed, personality, JSON.stringify(STARTING_TRICKS), now, now);
-    const dog = this.loadDog(userId);
+    const newId = this.db.prepare('SELECT MAX(id) AS id FROM dogs WHERE user_id = ?').get(userId).id;
+    if (slots.used) this.refreshDog(userId); // 첫째 상태를 저장하고
+    this.db.prepare('UPDATE users SET active_dog = ? WHERE id = ?').run(newId, userId); // 새 친구가 대표가 돼요
+    const dog = this.loadDogById(newId);
     this.applySpecial(dog, specialForName(name));
     this.saveDog(dog);
     return dog;

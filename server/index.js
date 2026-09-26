@@ -119,10 +119,14 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const { dog, events } = game.refreshDog(userId);
     if (events.length) hub.dogChanged(userId);
     if (extra.visit) events.push(...progress.onMe(userId, dog));
+    const others = game.refreshOthers(userId);
+    if (others.length) { events.push(...others); hub.dogsChanged(userId); }
     const user = game.getUser(userId);
     return {
       user,
       dog: game.dogView(dog),
+      dogs: game.dogList(userId),
+      slots: game.dogSlots(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -168,7 +172,9 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/dog', authed, wrap((req) => {
     const name = checkDogName(req.body?.name);
     if (!name.ok) throw new GameError(name.reason);
+    const first = !game.loadDog(req.userId);
     const dog = game.createDog(req.userId, { name: name.name, breed: req.body?.breed, personality: req.body?.personality });
+    if (!first) hub.dogsChanged(req.userId);
     return me(req.userId, { visit: true, events: dog.special ? [{ type: 'special', key: dog.special, from: dog.baseBreed }] : [] });
   }));
 
@@ -178,6 +184,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction } };
   }));
 
+  api.post('/dog/switch', authed, wrap((req) => {
+    const res = game.switchDog(req.userId, req.body?.dogId);
+    hub.dogsChanged(req.userId);
+    plaza.dogChanged(req.userId);
+    return me(req.userId, { events: res.events });
+  }));
   api.post('/dog/rename', authed, wrap((req) => {
     const name = checkDogName(req.body?.name);
     if (!name.ok) throw new GameError(name.reason);

@@ -277,8 +277,21 @@ export class RoomHub {
       owner: { id: owner.id, nickname: owner.nickname },
       decor: owner.room,
       homeDog: this.game.publicDog(dog),
+      extras: this.extras(ownerId, dog?.id),
       members: [...room.values()].map((m) => this.memberView(m)),
     };
+  }
+
+  // 집에서 함께 지내는 대표가 아닌 강아지들 (학교에 간 친구는 빼고)
+  extras(ownerId, activeId = this.game.loadDog(ownerId)?.id) {
+    return this.game.loadDogs(ownerId).filter((d) => d.id !== activeId && !d.school)
+      .map((d) => ({ id: d.id, dog: this.game.publicDog(d) }));
+  }
+
+  // 입양하거나 대표를 바꾸면 방에 있는 모두에게 알려요
+  dogsChanged(ownerId) {
+    this.dogChanged(ownerId);
+    this.io.to(this.channel(ownerId)).emit('room:extras', { ownerId, extras: this.extras(ownerId) });
   }
 
   join(socket, ownerId, ack) {

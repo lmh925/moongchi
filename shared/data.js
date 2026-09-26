@@ -707,3 +707,7 @@ export const SPECIAL_TRICKS = {
   propeller: { name: '꼬리 프로펠러', desc: '꼬리를 빙글빙글 돌려서 날아오를 것 같아요!' },
 };
 export const RENAME_PRICE = 30; // 이름표 바꾸기
+
+// ---------- 둘째 입양 ----------
+// 강아지 중 한 마리라도 이 레벨이 되면 입양 칸이 하나씩 열려요 (최대 3마리)
+export const ADOPT = { slotLevels: [10, 25], inactiveDecay: 0.5 };

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE TABLE IF NOT EXISTS dogs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   breed TEXT NOT NULL,
   personality TEXT NOT NULL,
@@ -130,6 +130,22 @@ export function openDb(file) {
   ensure('dogs', 'special', 'TEXT');
   ensure('dogs', 'base_breed', 'TEXT');
   ensure('dogs', 'original', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('users', 'active_dog', 'INTEGER');
+  ensure('users', 'trade_locks', "TEXT NOT NULL DEFAULT '{}'");
+  allowManyDogs(db);
+  db.exec(`CREATE INDEX IF NOT EXISTS dogs_user ON dogs(user_id);
+  CREATE TABLE IF NOT EXISTS trades (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    give TEXT NOT NULL,
+    ask TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    done_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS trades_to ON trades(to_id, status);
+  CREATE INDEX IF NOT EXISTS trades_from ON trades(from_id, status);`);
   ensure('users', 'boost_day', "TEXT NOT NULL DEFAULT '{}'");
   db.exec(`CREATE TABLE IF NOT EXISTS mail (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +158,25 @@ export function openDb(file) {
   CREATE INDEX IF NOT EXISTS mail_user ON mail(user_id, created_at);`);
   migrateLevels(db);
   return db;
+}
+
+// 예전 DB는 한 계정에 강아지 한 마리만 둘 수 있었어요(user_id UNIQUE). 둘째 입양을 위해 표를 다시 만들어요.
+function allowManyDogs(db) {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'dogs'").get();
+  if (!row || !/user_id INTEGER NOT NULL UNIQUE/.test(row.sql)) return;
+  const sql = row.sql.replace('user_id INTEGER NOT NULL UNIQUE', 'user_id INTEGER NOT NULL').replace(/CREATE TABLE (IF NOT EXISTS )?"?dogs"?/, 'CREATE TABLE dogs_new');
+  const cols = db.prepare('PRAGMA table_info(dogs)').all().map((c) => c.name).join(', ');
+  db.exec('PRAGMA foreign_keys = OFF; BEGIN');
+  try {
+    db.exec(sql);
+    db.exec(`INSERT INTO dogs_new (${cols}) SELECT ${cols} FROM dogs; DROP TABLE dogs; ALTER TABLE dogs_new RENAME TO dogs;`);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON');
+  }
 }
 
 // 레벨이 생기기 전부터 함께한 강아지: 지금 경험치만큼 레벨을 매기고(보상은 이미 받은 셈),
