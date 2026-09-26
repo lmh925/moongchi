@@ -168,14 +168,30 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/dog', authed, wrap((req) => {
     const name = checkDogName(req.body?.name);
     if (!name.ok) throw new GameError(name.reason);
-    game.createDog(req.userId, { name: name.name, breed: req.body?.breed, personality: req.body?.personality });
-    return me(req.userId, { visit: true });
+    const dog = game.createDog(req.userId, { name: name.name, breed: req.body?.breed, personality: req.body?.personality });
+    return me(req.userId, { visit: true, events: dog.special ? [{ type: 'special', key: dog.special, from: dog.baseBreed }] : [] });
   }));
 
   api.post('/dog/action', authed, wrap((req) => {
     const res = game.act(req.userId, req.body?.action);
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
     return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction } };
+  }));
+
+  api.post('/dog/rename', authed, wrap((req) => {
+    const name = checkDogName(req.body?.name);
+    if (!name.ok) throw new GameError(name.reason);
+    const res = game.renameDog(req.userId, name.name);
+    hub.dogChanged(req.userId);
+    plaza.dogChanged(req.userId);
+    return me(req.userId, { events: res.events });
+  }));
+  // 가족 계정용 원조 코드 (환경 변수 ORIGINAL_CODE). 틀린 코드를 계속 넣지 못하게 막아요.
+  api.post('/dog/original', authed, limiter(5, 10 * 60_000), wrap((req) => {
+    game.claimOriginal(req.userId, req.body?.code, process.env.ORIGINAL_CODE);
+    hub.dogChanged(req.userId);
+    plaza.dogChanged(req.userId);
+    return me(req.userId);
   }));
 
   api.post('/dog/title', authed, wrap((req) => {

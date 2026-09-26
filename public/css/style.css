@@ -867,3 +867,25 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .boost-info .gift-only { color: var(--pink-d); }
 .boost-btns { display: flex; flex-direction: column; gap: 4px; }
 .boost-btns .btn img { width: 14px; height: 14px; vertical-align: -2px; margin-right: 2px; }
+
+/* 스페셜 캐릭터 */
+.special-chip {
+  display: inline-block; margin: 2px 4px 0 0; padding: 0 7px; border: 2px solid var(--ink); border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: linear-gradient(90deg, #ffd6e5, #fff1b8, #d6f5e3, #d8e4ff, #ecdcff); color: var(--ink);
+}
+.special-chip.original { background: linear-gradient(90deg, #ffe066, #ffd23f); }
+.name-tag.special { border-color: transparent; background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #ff6f91, #ffb84d, #ffe066, #6cc070, #5b8cff, #b07cff) border-box; }
+.name-tag.special.mine { background: linear-gradient(var(--pink-l), var(--pink-l)) padding-box, linear-gradient(90deg, #ff6f91, #ffb84d, #ffe066, #6cc070, #5b8cff, #b07cff) border-box; }
+.tag-special { font-size: 9px; }
+.special-card .special-line { font-weight: 700; margin: 8px 0 4px; }
+.special-info { text-align: center; animation: pop .3s ease-out; }
+.special-info h3 { margin: 2px 0 4px; font-size: 24px; }
+.special-info p { margin: 4px 0; font-size: 13px; }
+.special-label { display: inline-block; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 999px; font-weight: 700; font-size: 13px;
+  background: linear-gradient(90deg, #ffd6e5, #fff1b8, #d6f5e3, #d8e4ff, #ecdcff); }
+.special-trick { margin: 8px 0 4px; }
+.special-btn { width: 100%; background: linear-gradient(90deg, #ffd6e5, #fff1b8, #d6f5e3, #d8e4ff, #ecdcff); }
+.card-actions { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.dex-cell.special:not(.unknown) { background: linear-gradient(135deg, #fff, #fff4d6); border-color: #d9a400; }
+.dex-cell.special small { font-size: 9px; color: var(--ink-soft); }
+.dex-cell.special.unknown b { letter-spacing: 2px; color: var(--pink-d); }

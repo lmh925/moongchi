@@ -119,13 +119,16 @@ export class Progress {
     const level = dog ? levelFromExp(dog.exp) : 1;
     const bestTalent = dog ? Math.max(1, ...Object.values(dog.talents ?? {}).map((v) => talentStage(v))) : 1;
     const seen = new Set([...p.seen, ...(dog ? [dog.breed] : [])]);
+    const normalBreeds = Object.keys(BREEDS).filter((k) => !BREEDS[k].special);
+    const specialBreeds = Object.keys(BREEDS).filter((k) => BREEDS[k].special);
     return Object.fromEntries(Object.entries(BADGES).map(([id, b]) => {
       let have = 0; let n = b.n ?? 1;
       if (b.stat) have = b.stat.reduce((a, k) => a + (p.stats[k] ?? 0), 0);
       else if (b.special === 'coopAll') have = (p.stats.coopKinds ?? []).length;
       else if (b.special === 'tricks') { n = Object.keys(TRICKS).length; have = dog?.tricks.length ?? 0; }
       else if (b.special === 'items') { n = Math.ceil(itemsTotal / 2); have = itemsOwned; }
-      else if (b.special === 'breeds') { n = Object.keys(BREEDS).length; have = seen.size; }
+      else if (b.special === 'breeds') { n = normalBreeds.length; have = normalBreeds.filter((k) => seen.has(k)).length; }
+      else if (b.special === 'specials') { n = specialBreeds.length; have = specialBreeds.filter((k) => seen.has(k)).length; }
       else if (b.special === 'level') have = level;
       else if (b.special === 'talent') have = bestTalent;
       return [id, { have: Math.min(have, n), n }];
@@ -219,7 +222,8 @@ export class Progress {
 
   writeLetter(userId, dog, p, pool, gift) {
     const own = LETTERS[dog.personality] ?? [];
-    const list = pool ? LETTERS[pool] : [...LETTERS.any, ...own, ...own]; // 성격 편지가 조금 더 자주 와요
+    const sp = dog.special ? LETTERS[`sp_${dog.special}`] ?? [] : [];
+    const list = pool ? LETTERS[pool] : [...LETTERS.any, ...own, ...own, ...sp, ...sp, ...sp]; // 성격·스페셜 편지가 더 자주 와요
     const text = list[Math.floor(this.rng() * list.length)].replaceAll('{owner}', p.nickname).replaceAll('{name}', dog.name);
     const data = { from: dog.name, breed: dog.breed, stage: dog.stage, title: `${dog.name}의 편지`, body: text };
     if (gift && this.rng() < LETTER.giftChance) {

@@ -127,6 +127,9 @@ export function openDb(file) {
   ensure('users', 'last_seen', 'INTEGER');
   ensure('users', 'letter_at', 'INTEGER');
   ensure('users', 'boosts', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('dogs', 'special', 'TEXT');
+  ensure('dogs', 'base_breed', 'TEXT');
+  ensure('dogs', 'original', 'INTEGER NOT NULL DEFAULT 0');
   ensure('users', 'boost_day', "TEXT NOT NULL DEFAULT '{}'");
   db.exec(`CREATE TABLE IF NOT EXISTS mail (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

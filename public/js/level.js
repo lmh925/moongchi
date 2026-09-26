@@ -1,5 +1,5 @@
 // 레벨 · 재능 능력치 화면: 레벨 바, 강아지 카드(오각형 그래프), 레벨업 연출
-import { TALENTS, TALENT_STEPS, TALENT_PERKS, TITLES, EMOTES, BREEDS, PERSONALITIES, STAGES } from '../shared/data.js';
+import { TALENTS, TALENT_STEPS, TALENT_PERKS, TITLES, EMOTES, BREEDS, PERSONALITIES, STAGES, SPECIALS } from '../shared/data.js';
 import { levelRewards } from '../shared/rules.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal } from './ui.js';
@@ -79,7 +79,7 @@ function talentRow(k, points, stage) {
 }
 
 // 강아지 카드. mine이면 칭호를 고를 수 있어요. onTitle(titleId) → Promise
-export function openDogCard(dog, { mine = false, ownerName = null, onTitle = null, badges = null, onPhotoCard = null } = {}) {
+export function openDogCard(dog, { mine = false, ownerName = null, onTitle = null, badges = null, onPhotoCard = null, onRename = null } = {}) {
   const stages = dog.talentStages ?? {};
   const p = PERSONALITIES[dog.personality];
   const body = el('div', { class: 'dog-card' },
@@ -88,11 +88,14 @@ export function openDogCard(dog, { mine = false, ownerName = null, onTitle = nul
       el('div', {},
         el('div', { class: 'dog-card-name' }, dog.name, el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`)),
         titleChip(dog),
+        dog.special ? el('span', { class: `special-chip ${dog.original ? 'original' : ''}` }, dog.original ? `👑 원조 ${SPECIALS[dog.special].name}` : `✨ ${SPECIALS[dog.special].label}`) : null,
         el('p', { class: 'help' }, `${BREEDS[dog.breed].name} · ${p ? `${p.emoji} ${p.name}` : ''} · ${STAGES[dog.stage].name}`),
         ownerName ? el('p', { class: 'help' }, `${ownerName}의 강아지`) : null),
       radarCanvas(stages)),
     badges?.length ? el('div', { class: 'card-badges' }, badges) : null,
-    onPhotoCard ? el('button', { class: 'btn small primary photocard-btn', onclick: onPhotoCard }, '포토카드 만들기') : null,
+    onPhotoCard || onRename ? el('div', { class: 'card-actions' },
+      onPhotoCard ? el('button', { class: 'btn small primary', onclick: onPhotoCard }, '포토카드 만들기') : null,
+      onRename ? el('button', { class: 'btn small secondary', onclick: onRename }, '이름표 바꾸기') : null) : null,
     el('div', { class: 'talent-list' }, TALENT_KEYS.map((k) => talentRow(k, dog.talents?.[k] ?? 0, stages[k] ?? 1))));
   if (mine) {
     body.append(el('div', { class: 'section-title' }, '다음 레벨 선물'), nextRewards(dog.level));
@@ -123,7 +126,7 @@ function rewardChips(r) {
 function titlePicker(dog, onTitle) {
   const wrap = el('div', { class: 'title-picker' });
   const render = () => {
-    wrap.replaceChildren(...Object.entries(TITLES).map(([id, t]) => {
+    wrap.replaceChildren(...Object.entries(TITLES).filter(([id, t]) => !t.special || dog.titles?.includes(id)).map(([id, t]) => {
       const has = dog.titles?.includes(id);
       const on = dog.titleName === t.name;
       const need = t.talent ? `${TALENTS[t.talent].name} ${t.stage}단계` : `Lv ${t.level}`;

@@ -279,7 +279,10 @@ export function renderRoom(decor = {}) {
 }
 
 // ---------- 장면 ----------
-const TRICK_TIME = { sit: 1.8, paw: 1.8, spin: 1.4, jump: 1.4, bow: 1.6, roll: 1.6, dance: 2.4, bang: 2.4, sing: 2.4 };
+const TRICK_TIME = {
+  sit: 1.8, paw: 1.8, spin: 1.4, jump: 1.4, bow: 1.6, roll: 1.6, dance: 2.4, bang: 2.4, sing: 2.4,
+  cloudroll: 2.2, bighug: 2.2, sniff: 2.2, salute: 1.8, propeller: 2.2, // 스페셜 개인기
+};
 
 export class Scene {
   constructor(canvas, overlay, handlers = {}) {
@@ -335,6 +338,8 @@ export class Scene {
     }
     Object.assign(e, { dog: info.dog, nickname: info.nickname, mine: !!info.mine, home: !!info.home, auto: !!info.auto });
     e.tag.textContent = info.nickname ?? '';
+    if (info.dog?.special) e.tag.prepend(el('small', { class: 'tag-special' }, info.dog.original ? '👑 ' : '✨ '));
+    e.tag.classList.toggle('special', !!info.dog?.special);
     e.tag.classList.toggle('mine', e.mine);
     return e;
   }
@@ -371,6 +376,10 @@ export class Scene {
     e.state = 'trick'; e.trick = trick; e.stateT = 0; e.tx = e.x; e.ty = e.y;
     if (trick === 'dance' || trick === 'sing') this.burst(e, 'note', 3);
     if (trick === 'jump' || trick === 'spin') this.burst(e, 'sparkle', 2);
+    if (trick === 'cloudroll' || trick === 'propeller') this.burst(e, 'sparkle', 3);
+    if (trick === 'bighug') this.burst(e, 'heart', 5);
+    if (trick === 'sniff') this.burst(e, 'surprise', 1);
+    if (trick === 'salute') this.burst(e, 'star', 2);
   }
 
   // action: feed | brush | pet | love
@@ -612,6 +621,12 @@ export class Scene {
           case 'dance': pose = 'beg'; facing = Math.floor(s * 3) % 2 ? 1 : -1; dy = -Math.round(Math.abs(Math.sin(s * 6)) * 3); opts.mouth = 'open'; break;
           case 'bang': if (s < 0.5) { pose = 'beg'; } else { pose = 'lie'; rot = 2; opts.eyes = 'closed'; opts.mouth = 'tongue'; } break;
           case 'sing': pose = 'front'; opts.mouth = Math.floor(s * 4) % 2 ? 'open' : 'closed'; opts.eyes = 'closed'; opts.headDy = -1; break;
+          // 스페셜 개인기
+          case 'cloudroll': pose = 'lie'; rot = Math.floor(s * 8) % 4; dy = -Math.round(Math.abs(Math.sin(s * 6)) * 4); opts.eyes = 'happy'; break;
+          case 'bighug': pose = s > 0.3 && s < 1.9 ? 'beg' : 'front'; opts.eyes = 'closed'; opts.mouth = 'tongue'; dy = -Math.round(Math.abs(Math.sin(s * 3)) * 2); break;
+          case 'sniff': pose = 'bow'; facing = Math.floor(s * 2) % 2 ? 1 : -1; opts.eyes = s > 1.5 ? 'open' : 'closed'; opts.mouth = s > 1.5 ? 'open' : 'closed'; break;
+          case 'salute': pose = s > 0.3 ? 'paw' : 'sit'; opts.eyes = 'open'; opts.mouth = 'closed'; break;
+          case 'propeller': pose = 'stand'; opts.tail = Math.floor(s * 20) % 2; dy = -Math.round(Math.abs(Math.sin(s * 4)) * (s > 1 ? 8 : 3)); break;
           default: break;
         }
         break;

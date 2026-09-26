@@ -142,6 +142,8 @@ export class PlazaHub {
     const others = [...ch.members.values()].filter((o) => o.userId !== userId && !blocked.has(o.userId));
     if (others.length) this.game.seeBreeds(userId, others.map((o) => o.dog?.breed));
     for (const o of others) this.game.seeBreeds(o.userId, [m.dog?.breed]);
+    const trio = this.game.trioGathering(userId, [m, ...others].map((o) => ({ userId: o.userId, special: o.dog?.special })));
+    if (trio) setTimeout(() => this.io.to(`plaza:${id}`).emit('trio', trio), 600);
     return {
       ok: true,
       channel: id,

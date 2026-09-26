@@ -189,8 +189,9 @@ export class PlazaView {
     // 공개 놀이터에서는 레벨 숫자 대신 칭호와 이름표 테두리만 보여요
     e.tag.replaceChildren(
       info.dog?.titleName ? el('small', { class: 'plaza-title' }, info.dog.titleName) : '',
+      info.dog?.special ? (info.dog.original ? '👑 ' : '✨ ') : '',
       info.nickname);
-    e.tag.className = `name-tag plaza-name frame-${info.dog?.frame ?? 0}`;
+    e.tag.className = `name-tag plaza-name frame-${info.dog?.frame ?? 0} ${info.dog?.special ? 'special' : ''}`;
     e.tag.classList.toggle('mine', e.isMe);
     e.tag.classList.toggle('friend', e.friend);
     return e;

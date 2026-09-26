@@ -1,5 +1,5 @@
 // 실시간 마이룸: 방문, 이동, 스티커/문장/채팅, 개인기, 초대
-import { STICKERS, PHRASES, TRICKS, PARTY, PLAY_EXP, TALENT_GAINS } from '../shared/data.js';
+import { STICKERS, PHRASES, TRICKS, PARTY, PLAY_EXP, TALENT_GAINS, SPECIALS, SPECIAL_TRICKS } from '../shared/data.js';
 import { kstDate } from '../shared/rules.js';
 import { checkText } from './filter.js';
 
@@ -99,9 +99,10 @@ export class RoomHub {
     });
     socket.on('room:trick', (msg) => {
       const m = this.member(socket);
-      if (!m || !TRICKS[msg?.trick]) return;
+      if (!m || !(TRICKS[msg?.trick] || SPECIAL_TRICKS[msg?.trick])) return;
       const dog = this.game.loadDog(userId);
-      if (!dog?.tricks.includes(msg.trick) || !this.chatGate(socket, 1500)) return;
+      const known = dog?.tricks.includes(msg.trick) || (dog?.special && SPECIALS[dog.special].trick === msg.trick);
+      if (!known || !this.chatGate(socket, 1500)) return;
       socket.to(this.channel(socket.data.room)).emit('room:trick', { userId, trick: msg.trick });
       this.game.track(userId, 'trick', 1, { push: true });
     });
@@ -311,6 +312,9 @@ export class RoomHub {
     // 친구 집에서 만난 견종은 견종 도감에 올라가요
     const breeds = [ownerId, ...this.rooms.get(ownerId).keys()].filter((id) => id !== userId).map((id) => this.game.loadDog(id)?.breed).filter(Boolean);
     if (breeds.length) this.game.seeBreeds(userId, breeds);
+    const here = [ownerId, ...this.rooms.get(ownerId).keys()];
+    const trio = this.game.trioGathering(userId, [...new Set(here)].map((id) => ({ userId: id, special: this.game.loadDog(id)?.special })));
+    if (trio) setTimeout(() => this.io.to(this.channel(ownerId)).emit('trio', trio), 600);
     const others = [...new Set([ownerId, ...this.rooms.get(ownerId).keys()])].filter((id) => id !== userId);
     const running = this.parties.get(ownerId);
     reply({

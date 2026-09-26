@@ -82,6 +82,11 @@ export const TITLES = {
   bestie: { name: '다정한 단짝', talent: 'kind', stage: 7 },
   fashion: { name: '패션 리더', talent: 'charm', stage: 7 },
   explorer: { name: '보물 탐험가', talent: 'curious', stage: 7 },
+  sp_mungchi: { name: '구름 뭉치', special: 'mungchi' },
+  sp_bbosik: { name: '다정한 거인', special: 'bbosik' },
+  sp_kiriku: { name: '모험가 키리쿠', special: 'kiriku' },
+  sp_gun: { name: '씩씩한 대장 건', special: 'gun' },
+  sp_pichu: { name: '애교 막내 피츄', special: 'pichu' },
 };
 
 // 견종: 색상과 생김새 파라미터는 sprites.js에서 픽셀 아트로 그려집니다.
@@ -121,6 +126,37 @@ export const BREEDS = {
     desc: '돌돌 말린 꼬리와 웃는 얼굴의 씩씩한 친구예요.',
     fur: '#d9803c', furShade: '#b3622a', furLight: '#eba062', accent: '#fff1dc',
     ear: 'pointy', coat: 'smooth', tail: 'curl', legs: 'normal', snout: 'normal', headFluff: 0,
+  },
+  // ---------- 스페셜 캐릭터 (특별한 이름을 지어 주면 나타나요) ----------
+  mini_bichon: {
+    name: '미니비숑', special: true,
+    desc: '다 자라도 아기만 한, 세상에서 제일 작은 구름 뭉치예요.',
+    fur: '#fffdf8', furShade: '#eae1d3', furLight: '#ffffff', accent: null,
+    ear: 'hidden', coat: 'curly', tail: 'plume', legs: 'normal', snout: 'short', headFluff: 3, geo: 'mini', fluffBase: 1,
+  },
+  big_maltese: {
+    name: '빅말티', special: true,
+    desc: '보통 말티즈보다 훨씬 큰, 바닥까지 찰랑이는 털의 순둥한 거인이에요.',
+    fur: '#ffffff', furShade: '#e4dfe9', furLight: '#ffffff', accent: null,
+    ear: 'longSilky', coat: 'silky', tail: 'plume', legs: 'long', snout: 'short', headFluff: 1, geo: 'big',
+  },
+  yorkie_kiriku: {
+    name: '요크셔테리어', special: true,
+    desc: '은빛 푸른 털과 황금빛 얼굴의 모험가 요키. 초록 리본이 트레이드마크!',
+    fur: '#6d7a8e', furShade: '#566276', furLight: '#8e9bb0', accent: '#d9a05f',
+    ear: 'pointy', coat: 'silky', tail: 'short', legs: 'normal', snout: 'normal', headFluff: 0, tanHead: true, topknot: '#3fb58a',
+  },
+  yorkie_gun: {
+    name: '요크셔테리어', special: true,
+    desc: '은빛 푸른 털과 황금빛 얼굴의 씩씩한 대장 요키. 파란 리본이 트레이드마크!',
+    fur: '#667387', furShade: '#505c70', furLight: '#8794a9', accent: '#d39a58',
+    ear: 'pointy', coat: 'silky', tail: 'short', legs: 'normal', snout: 'normal', headFluff: 0, tanHead: true, topknot: '#4f86ff',
+  },
+  yorkie_pichu: {
+    name: '요크셔테리어', special: true,
+    desc: '은빛 푸른 털과 황금빛 얼굴의 애교 막내 요키. 분홍 리본이 트레이드마크!',
+    fur: '#717e92', furShade: '#5a6679', furLight: '#93a0b4', accent: '#e0a868',
+    ear: 'pointySmall', coat: 'silky', tail: 'short', legs: 'normal', snout: 'short', headFluff: 0, tanHead: true, topknot: '#ff6f9c', geo: 'small',
   },
 };
 
@@ -583,6 +619,8 @@ export const BADGES = {
   level10: { name: '쑥쑥 Lv 10', desc: '레벨 10 되기', icon: 'medal', color: '#ffd23f', special: 'level', n: 10 },
   level20: { name: '반짝 Lv 20', desc: '레벨 20 되기', icon: 'medal', color: '#b07cff', special: 'level', n: 20 },
   talent: { name: '재능 꽃', desc: '재능 하나를 10단계로', icon: 'sparkle', color: '#3fb58a', special: 'talent', n: 10 },
+  legends: { name: '전설의 친구들', desc: '스페셜 강아지 5마리 모두 만나기', icon: 'star', color: '#ff9fe0', special: 'specials', n: 5 },
+  trio: { name: '요크 삼형제 모임', desc: '키리쿠·건·피츄가 한자리에', icon: 'heart', color: '#6d7a8e', stat: ['trio'], n: 1 },
 };
 export const BADGE_COINS = 20; // 배지를 얻으면 받는 코인
 export const SHOWCASE_MAX = 3; // 강아지 카드에 다는 대표 배지 수
@@ -606,7 +644,15 @@ export const LETTERS = {
     '{owner}, 내가 제일 좋아하는 건… 비밀이야! 힌트: 지금 이 편지를 읽고 있는 사람!',
     '빗방울 소리를 들으면서 낮잠을 잤어. 일어나 보니 {owner} 생각이 났어.',
     '{owner}에게. 오늘 공을 굴리다가 침대 밑에 들어가 버렸어. 꺼내 줄 수 있어?',
+    '{owner}, 소문 들었어? 구름보다 작은 비숑이 있대… 이름이 "ㅁㅊ"래!',
+    '놀이터에서 요크셔테리어 삼형제 소문을 들었어. ㅋㄹㅋ, ㄱ, ㅍㅊ… 누구일까?',
+    '{owner}, 엄청 커다란 말티즈가 있다는 소문이 있어. 이름이 "ㅃㅅㅇ"래. 만나 보고 싶다!',
   ],
+  sp_mungchi: ['{owner}, 나 오늘도 안 컸어! 헤헤. 작아서 침대 밑 탐험은 내가 최고야. 구름 뭉치 뭉치가.', '바람이 불어서 데굴데굴 굴러갔어. 나 진짜 구름인가 봐, {owner}!'],
+  sp_bbosik: ['{owner}… 나 또 커졌어. 문에 머리 쿵 했어 헤헤. 그래도 안아 줄 거지?', '오늘 작은 친구들을 등에 태워 줬어. 다정한 거인 뽀식이는 힘이 세!'],
+  sp_kiriku: ['{owner}, 오늘 마당 끝까지 탐험했어! 보물 냄새가 났는데… 내일 같이 찾으러 가자!', '형제들이랑 숨바꼭질했는데 내가 다 찾았어. 모험가 키리쿠의 코는 최고야!'],
+  sp_gun: ['{owner}! 오늘도 집을 씩씩하게 지켰어. 대장 건에게 맡겨! 경례!', '막내가 울길래 내가 달래 줬어. 대장은 멋있어야 하거든, {owner}.'],
+  sp_pichu: ['{owner}~ 형아들이 나만 귀여워해 헤헤. 너도 나 귀엽지? 꼬리 프로펠러 빙글빙글!', '피츄는 {owner}가 세상에서 제일 좋아! 쓰다듬어 주면 하트가 퐁퐁 나와!'],
   sleepy: ['{owner}… 쿨쿨… 꿈에서 너랑 산책했어… 일어나면 진짜로 가자… 쿨…', '베개가 너무 폭신해서 {owner} 기다리다 잠들었어. 미안해 헤헤.'],
   hyper: ['{owner}!!! 방을 100바퀴 뛰었어!!! 너 오면 101바퀴 같이 뛰자!!!', '오늘 내 꼬리 잡기 신기록 세웠어! {owner}도 봤어야 했는데!'],
   foodie: ['{owner}, 부엌에서 맛있는 냄새가 났어… 혹시 나 주려고 만든 거야? 킁킁.', '간식 창고 지도를 그렸어! 보물 지도야. 같이 찾으러 가자 {owner}!'],
@@ -628,3 +674,36 @@ export const BOOST_RULES = {
   hourglassEvery: 5, // 이 레벨마다 모래시계 선물
   letterBusChance: 0.15, // 선물 편지에 셔틀버스표가 들어 있을 확률
 };
+
+// ---------- 스페셜 캐릭터 (이스터에그) ----------
+// 강아지 이름을 이렇게 지어 주면 누구나 스페셜 친구로 변신해요. 가족 계정은 원조 코드로 "👑 원조" 표시를 받아요.
+export const SPECIALS = {
+  mungchi: {
+    name: '뭉치', breed: 'mini_bichon', label: '전설의 미니비숑', title: '구름 뭉치', trick: 'cloudroll', hint: 'ㅁㅊ',
+    perk: '빗질을 안 해도 늘 뽀송뽀송 몽실몽실해요',
+  },
+  bbosik: {
+    name: '뽀식이', breed: 'big_maltese', label: '전설의 빅말티', title: '다정한 거인', trick: 'bighug', hint: 'ㅃㅅㅇ',
+    perk: '쓰다듬으면 애정도가 조금 더 올라요',
+  },
+  kiriku: {
+    name: '키리쿠', breed: 'yorkie_kiriku', label: '요크 삼형제 · 모험가', title: '모험가 키리쿠', trick: 'sniff', hint: 'ㅋㄹㅋ', trio: true,
+    perk: '보물찾기 "따뜻해요" 힌트 범위가 넓어져요',
+  },
+  gun: {
+    name: '건', breed: 'yorkie_gun', label: '요크 삼형제 · 대장', title: '씩씩한 대장 건', trick: 'salute', hint: 'ㄱ', trio: true,
+    perk: '멍뭉런 체력 +15',
+  },
+  pichu: {
+    name: '피츄', breed: 'yorkie_pichu', label: '요크 삼형제 · 막내', title: '애교 막내 피츄', trick: 'propeller', hint: 'ㅍㅊ', trio: true,
+    perk: '쓰다듬으면 하트가 두 배로 퐁퐁',
+  },
+};
+export const SPECIAL_TRICKS = {
+  cloudroll: { name: '구름 데굴데굴', desc: '몸을 동그랗게 말고 구름처럼 데굴데굴~' },
+  bighug: { name: '왕 포옹', desc: '커다란 몸으로 폭! 안아 줘요.' },
+  sniff: { name: '킁킁 탐험', desc: '킁킁… 여기다! 보물 냄새를 찾아요.' },
+  salute: { name: '멋진 경례', desc: '앞발을 척! 씩씩하게 경례해요.' },
+  propeller: { name: '꼬리 프로펠러', desc: '꼬리를 빙글빙글 돌려서 날아오를 것 같아요!' },
+};
+export const RENAME_PRICE = 30; // 이름표 바꾸기

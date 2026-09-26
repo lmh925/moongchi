@@ -8,6 +8,8 @@ services:
     environment:
       - DB_FILE=/data/meongmung.db
       - TRUST_PROXY=1
+      # 스페셜 캐릭터 "👑 원조" 코드 (가족만 알게 바꿔서 쓰세요. 없으면 원조 기능이 꺼져요)
+      # - ORIGINAL_CODE=여기에-비밀-코드
     volumes:
       - moongchi_data:/data
     labels:

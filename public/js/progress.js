@@ -1,5 +1,5 @@
 // 매일 오고 싶은 이유 + 자랑거리 화면: 오늘의 약속·도장판, 우편함(강아지 편지), 배지 보드, 도감, 포토카드, 친구 코드 QR
-import { BADGES, BREEDS, ITEMS, RARITY, SHOWCASE_MAX, SCHOOL_BOOSTS } from '../shared/data.js';
+import { BADGES, BREEDS, ITEMS, RARITY, SHOWCASE_MAX, SCHOOL_BOOSTS, SPECIALS } from '../shared/data.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal, toast } from './ui.js';
 import { sfx } from './audio.js';
@@ -93,12 +93,20 @@ export function dexPanel(user, progress, itemThumb) {
   const seen = new Set(progress.seenBreeds ?? []);
   const items = Object.entries(ITEMS).filter(([, i]) => i.gacha !== false || i.reward);
   const ownedN = items.filter(([id]) => user.owned.includes(id)).length;
+  const normal = Object.entries(BREEDS).filter(([, b]) => !b.special);
+  const specials = Object.entries(SPECIALS);
   return el('div', {},
-    el('div', { class: 'section-title' }, `견종 도감 ${seen.size} / ${Object.keys(BREEDS).length}`),
+    el('div', { class: 'section-title' }, `견종 도감 ${normal.filter(([id]) => seen.has(id)).length} / ${normal.length}`),
     el('p', { class: 'hint' }, '놀이터나 친구 집에서 만난 강아지의 견종이 올라가요.'),
-    el('div', { class: 'dex-grid' }, Object.entries(BREEDS).map(([id, b]) => el('div', { class: `dex-cell ${seen.has(id) ? '' : 'unknown'}` },
+    el('div', { class: 'dex-grid' }, normal.map(([id, b]) => el('div', { class: `dex-cell ${seen.has(id) ? '' : 'unknown'}` },
       el('img', { class: 'pixel', src: dogPortrait(id, 1), alt: '' }),
       el('b', {}, seen.has(id) ? b.name : '???')))),
+    el('div', { class: 'section-title' }, `✨ 스페셜 도감 ${specials.filter(([, sp]) => seen.has(sp.breed)).length} / ${specials.length}`),
+    el('p', { class: 'hint' }, '전설의 스페셜 강아지를 만나면 올라가요. 소문으로는 이름이… (초성 힌트)'),
+    el('div', { class: 'dex-grid' }, specials.map(([, sp]) => el('div', { class: `dex-cell special ${seen.has(sp.breed) ? '' : 'unknown'}` },
+      el('img', { class: 'pixel', src: dogPortrait(sp.breed, 1), alt: '' }),
+      el('b', {}, seen.has(sp.breed) ? sp.name : sp.hint),
+      el('small', {}, seen.has(sp.breed) ? sp.label : '???')))),
     el('div', { class: 'section-title' }, `아이템 도감 ${ownedN} / ${items.length}`),
     el('div', { class: 'dex-grid items' }, items.map(([id, it]) => {
       const has = user.owned.includes(id);
@@ -229,7 +237,9 @@ export async function makePhotoCard(dog, user, progress) {
     ctx.fillStyle = '#4a3330'; ctx.fillText(dog.titleName, W / 2, 466);
   }
   ctx.font = font(18); ctx.fillStyle = '#7a5a50';
-  ctx.fillText(`${BREEDS[dog.breed].name} · ${user.nickname}의 강아지`, W / 2, 506);
+  const kind = dog.special ? `${dog.original ? '👑 원조 · ' : '✨ '}${SPECIALS[dog.special].label}` : BREEDS[dog.breed].name;
+  if (dog.special) ctx.fillStyle = '#e0507f';
+  ctx.fillText(`${kind} · ${user.nickname}의 강아지`, W / 2, 506);
   // 재능 오각형 + 대표 배지
   const radar = radarCanvas(dog.talentStages ?? {}, 104);
   await new Promise((r) => setTimeout(r, 60)); // 오각형 아이콘이 그려질 시간

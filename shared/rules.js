@@ -1,7 +1,7 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
-  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -78,25 +78,32 @@ export function talentStages(talents = {}) {
   return Object.fromEntries(Object.keys(TALENTS).map((k) => [k, talentStage(talents[k] ?? 0)]));
 }
 
-// 재능 단계에 따른 작은 효과 (혼자 하는 놀이 / 협동 놀이에만)
-export function talentEffects(talents = {}) {
+// 재능 단계에 따른 작은 효과 (혼자 하는 놀이 / 협동 놀이에만). special: 스페셜 캐릭터 효과
+export function talentEffects(talents = {}, special = null) {
   const st = talentStages(talents);
   return {
-    runnerHp: (st.strong >= 5 ? 25 : 0) + (st.strong >= 10 ? 25 : 0),
+    runnerHp: (st.strong >= 5 ? 25 : 0) + (st.strong >= 10 ? 25 : 0) + (special === 'gun' ? 15 : 0),
     learnHits: st.smart >= 5 ? TRAINING.learnHits - 1 : TRAINING.learnHits,
     bondBonus: st.kind >= 5 ? 1 : 0,
     charmProps: st.charm,
-    warmRadius: TREASURE.warmRadius + (st.curious >= 5 ? 12 : 0) + (st.curious >= 10 ? 8 : 0),
+    warmRadius: TREASURE.warmRadius + (st.curious >= 5 ? 12 : 0) + (st.curious >= 10 ? 8 : 0) + (special === 'kiriku' ? 8 : 0),
   };
 }
 
 // 지금 달 수 있는 칭호 목록
-export function unlockedTitles(level, talents = {}) {
+export function unlockedTitles(level, talents = {}, special = null) {
   const st = talentStages(talents);
   return Object.keys(TITLES).filter((id) => {
     const t = TITLES[id];
+    if (t.special) return t.special === special;
     return t.talent ? st[t.talent] >= t.stage : level >= t.level;
   });
+}
+
+// 이름 → 스페셜 캐릭터 (띄어쓰기는 무시해요)
+export function specialForName(name) {
+  const n = String(name ?? '').replace(/\s+/g, '');
+  return Object.keys(SPECIALS).find((k) => SPECIALS[k].name === n) ?? null;
 }
 
 export function computeStage(dog, now, speed = 1) {
@@ -148,6 +155,8 @@ export function applyAction(dog, action) {
   const fav = PERSONALITIES[dog.personality]?.favorite === action;
   if (fav) next.affection = clamp(next.affection + RULES.favoriteBonus, 0, RULES.statMax);
   if (fav && exp > 0) exp += 2;
+  // 뽀식이(빅말티)는 쓰다듬으면 애정도가 조금 더
+  if (action === 'pet' && dog.special === 'bbosik') next.affection = clamp(next.affection + 3, 0, RULES.statMax);
   next.exp = dog.exp + exp;
   return { dog: next, exp, coins, reaction: fav ? 'love' : 'happy' };
 }

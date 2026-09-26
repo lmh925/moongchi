@@ -194,6 +194,21 @@ const STAGE_GEO = [
 ];
 const SNOUT = { tiny: 2, short: 3, normal: 4, long: 5 };
 
+// 스페셜 캐릭터 몸집: mini = 다 자라도 아기만 하게, small = 한 단계 작게, big = 훨씬 크게
+function geoFor(b, stage) {
+  if (b.geo === 'mini') return { headR: 7, bodyRx: 7, bodyRy: 4.5, leg: 2.5 };
+  if (b.geo === 'small') return { ...STAGE_GEO[Math.max(0, stage - 1)] };
+  const g = { ...STAGE_GEO[stage] };
+  if (b.geo === 'big') { g.headR += 1; g.bodyRx += 2.5; g.bodyRy += 1.5; g.leg += 1; }
+  return g;
+}
+
+// 요크셔테리어 삼형제의 머리 리본 (모자를 쓰면 모자가 보여요)
+function drawTopknot(grid, b, anchor, opts) {
+  if (!b.topknot || opts.equip?.head) return;
+  stamp(grid, ['oo...oo', 'oxo.oxo', 'oxlolxo', 'oxo.oxo', 'oo...oo'], { o: '#4a3330', x: b.topknot, l: '#ffffff' }, anchor.x - 3, anchor.y - 4);
+}
+
 function dogPalette(b) {
   const acc = b.accent ?? b.fur;
   return {
@@ -210,11 +225,11 @@ function dogPalette(b) {
 export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
   const b = BREEDS[breedId] ?? BREEDS.bichon;
   if (pose === 'front') return buildDogFront(b, stage, opts);
-  const g = { ...STAGE_GEO[stage] };
+  const g = geoFor(b, stage);
   if (b.legs === 'short') g.leg = Math.max(2, g.leg - 3);
   if (b.legs === 'long') g.leg += 1;
   if (b.legs === 'short') g.bodyRx += 1.5;
-  const fluff = opts.fluff ?? 0;
+  const fluff = Math.max(opts.fluff ?? 0, b.fluffBase ?? 0);
   const eyes = opts.eyes ?? 'open';
   const mouth = opts.mouth ?? 'closed';
   const grid = new Grid(DOG_W, DOG_H, dogPalette(b));
@@ -250,7 +265,8 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
   const frontX = Math.round(bcx + bodyRx - 5);
   const backX = Math.round(bcx - bodyRx + 2);
   const phase = pose === 'walk1' ? 1 : pose === 'walk2' ? 2 : 0;
-  const legColorBottom = b.accent && b.legs === 'short' ? 'acc' : null;
+  const legColorBottom = b.accent && (b.legs === 'short' || b.tanHead) ? 'acc' : null;
+  const tanLegH = b.tanHead ? 4 : 2;
 
   const leg = (x, lift, far, len = null) => {
     const m = grid.mask();
@@ -259,7 +275,7 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
     m.rect(x, top, legW, bottom - top + 1);
     grid.paint(m, far ? 'far' : 'fur', { flat: false });
     if (legColorBottom && !far) {
-      const s = grid.mask().rect(x, bottom - 1, legW, 2);
+      const s = grid.mask().rect(x, bottom - tanLegH + 1, legW, tanLegH);
       grid.paint(s, 'acc', { outline: false, flat: true });
     }
   };
@@ -343,7 +359,7 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
     const m = grid.mask();
     const ex = hcx - 3; const ey = hcy - headR + 3;
     m.tri(ex - 4, ey + 1, ex + 1, ey, ex - 2, ey - 6 * earBig);
-    grid.paint(m, 'ear', { flat: true });
+    grid.paint(m, b.tanHead ? 'accS' : 'ear', { flat: true });
   }
 
   // 6) 머리 + 주둥이
@@ -357,7 +373,7 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
       m.bumps(hcx - 0.5, hcy - 0.5, headR + extra * 0.4, headR * 0.9 + extra * 0.4, 9 + fluff * 3 + (b.headFluff ?? 0) * 3,
         bumpR + (b.headFluff ? 0.4 : 0) + extra * 0.4, Math.PI * 0.6, Math.PI * 2.1);
     }
-    grid.paint(m, 'fur', { texture: b.coat === 'curly' ? 'curly' : null });
+    grid.paint(m, b.tanHead ? 'acc' : 'fur', { texture: b.coat === 'curly' ? 'curly' : b.tanHead ? 'silky' : null });
     if (b.accent) {
       // 주둥이와 볼의 밝은 털 (시바, 코기, 포메)
       const acc = grid.mask().ellipse(sx, sy + 0.5, snoutLen / 2 + 1, 2.2).ellipse(hcx + 2, hcy + headR * 0.55, headR * 0.6, headR * 0.35);
@@ -371,7 +387,7 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
     const m = grid.mask();
     const ex = hcx; const ey = hcy - headR + 3;
     m.tri(ex - 4, ey + 1, ex + 2, ey + 1, ex - 1, ey - 6 * earBig);
-    grid.paint(m, 'fur', { flat: true });
+    grid.paint(m, b.tanHead ? 'acc' : 'fur', { flat: true });
     grid.set(ex - 1, ey - 1, 'earIn');
     if (earBig > 0.9) { grid.set(ex - 1, ey - 2, 'earIn'); grid.set(ex - 2, ey, 'earIn'); grid.set(ex - 1, ey, 'earIn'); }
   } else if (b.ear !== 'hidden') {
@@ -416,6 +432,7 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
     eye: { x: ex, y: ey },
   };
   if (b.ear.startsWith('pointy')) anchors.head.y += 1;
+  drawTopknot(grid, b, anchors.head, opts);
   for (const slot of ['neck', 'face', 'head']) {
     const id = opts.equip?.[slot];
     const acc = id && ACCESSORIES[id];
@@ -437,10 +454,10 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
 
 // 정면 모습: 화면을 바라보는 2등신 강아지 (좌우 대칭, 중심선 x = 24.5)
 function buildDogFront(b, stage, opts) {
-  const g = { ...STAGE_GEO[stage] };
+  const g = geoFor(b, stage);
   if (b.legs === 'short') g.leg = Math.max(2, g.leg - 3);
   if (b.legs === 'long') g.leg += 1;
-  const fluff = opts.fluff ?? 0;
+  const fluff = Math.max(opts.fluff ?? 0, b.fluffBase ?? 0);
   const eyes = opts.eyes ?? 'open';
   const mouth = opts.mouth ?? 'closed';
   const grid = new Grid(DOG_W, DOG_H, dogPalette(b));
@@ -476,6 +493,7 @@ function buildDogFront(b, stage, opts) {
   for (const x of [Math.round(C - bodyRx + 1), Math.round(mirror(C - bodyRx + 1) - 3)]) {
     const m = grid.mask().rect(x, legTop, 3, GROUND - legTop + 1);
     grid.paint(m, 'far');
+    if (b.tanHead) grid.paint(grid.mask().rect(x, GROUND - 3, 3, 4), 'accS', { outline: false, flat: true });
   }
 
   // 몸통 (+포메 갈기)
@@ -497,11 +515,12 @@ function buildDogFront(b, stage, opts) {
   }
 
   // 앞다리
-  const bottomAcc = b.accent && b.legs === 'short';
+  const bottomAcc = b.accent && (b.legs === 'short' || b.tanHead);
+  const tanH = b.tanHead ? 4 : 2;
   for (const x of [hcx - 4, hcx + 2]) {
     const m = grid.mask().rect(x, legTop, 3, GROUND - legTop + 1);
     grid.paint(m, 'fur');
-    if (bottomAcc) grid.paint(grid.mask().rect(x, GROUND - 1, 3, 2), 'acc', { outline: false, flat: true });
+    if (bottomAcc) grid.paint(grid.mask().rect(x, GROUND - tanH + 1, 3, tanH), 'acc', { outline: false, flat: true });
   }
 
   // 말티즈의 길게 늘어진 털
@@ -523,7 +542,7 @@ function buildDogFront(b, stage, opts) {
     const bx = C - 2.5; const by = hcy - headR + 1.5;
     const px = C - headR + 1; const py = hcy - headR - 5 * earBig + 1;
     const m = grid.mask().tri(ax, ay, bx, by, px, py).tri(mirror(ax), ay, mirror(bx), by, mirror(px), py);
-    grid.paint(m, 'fur', { flat: true });
+    grid.paint(m, b.tanHead ? 'acc' : 'fur', { flat: true });
     earTip.push([Math.round(px + 1.5), Math.round(py + 3)]);
   }
 
@@ -534,7 +553,7 @@ function buildDogFront(b, stage, opts) {
       m.bumps(C, hcy - 0.5, headR + 0.5 + extra * 0.4, headR * 0.9 + extra * 0.4, 9 + fluff * 3 + (b.headFluff ?? 0) * 3,
         bumpR + (b.headFluff ? 0.4 : 0) + extra * 0.4, Math.PI * 0.95, Math.PI * 2.05);
     }
-    grid.paint(m, 'fur', { texture: b.coat === 'curly' ? 'curly' : null });
+    grid.paint(m, b.tanHead ? 'acc' : 'fur', { texture: b.coat === 'curly' ? 'curly' : b.tanHead ? 'silky' : null });
     // 얼굴 가운데는 매끈하게 (표정이 잘 보이도록)
     if (b.coat === 'curly') {
       const face = grid.mask().ellipse(C, hcy + 1, headR - 2.5, headR * 0.7 - 0.5);
@@ -604,6 +623,7 @@ function buildDogFront(b, stage, opts) {
     neck: { x: hcx + 1, y: Math.round(hcy + headR * 0.85) },
     eye: { x: hcx, y: ey },
   };
+  drawTopknot(grid, b, anchors.head, opts);
   for (const slot of ['neck', 'face', 'head']) {
     const id = opts.equip?.[slot];
     const acc = id && ACCESSORIES[id];

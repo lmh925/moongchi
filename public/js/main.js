@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, SCHOOL_BOOSTS, BOOST_RULES, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -17,6 +17,7 @@ import { playJumpRope } from './jumprope.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
+import { playSpecialReveal, specialMark } from './special.js';
 import {
   questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal, openPhotoCard,
 } from './progress.js';
@@ -62,7 +63,7 @@ function publicDog(d) {
   return {
     name: d.name, breed: d.breed, personality: d.personality, stage: d.stage, equip: d.equip,
     fluff: d.fluff, tricks: d.tricks, mood: d.mood, atSchool: !!d.school,
-    titleName: d.titleName, frame: d.frame,
+    titleName: d.titleName, frame: d.frame, special: d.special ?? null, original: !!d.original,
   };
 }
 
@@ -251,6 +252,12 @@ $('#result-submit').addEventListener('click', async () => {
   try {
     const me = await post('/dog', { name, ...chosen });
     applyMe(me);
+    // 이스터에그: 스페셜 이름이면 여기서 변신 연출부터!
+    const sp = me.events.find((e) => e.type === 'special');
+    if (sp) {
+      me.events = me.events.filter((e) => e !== sp);
+      await playSpecialReveal(me.dog, sp);
+    }
     enterGame(me);
     modal({
       title: `${name}(이)가 가족이 되었어요!`,
@@ -431,6 +438,11 @@ function connectSocket() {
     const e = state.scene.entities.get(from);
     sfx.bark(barkPitch(e?.dog), 2);
   });
+  socket.on('trio', ({ names, all }) => {
+    sfx.levelUp();
+    toast(all ? `🎉 요크 삼형제 ${names.join('·')}가 모두 모였다!` : `요크 삼형제 ${names.join('·')}가 만났어요!`, 'good');
+    for (const e of state.scene?.entities.values() ?? []) if (e.dog?.special && SPECIALS[e.dog.special]?.trio) state.scene.burst(e, 'heart', 4);
+  });
   socket.on('bond', ({ a, b, bond, up }) => {
     const other = a === myId() ? b : b === myId() ? a : null;
     if (other !== null) state.bonds[other] = bond;
@@ -587,6 +599,8 @@ async function doCare(action, { quiet = false } = {}) {
       ({ feed: sfx.eat, brush: sfx.brush, pet: r.reaction === 'love' ? sfx.love : sfx.pet })[action]();
       if (r.coins) setTimeout(sfx.coin, 350);
       scene.care(myId(), r.reaction === 'love' ? 'love' : action);
+      // 피츄는 쓰다듬으면 하트가 두 배로 퐁퐁
+      if (action === 'pet' && state.me.dog.special === 'pichu') scene.burst(scene.entities.get(myId()), 'heart', 4);
       const msgs = CARE_MSG[action];
       scene.bubble(myId(), 'text', msgs[Math.floor(Math.random() * msgs.length)]);
       if (r.coins) toast(`뼈다귀 코인 +${r.coins}${r.exp ? ` · 경험치 +${r.exp}` : ''}`, 'good');
@@ -623,6 +637,18 @@ function openTricks() {
           },
         }, has ? t.name : '???');
       })),
+      dog.special ? el('div', { class: 'special-trick' },
+        el('button', {
+          class: 'btn special-btn',
+          onclick: () => {
+            const id = SPECIALS[dog.special].trick;
+            closeAllModals();
+            state.scene.trick(myId(), id);
+            state.scene.bubble(myId(), 'text', `${SPECIAL_TRICKS[id].name}!`);
+            sfx.bark(barkPitch(dog), 2); sfx.star();
+            state.socket?.emit('room:trick', { trick: id });
+          },
+        }, `✨ ${SPECIAL_TRICKS[SPECIALS[dog.special].trick].name}`)) : null,
       el('p', { class: 'hint' }, `배운 개인기 ${known.length} / ${Object.keys(TRICKS).length} · 더 자라면 새로운 개인기를 배울 수 있어요.`)),
     buttons: [{ label: '닫기', kind: 'secondary' }],
   });
@@ -654,6 +680,8 @@ async function handleEvents(events = []) {
     if (ev.type === 'badge') { sfx.star(); await waitModal({ title: '새 배지를 얻었어요!', className: 'celebrate', body: badgeBody(ev) }); }
     if (ev.type === 'mail') { sfx.notify(); toast(`💌 ${ev.from}(이)가 편지를 남겼어요! 우편함을 열어 보세요.`, 'good'); }
     if (ev.type === 'dex') toast(`견종 도감에 ${ev.name} 등록!`, 'good');
+    if (ev.type === 'special') await playSpecialReveal(state.me.dog, ev);
+    if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
   }
@@ -703,6 +731,34 @@ async function flushGrowth() {
   } catch { /* 다음에 다시 */ } finally { state.flushingGrowth = false; }
 }
 
+function openRename() {
+  const input = el('input', { class: 'chat-input', maxlength: 8, placeholder: '새 이름 (2~8글자)', value: state.me.dog.name, 'aria-label': '새 이름' });
+  modal({
+    title: '이름표 바꾸기',
+    body: el('div', { class: 'center' },
+      el('p', {}, `뼈다귀 코인 ${RENAME_PRICE}개로 강아지 이름을 바꿀 수 있어요.`),
+      input,
+      el('p', { class: 'hint' }, '어떤 이름은… 특별한 일이 생긴대요! 🤫')),
+    buttons: [
+      { label: '그만두기', kind: 'secondary' },
+      {
+        label: '바꾸기',
+        onClick: async () => {
+          try {
+            const res = await post('/dog/rename', { name: input.value.trim() });
+            closeAllModals();
+            applyMe(res);
+            toast(`이제 이름은 ${res.dog.name}!`, 'good');
+            await handleEvents(res.events);
+            renderPanel();
+          } catch (err) { toast(err.message, 'bad'); return false; }
+          return true;
+        },
+      },
+    ],
+  });
+}
+
 function showcaseIcons(ids = []) {
   return ids.map((id) => badgeIcon(id, { size: 2 })).filter(Boolean);
 }
@@ -711,6 +767,7 @@ function openMyCard() {
   openDogCard(state.me.dog, {
     mine: true,
     badges: showcaseIcons(state.me.progress?.showcase),
+    onRename: openRename,
     onPhotoCard: () => openPhotoCard(state.me.dog, state.me.user, state.me.progress),
     onTitle: async (title) => {
       try {
@@ -1920,10 +1977,36 @@ function openSettings() {
       el('p', {}, `닉네임: ${user.nickname}`),
       el('p', {}, `친구 코드: ${user.friendCode}`),
       el('p', { class: 'help' }, '강아지는 방치해도 아프거나 떠나지 않아요. 대신 조금 시무룩해지니까 자주 놀러 와 주세요!'),
-      canInstall() ? el('button', { class: 'btn small primary', onclick: () => installApp() }, '📲 앱으로 설치하기') : null),
+      canInstall() ? el('button', { class: 'btn small primary', onclick: () => installApp() }, '📲 앱으로 설치하기') : null,
+      state.me.dog?.special && !state.me.dog.original ? el('button', { class: 'link', onclick: openOriginal }, '원조 코드가 있어요') : null),
     buttons: [
       { label: '로그아웃', kind: 'secondary', onClick: logout },
       { label: '닫기' },
+    ],
+  });
+}
+
+function openOriginal() {
+  const input = el('input', { class: 'chat-input', maxlength: 32, placeholder: '원조 코드', autocomplete: 'off', 'aria-label': '원조 코드' });
+  modal({
+    title: '👑 원조 코드',
+    body: el('div', { class: 'center' }, el('p', { class: 'help' }, '스페셜 친구마다 딱 한 명만 원조가 될 수 있어요.'), input),
+    buttons: [
+      { label: '그만두기', kind: 'secondary' },
+      {
+        label: '확인',
+        onClick: async () => {
+          try {
+            const res = await post('/dog/original', { code: input.value });
+            closeAllModals();
+            applyMe(res);
+            sfx.levelUp();
+            toast(`👑 ${res.dog.name}의 원조가 되었어요!`, 'good');
+            renderPanel();
+          } catch (err) { toast(err.message, 'bad'); return false; }
+          return true;
+        },
+      },
     ],
   });
 }
