@@ -1,6 +1,6 @@
 // 멍뭉고치 서비스 워커: 앱처럼 설치되고, 인터넷이 끊기면 안내 화면을 보여 줘요.
 // 게임 데이터는 서버가 판정하므로 오프라인 플레이는 없어요. 화면 파일만 빠르게 불러요.
-const CACHE = 'meongmung-v1';
+const CACHE = 'meongmung-v2';
 const SHELL = ['/offline.html', '/icons/icon-192.png', '/fonts/Galmuri11.woff2'];
 
 self.addEventListener('install', (e) => {
