@@ -650,3 +650,26 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* 빠른 로그인 */
+.quick-login { margin-top: 18px; text-align: center; }
+.quick-login .label { margin: 0 0 8px; }
+.quick-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.quick-account { position: relative; }
+.quick-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: 84px; padding: 6px 4px 8px; font: inherit; color: var(--ink); cursor: pointer;
+  background: #fff; border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 3px 0 var(--ink);
+}
+.quick-pick:active { transform: translateY(3px); box-shadow: none; }
+.quick-pick img { width: 64px; height: auto; }
+.quick-noimg { width: 64px; height: 56px; }
+.quick-nick { font-size: 13px; font-weight: 700; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-remove {
+  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; padding: 0;
+  font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+  background: var(--cream); color: var(--ink); border: 2px solid var(--ink); border-radius: 50%;
+}
+.quick-login.small .quick-pick { width: 70px; }
+.quick-login.small .quick-pick img { width: 48px; }
+.quick-login.small .quick-noimg { width: 48px; height: 42px; }

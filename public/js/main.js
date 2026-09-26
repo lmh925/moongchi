@@ -44,7 +44,8 @@ const myId = () => state.me?.user.id;
 // 자동 테스트용 (주소에 ?debug 가 있을 때만)
 if (new URLSearchParams(location.search).has('debug')) window.__mm = state;
 const serverNow = () => Date.now() + state.offset;
-const atHome = () => state.roomOwnerId === myId();
+// 방에 아직 들어가기 전(소켓 연결 중)에는 우리 집으로 봐요
+const atHome = () => !state.roomOwnerId || state.roomOwnerId === myId();
 
 // ---------- 화면 전환 ----------
 function show(id) {
@@ -91,14 +92,61 @@ function drawTitle() {
 // ---------- 가입/로그인 ----------
 let authMode = 'signup';
 let authPin = '';
-const pad = pinPad((p) => { authPin = p; updateAuthButton(); });
+const pad = pinPad((p) => {
+  authPin = p;
+  updateAuthButton();
+  // 로그인은 숫자 4개를 다 누르면 바로 들어가요
+  if (authMode === 'login' && p.length === 4 && !$('#auth-submit').disabled) $('#auth-submit').click();
+});
 $('#auth-pin').append(pad.node);
 
 function updateAuthButton() {
   $('#auth-submit').disabled = $('#auth-nick').value.trim().length < 2 || authPin.length !== 4;
 }
 
-function openAuth(mode) {
+// ---------- 빠른 로그인 (이 기기에 저장한 닉네임) ----------
+// 비밀번호는 저장하지 않아요. 닉네임과 강아지 모습만 기억해요.
+const ACCOUNTS_KEY = 'meongmung.accounts';
+function savedAccounts() {
+  try {
+    const list = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]');
+    return Array.isArray(list) ? list.filter((a) => a && typeof a.nickname === 'string') : [];
+  } catch { return []; }
+}
+function writeAccounts(list) {
+  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 4))); } catch { /* 저장소를 못 써도 괜찮아요 */ }
+}
+function rememberAccount(me) {
+  if (!me?.user?.nickname) return;
+  const entry = { nickname: me.user.nickname, breed: me.dog?.breed ?? null, stage: me.dog?.stage ?? 0, equip: me.dog?.equip ?? null, dogName: me.dog?.name ?? null };
+  writeAccounts([entry, ...savedAccounts().filter((a) => a.nickname !== entry.nickname)]);
+}
+function forgetAccount(nickname) {
+  writeAccounts(savedAccounts().filter((a) => a.nickname !== nickname));
+  renderQuickLogin();
+}
+function renderQuickLogin() {
+  const list = savedAccounts();
+  for (const box of document.querySelectorAll('.quick-login')) {
+    box.hidden = !list.length;
+    box.replaceChildren(
+      el('p', { class: 'label' }, '빠른 로그인'),
+      el('div', { class: 'quick-list' }, list.map((a) => el('div', { class: 'quick-account' },
+        el('button', { type: 'button', class: 'quick-pick', onclick: () => openAuth('login', a.nickname) },
+          a.breed && BREEDS[a.breed] ? el('img', { class: 'pixel', src: dogPortrait(a.breed, a.stage ?? 0, { equip: a.equip ?? undefined }), alt: '' }) : el('span', { class: 'quick-noimg' }),
+          el('span', { class: 'quick-nick' }, a.nickname)),
+        el('button', {
+          type: 'button', class: 'quick-remove', 'aria-label': `${a.nickname} 지우기`,
+          onclick: () => modal({
+            title: '이 기기에서 지울까요?',
+            body: el('p', { class: 'center' }, `빠른 로그인 목록에서 "${a.nickname}"을(를) 지워요. 강아지는 그대로 있어요!`),
+            buttons: [{ label: '그대로 둘래요', kind: 'secondary' }, { label: '지우기', onClick: () => forgetAccount(a.nickname) }],
+          }),
+        }, '✕')))));
+  }
+}
+
+function openAuth(mode, nickname = '') {
   authMode = mode;
   $('#auth-title').textContent = mode === 'signup' ? '처음 오셨군요! 반가워요' : '다시 와 줘서 고마워요!';
   $('#auth-help').textContent = mode === 'signup'
@@ -106,10 +154,13 @@ function openAuth(mode) {
     : '닉네임과 비밀번호 숫자 4개를 넣어 주세요.';
   $('#auth-submit').textContent = mode === 'signup' ? '시작하기' : '들어가기';
   $('#auth-error').textContent = '';
-  $('#auth-nick').value = '';
+  $('#auth-nick').value = nickname;
   pad.reset();
+  renderQuickLogin();
   show('auth');
-  $('#auth-nick').focus();
+  $('#screen-auth .quick-login').hidden = mode !== 'login' || !!nickname || !savedAccounts().length;
+  // 닉네임이 채워져 있으면 바로 숫자 누르기부터
+  if (!nickname) $('#auth-nick').focus(); else $('#auth-nick').blur();
 }
 
 $('#auth-nick').addEventListener('input', updateAuthButton);
@@ -137,8 +188,14 @@ $('#auth-submit').addEventListener('click', async () => {
 
 document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
   const go = b.dataset.go;
-  if (go === 'title') { show('title'); drawTitle(); } else openAuth(go);
+  if (go === 'title') showTitle(); else openAuth(go);
 }));
+
+function showTitle() {
+  renderQuickLogin();
+  show('title');
+  drawTitle();
+}
 
 async function afterLogin() {
   const me = await api('/me');
@@ -207,6 +264,7 @@ function applyMe(me) {
   state.me = me;
   state.speed = me.speed ?? 1;
   state.offset = (me.serverNow ?? Date.now()) - Date.now();
+  rememberAccount(me);
   if (!me.dog) return;
   $('#top-name').textContent = me.dog.name;
   $('#top-stage').textContent = STAGES[me.dog.stage].name;
@@ -869,6 +927,7 @@ function actionBtn(label, icon, onclick, disabled) {
 
 function visitPanel() {
   const room = state.room;
+  if (!room) return homePanel();
   const dog = room.homeDog;
   const mine = state.me.dog;
   return el('div', {},
@@ -1755,8 +1814,7 @@ async function boot() {
       else toast(err.message, 'bad');
     }
   }
-  show('title');
-  drawTitle();
+  showTitle();
 }
 
 boot();
