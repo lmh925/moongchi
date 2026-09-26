@@ -162,6 +162,12 @@ export const sfx = {
     if (!ready()) return;
     ['G5', 'E5', 'C5', 'D5', 'C5'].forEach((n, i) => tone({ type: 'triangle', freq: N(n), dur: 0.2, vol: 0.3, at: i * 0.14 }));
   },
+  shutter() {
+    if (!ready()) return;
+    noise({ dur: 0.04, vol: 0.6, freq: 4000, type: 'highpass' });
+    noise({ dur: 0.08, vol: 0.4, freq: 2500, type: 'highpass', at: 0.07 });
+    tone({ type: 'square', freq: 1800, dur: 0.03, vol: 0.1, at: 0.02 });
+  },
   error() { if (ready()) tone({ type: 'square', freq: 220, to: 180, dur: 0.15, vol: 0.18 }); },
 };
 

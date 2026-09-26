@@ -142,6 +142,8 @@ const ACCESSORIES = {
     map: ['orrrrro', 'orwrwro', '.orrro.', '..oro..', '...o...'] },
   bowtie: { anchor: 'neck', dx: -3, dy: 0, colors: { o: '#4a3330', b: '#4a7dff', l: '#8fb0ff' },
     map: ['oo...oo', 'oloobbo', 'obbbbbo', 'obboolo', 'oo...oo'] },
+  kinder_hat: { anchor: 'head', dx: -6, dy: -5, colors: { o: '#4a3330', y: '#ffd23f', l: '#fff3a0', r: '#e84a5f' },
+    map: ['....ooooo....', '...oyyyyyo...', '..oyylyyyyo..', '..orrrrrrro..', 'ooyyyyyyyyyoo', 'ooooooooooooo'] },
   sprout: { anchor: 'head', dx: -2, dy: -4, colors: { o: '#4a3330', g: '#6cc070', l: '#a8e08a' },
     map: ['.o.o.', 'oglgo', '.ogo.', '..o..'] },
   bear_hat: { anchor: 'head', dx: -5, dy: -5, colors: { o: '#4a3330', b: '#a86b3a', l: '#c98a4b', p: '#e0a96d' },
@@ -666,6 +668,10 @@ export const ICONS = {
     map: ['.oooooo...', 'ogogogo...', 'ogogogo...', 'oppppppo..', 'oppppppo..', '.oooowwo..', '....owwo..', '....owlo..', '....owwo..', '.....oo...'] },
   paw: { colors: { o: '#4a3330', p: '#ff9fb2', b: '#8b5e3c' },
     map: ['.oo...oo..', 'obbo.obbo.', 'obbo.obbo.', '.oo...oo..', '...ooo....', '..obbbo...', '.obbbbbo..', '.obbbbbo..', '..ooooo...'] },
+  camera: { colors: { o: '#4a3330', w: '#dfe6f0', g: '#5b8cff', l: '#bfe6ff', y: '#ffd23f' },
+    map: ['..ooo.....', 'oooooooooo', 'owwwwwwwyo', 'owwooowwwo', 'owoglgowwo', 'owogggowwo', 'owwooowwwo', 'oooooooooo'] },
+  rope: { colors: { o: '#4a3330', r: '#e84a5f', w: '#fff6e6' },
+    map: ['ow......wo', 'ow......wo', 'or......ro', '.or....ro.', '.or....ro.', '..orrrro..', '...oooo...'] },
   sound: { colors: { o: '#4a3330', w: '#fff6e6', b: '#5bc0ff' },
     map: ['...o......', '..oo..b...', 'oooo...b..', 'owwo.b..b.', 'owwo..b.b.', 'owwo.b..b.', 'oooo...b..', '..oo..b...', '...o......'] },
   mute: { colors: { o: '#4a3330', w: '#fff6e6', r: '#e84a5f' },
@@ -694,6 +700,35 @@ export function iconCanvas(id, scale = 1) {
 
 export function iconURL(id, scale = 4) {
   return iconCanvas(id, scale).toDataURL();
+}
+
+// 포토부스 소품: 정면 모습용 그림을 캔버스로 (scale 1 = 게임 픽셀 크기)
+const propCache = new Map();
+export function propCanvas(id, scale = 1) {
+  const key = `${id}:${scale}`;
+  if (propCache.has(key)) return propCache.get(key);
+  let map; let colors;
+  if (ACCESSORIES[id]) { map = (FRONT_ACC[id] ?? ACCESSORIES[id]).map; colors = ACCESSORIES[id].colors; }
+  else if (ICONS[id]) { map = ICONS[id].map; colors = ICONS[id].colors; }
+  else return null;
+  const w = Math.max(...map.map((r) => r.length));
+  const grid = new Grid(w, map.length, {});
+  stamp(grid, map, colors, 0, 0);
+  const c = document.createElement('canvas');
+  c.width = w * scale; c.height = map.length * scale;
+  const ctx = c.getContext('2d');
+  ctx.scale(scale, scale);
+  grid.draw(ctx);
+  propCache.set(key, c);
+  return c;
+}
+
+// 소품이 강아지의 어디에 붙는지 (정면 기준): { anchor: head|neck|eye|null, dx, dy }
+export function propFit(id) {
+  const acc = ACCESSORIES[id];
+  if (!acc) return { anchor: null, dx: 0, dy: 0 };
+  const v = FRONT_ACC[id] ?? acc;
+  return { anchor: acc.anchor, dx: v.dx, dy: v.dy };
 }
 
 // 액세서리 단독 미리보기 (상점)

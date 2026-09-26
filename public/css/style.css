@@ -253,6 +253,71 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 }
 .school-board .big { font-size: 26px; font-weight: 700; color: var(--butter); }
 
+/* 마이룸 미니게임 버튼 */
+.room-games { margin-top: 10px; }
+.room-games-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.game-btn { display: flex; align-items: center; justify-content: center; gap: 6px; background: #fff; white-space: nowrap; font-size: 14px; padding: 10px 6px; }
+.game-btn img { width: 30px; height: 24px; }
+
+/* 네컷 포토부스 */
+.pb-card, .jr-card, .train-card, .runner-screen, .gacha-card { user-select: none; -webkit-user-select: none; }
+.pb-card { max-width: 460px; padding: 12px; }
+.pb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pb-head .modal-title { margin: 0; text-align: left; font-size: 18px; }
+.pb-timer { background: var(--butter); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 10px; font-weight: 700; white-space: nowrap; }
+.pb-timer.hurry { background: var(--red); color: #fff; animation: pop .5s infinite alternate; }
+.pb-cuts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0; }
+.pb-cut {
+  aspect-ratio: 4 / 3; border: 2px dashed var(--line); border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-soft); font-size: 12px; overflow: hidden; background: #fff;
+}
+.pb-cut.taken { border: 2px solid var(--ink); animation: pop .25s ease-out; }
+.pb-cut img { width: 100%; height: 100%; }
+.pb-stage { position: relative; aspect-ratio: 4 / 3; border: 4px solid var(--ink); border-radius: 10px; overflow: hidden; touch-action: none; background: #ffd9e3; }
+.pb-canvas { width: 100%; height: 100%; display: block; }
+.pb-props { position: absolute; inset: 0; }
+.pb-prop { position: absolute; cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; transition: transform .1s; }
+.pb-prop.dragging { cursor: grabbing; transform: scale(1.12); filter: drop-shadow(0 3px 0 rgba(74, 51, 48, .35)); z-index: 2; }
+.pb-prop.snapped { animation: pop .2s ease-out; }
+.pb-prop.poof { transform: scale(0); opacity: 0; transition: .2s; }
+.pb-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.pb-flash.go { animation: flash .45s ease-out; }
+@keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+.pb-tools { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.pb-tray {
+  display: flex; gap: 8px; overflow-x: auto; padding: 8px 4px 10px; touch-action: pan-x; scroll-snap-type: x proximity;
+  background: var(--cream); border: 3px solid var(--ink); border-radius: 12px;
+}
+.pb-item {
+  flex: 0 0 64px; height: 64px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; display: grid; place-items: center;
+  cursor: grab; scroll-snap-align: start; touch-action: pan-x; box-shadow: 0 3px 0 var(--line);
+}
+.pb-item img { max-width: 48px; max-height: 44px; pointer-events: none; }
+.pb-ghost { position: fixed; left: 0; top: 0; width: 64px; pointer-events: none; z-index: 100; filter: drop-shadow(0 4px 0 rgba(74, 51, 48, .4)); }
+.pb-shoot { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pb-shoot img { width: 30px; height: 24px; }
+.polaroid-card { max-width: 420px; }
+.polaroid {
+  background: #fff; padding: 10px 10px 16px; border-radius: 4px; box-shadow: 0 8px 20px rgba(74, 51, 48, .3); transform: rotate(-2deg);
+  margin: 6px auto 14px; max-width: 360px; animation: pop .3s ease-out;
+}
+.polaroid img { width: 100%; display: block; image-rendering: pixelated; }
+.album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.album-item { border: 3px solid var(--ink); border-radius: 8px; background: #fff; padding: 4px; cursor: pointer; display: grid; gap: 4px; font-size: 12px; }
+.album-item img { width: 100%; image-rendering: pixelated; }
+
+/* 합동 줄넘기 */
+.jr-card { max-width: 460px; padding: 12px; }
+.jr-stage { position: relative; aspect-ratio: 4 / 3; border: 4px solid var(--ink); border-radius: 10px; overflow: hidden; touch-action: manipulation; cursor: pointer; }
+.jr-canvas { width: 100%; height: 100%; display: block; }
+.jr-combo { position: absolute; top: 8px; left: 0; right: 0; text-align: center; font-size: 22px; font-weight: 700; color: #fff; text-shadow: 2px 2px 0 var(--pink-d), -1px -1px 0 var(--pink-d); pointer-events: none; }
+.jr-combo.bump { animation: pop .25s ease-out; }
+.jr-msg { position: absolute; top: 38%; left: 0; right: 0; text-align: center; font-size: 26px; font-weight: 700; color: var(--ink); text-shadow: 2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff; pointer-events: none; }
+.jr-btn { width: 100%; margin-top: 10px; font-size: 24px; touch-action: manipulation; }
+.jr-btn.glow { background: var(--butter); color: var(--ink); text-shadow: none; }
+.jr-result { text-align: center; margin-top: 10px; }
+.jr-score { font-size: 30px; font-weight: 700; color: var(--pink-d); }
+
 /* 간식 파티 */
 .party-card {
   display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px;

@@ -12,6 +12,8 @@ import { playMinigame } from './minigame.js';
 import { playRunner, enterLandscape, exitLandscape } from './runner.js';
 import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
+import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
+import { playJumpRope } from './jumprope.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -641,9 +643,74 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
+    roomGames(),
     partyButton(),
     bondList(),
     chatBar());
+}
+
+// ---------- 마이룸 미니게임: 네컷 포토부스 & 합동 줄넘기 ----------
+// 같은 방에 친구 강아지가 있으면 그 강아지와, 없으면 이웃집 초코와 함께 해요.
+const NEIGHBOR = { name: '초코', breed: 'shiba', personality: 'hyper', stage: 1, equip: {}, fluff: 0, tricks: [], mood: 'happy' };
+
+function partner() {
+  const e = [...(state.scene?.entities.values() ?? [])].find((x) => x.id !== myId() && x.dog && !x.dog.atSchool);
+  return e ? { dog: e.dog, name: e.dog.name } : { dog: NEIGHBOR, name: '이웃집 초코' };
+}
+
+function roomGames() {
+  const mine = state.me.dog;
+  const p = partner();
+  return el('div', { class: 'room-games' },
+    el('div', { class: 'section-title' }, `${p.name}(이)랑 같이 놀기`),
+    el('div', { class: 'room-games-row' },
+      el('button', { class: 'btn game-btn', disabled: !!mine.school, onclick: startPhotobooth },
+        el('img', { class: 'pixel', src: iconURL('camera', 3), alt: '' }), '네컷 포토부스'),
+      el('button', { class: 'btn game-btn', disabled: !!mine.school, onclick: startJumpRope },
+        el('img', { class: 'pixel', src: iconURL('rope', 3), alt: '' }), '합동 줄넘기')));
+}
+
+async function startPhotobooth() {
+  unlock();
+  const p = partner();
+  const mine = publicDog(state.me.dog);
+  let again = 'again';
+  while (again === 'again') {
+    again = await playPhotobooth([mine, p.dog], [mine.name, p.dog.name]);
+  }
+  if (state.tab === 'play') renderPanel();
+}
+
+async function startJumpRope() {
+  unlock();
+  const p = partner();
+  const mine = publicDog(state.me.dog);
+  await playJumpRope(mine, p.dog, [mine.name, p.dog.name]);
+  if (state.tab === 'play') renderPanel();
+}
+
+function openAlbum() {
+  const list = loadAlbum();
+  const { close } = modal({
+    title: '멍뭉네컷 앨범',
+    body: list.length
+      ? el('div', { class: 'album-grid' }, list.map((ph) => el('button', {
+        class: 'album-item', type: 'button',
+        onclick: () => {
+          close();
+          modal({
+            title: `${new Date(ph.date).getMonth() + 1}월 ${new Date(ph.date).getDate()}일`,
+            body: el('div', { class: 'polaroid' }, el('img', { src: ph.url, alt: '멍뭉네컷 사진' })),
+            buttons: [
+              { label: '지우기', kind: 'secondary', onClick: () => { removeFromAlbum(ph.id); toast('사진을 지웠어요.'); } },
+              { label: '사진 파일로 받기', onClick: () => { downloadPhoto(ph.url); return false; } },
+            ],
+          });
+        },
+      }, el('img', { src: ph.url, alt: '' }), el('span', {}, ph.names?.join(' & ') ?? ''))))
+      : el('p', { class: 'help center' }, '아직 사진이 없어요. 네컷 포토부스에서 찍어 보세요!'),
+    buttons: [{ label: '닫기' }],
+  });
 }
 
 // ---------- 간식 파티 (친구와 실시간 대결) ----------
@@ -796,6 +863,7 @@ function visitPanel() {
       actionBtn('개인기', 'star', openTricks, !!mine.school),
       actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school),
       actionBtn('집으로', 'paw', () => enterRoom(myId()), false)),
+    roomGames(),
     partyButton(),
     bondList(),
     chatBar());
@@ -1128,6 +1196,14 @@ function playPanel() {
     el('h3', {}, '놀이터'),
     el('p', { class: 'sub' }, dog.school ? '강아지가 학교에서 돌아오면 놀 수 있어요.' : `오늘 남은 횟수: ${left}번 · 한 판에 코인 최대 ${RULES.minigame.maxCoins}개 · 애정도 UP`),
     el('div', { class: 'cards' },
+      el('div', { class: 'card' },
+        el('div', { class: 'title' }, '네컷 포토부스', el('span', { class: 'btns' },
+          el('button', { class: 'btn small', onclick: openAlbum }, '앨범'),
+          el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startPhotobooth }, '찍기!'))),
+        el('div', { class: 'meta' }, `${partner().name}(이)랑 나란히 서서 소품을 씌우고 네 컷 사진을 찍어요.`)),
+      el('div', { class: 'card' },
+        el('div', { class: 'title' }, '합동 줄넘기', el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startJumpRope }, '놀기!')),
+        el('div', { class: 'meta' }, '밧줄이 발밑 선에 닿을 때 톡! 둘이 같이 깡총 뛰어요. 몇 콤보까지 갈 수 있을까?')),
       card('run', '멍뭉 런', `${dog.name}(이)가 들판을 신나게 달려요! 점프(두 번까지)와 슬라이드로 장애물을 피하고 간식을 모아요.`),
       card('catch', '간식 받아먹기', `하늘에서 떨어지는 간식을 ${dog.name}(이)가 받아먹어요! 화면을 누르거나 끌어서 움직여요.`)));
 }
