@@ -972,3 +972,20 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .treat .price img { width: 14px; height: 13px; }
 .treat-icon { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; }
 .treat-icon img { width: 18px; height: 18px; }
+
+/* 아기 강아지 선물 */
+.wish-box { border: 3px solid var(--pink-d); border-radius: 12px; background: #fff4f7; padding: 8px 10px; margin: 10px 0; }
+.wish-box > b { display: block; margin-bottom: 4px; }
+.baby-box {
+  font: inherit; color: var(--ink); background: linear-gradient(135deg, #ffd9e3, #fff1b8); border: 3px solid var(--ink); border-radius: 14px;
+  padding: 14px 20px; display: inline-flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; margin: 8px 0;
+  animation: wiggle 1.4s ease-in-out infinite;
+}
+.baby-box img { width: 60px; height: 54px; }
+.baby-box.opening { animation: boxpop .7s ease-in forwards; }
+@keyframes boxpop { 40% { transform: scale(1.15) rotate(-6deg); } 100% { transform: scale(0.2); opacity: 0; } }
+.baby-reveal { animation: pop .4s ease-out; }
+.baby-reveal .baby-img { width: 120px; height: auto; }
+.baby-reveal h3 { margin: 4px 0; }
+.help.family { color: var(--pink-d); font-weight: 700; }
+.wish-box .card .title { flex-wrap: wrap; gap: 6px; }

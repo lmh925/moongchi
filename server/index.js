@@ -16,6 +16,7 @@ import { PlazaHub } from './plaza.js';
 import { CoopHub } from './coop/index.js';
 import { Progress } from './progress.js';
 import { Trades } from './trades.js';
+import { Babies } from './babies.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -39,6 +40,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const hub = new RoomHub(io, { auth, game, friends, bonds });
   const safety = new Safety(db, { now });
   const trades = new Trades(db, { game, friends, safety, progress });
+  const babies = new Babies(db, { game, friends, safety, bonds, progress });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -138,6 +140,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const { dog, events } = game.refreshDog(userId);
     if (events.length) hub.dogChanged(userId);
     if (extra.visit) events.push(...progress.onMe(userId, dog));
+    events.push(...babies.deliver(userId));
     const others = game.refreshOthers(userId);
     if (others.length) { events.push(...others); hub.dogsChanged(userId); }
     const user = game.getUser(userId);
@@ -151,6 +154,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
       pendingTrades: trades.pendingFor(userId),
+      wishes: babies.list(userId),
       events: [...(extra.events ?? []), ...events],
       speed,
       serverNow: game.now(),
@@ -323,6 +327,27 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/admin/unban', limiter(60, 10 * 60_000), adminOnly, wrap((req) => { safety.unban(Number(req.body?.userId)); }));
   api.post('/admin/resolve', limiter(60, 10 * 60_000), adminOnly, wrap((req) => ({ resolved: safety.resolve(Number(req.body?.userId)) })));
 
+  // ---------- 아기 강아지 선물 ----------
+  api.get('/baby/check/:friendId', authed, wrap((req) => ({ reason: babies.check(req.userId, Number(req.params.friendId)) })));
+  api.post('/baby/wish', authed, wrap((req) => {
+    const wish = babies.wish(req.userId, req.body?.to);
+    hub.emitToUser(wish.with.id, 'baby:wish', { from: game.getUser(req.userId).nickname });
+    return { wish };
+  }));
+  api.post('/baby/:id/respond', authed, wrap((req) => {
+    const wish = babies.respond(req.userId, req.params.id, !!req.body?.accept);
+    hub.emitToUser(wish.with.id, 'baby:answer', { accepted: wish.status === 'accepted', by: game.getUser(req.userId).nickname });
+    return { ...me(req.userId), wish };
+  }));
+  api.post('/baby/:id/cancel', authed, wrap((req) => { babies.cancel(req.userId, req.params.id); }));
+  api.post('/baby/adopt', authed, wrap((req) => {
+    const name = checkDogName(req.body?.name);
+    if (!name.ok) throw new GameError(name.reason);
+    const dog = babies.adopt(req.userId, req.body?.mailId, name.name);
+    hub.dogsChanged(req.userId);
+    return me(req.userId, { events: dog.special ? [{ type: 'special', key: dog.special, from: dog.baseBreed }] : [] });
+  }));
+
   // ---------- 멍뭉거래 ----------
   api.get('/trades', authed, wrap((req) => trades.list(req.userId)));
   api.get('/trades/options/:friendId', authed, wrap((req) => trades.options(req.userId, Number(req.params.friendId))));
@@ -374,7 +399,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', sendIndex);
 
-  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, trades, backups, rules: RULES };
+  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, trades, babies, backups, rules: RULES };
 }
 
 // public/, shared/ 파일들의 경로·크기·수정 시각으로 짧은 버전 값을 만들어요

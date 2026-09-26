@@ -88,6 +88,7 @@ export const TITLES = {
   sp_kiriku: { name: '모험가 키리쿠', special: 'kiriku' },
   sp_gun: { name: '씩씩한 대장 건', special: 'gun' },
   sp_pichu: { name: '애교 막내 피츄', special: 'pichu' },
+  parent: { name: '다정한 엄마아빠 멍', parent: true },
 };
 
 // 견종: 색상과 생김새 파라미터는 sprites.js에서 픽셀 아트로 그려집니다.
@@ -768,4 +769,13 @@ export const POOP = {
   cleanCoins: 1,
   cleanliness: 6,
   decayBoost: 0.3, // 똥 하나마다 청결도가 30% 더 빨리 줄어요
+};
+
+// ---------- 아기 강아지 선물 (가족 계승) ----------
+// 다 자란 두 강아지가 "영혼의 단짝"이면, 두 친구가 함께 소원을 빌어요. 며칠 뒤 두 집에 아기 강아지 선물 상자가 와요.
+export const BABY = {
+  bondLevel: 4, // BOND_LEVELS 4 = 영혼의 단짝
+  arriveMs: 48 * 3600_000, // 소원을 빌고 선물이 오기까지
+  cooldownMs: 7 * 24 * 3600_000, // 같은 두 친구가 다시 소원을 빌 수 있기까지
+  maxDogs: 3, // 한 집에 함께 사는 강아지 최대 수
 };

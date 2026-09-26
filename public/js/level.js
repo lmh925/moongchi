@@ -1,6 +1,6 @@
 // 레벨 · 재능 능력치 화면: 레벨 바, 강아지 카드(오각형 그래프), 레벨업 연출
 import { TALENTS, TALENT_STEPS, TALENT_PERKS, TITLES, EMOTES, BREEDS, PERSONALITIES, STAGES, SPECIALS } from '../shared/data.js';
-import { levelRewards } from '../shared/rules.js';
+import { levelRewards, breedOf } from '../shared/rules.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal } from './ui.js';
 import { sfx } from './audio.js';
@@ -89,8 +89,9 @@ export function openDogCard(dog, { mine = false, ownerName = null, onTitle = nul
         el('div', { class: 'dog-card-name' }, dog.name, el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`)),
         titleChip(dog),
         dog.special ? el('span', { class: `special-chip ${dog.original ? 'original' : ''}` }, dog.original ? `👑 원조 ${SPECIALS[dog.special].name}` : `✨ ${SPECIALS[dog.special].label}`) : null,
-        el('p', { class: 'help' }, `${BREEDS[dog.breed].name} · ${p ? `${p.emoji} ${p.name}` : ''} · ${STAGES[dog.stage].name}`),
-        ownerName ? el('p', { class: 'help' }, `${ownerName}의 강아지`) : null),
+        el('p', { class: 'help' }, `${breedOf(dog.breed)?.name ?? ''} · ${p ? `${p.emoji} ${p.name}` : ''} · ${STAGES[dog.stage].name}`),
+        ownerName ? el('p', { class: 'help' }, `${ownerName}의 강아지`) : null,
+        dog.parents ? el('p', { class: 'help family' }, `👪 ${dog.parents.map((p) => `${p.name}(${p.owner})`).join(' & ')}의 아기`) : null),
       radarCanvas(stages)),
     badges?.length ? el('div', { class: 'card-badges' }, badges) : null,
     onPhotoCard || onRename ? el('div', { class: 'card-actions' },

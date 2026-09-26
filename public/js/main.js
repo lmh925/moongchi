@@ -1,9 +1,9 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, FOOD, TREATS, POOP, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
-import { applyDecay, quizResult } from '../shared/rules.js';
+import { applyDecay, quizResult, breedOf } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
 import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.js';
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
@@ -142,7 +142,7 @@ function renderQuickLogin() {
       el('p', { class: 'label' }, '빠른 로그인'),
       el('div', { class: 'quick-list' }, list.map((a) => el('div', { class: 'quick-account' },
         el('button', { type: 'button', class: 'quick-pick', onclick: () => openAuth('login', a.nickname) },
-          a.breed && BREEDS[a.breed] ? el('img', { class: 'pixel', src: dogPortrait(a.breed, a.stage ?? 0, { equip: a.equip ?? undefined }), alt: '' }) : el('span', { class: 'quick-noimg' }),
+          a.breed && breedOf(a.breed) ? el('img', { class: 'pixel', src: dogPortrait(a.breed, a.stage ?? 0, { equip: a.equip ?? undefined }), alt: '' }) : el('span', { class: 'quick-noimg' }),
           el('span', { class: 'quick-nick' }, a.nickname)),
         el('button', {
           type: 'button', class: 'quick-remove', 'aria-label': `${a.nickname} 지우기`,
@@ -660,6 +660,16 @@ function connectSocket() {
     });
   });
   socket.on('presence', () => { if (state.tab === 'friends') renderPanel(); });
+  socket.on('baby:wish', ({ from }) => {
+    sfx.notify();
+    toast(`🎁 ${from}(이)가 아기 강아지 소원을 빌었어요! 친구 탭에서 확인해요.`, 'good');
+    $('#badge-friends').hidden = false;
+    refreshMe().then(() => { if (state.tab === 'friends') renderPanel(); });
+  });
+  socket.on('baby:answer', ({ accepted, by }) => {
+    toast(accepted ? `${by}(이)가 소원에 좋다고 했어요! 이틀 뒤 선물 상자가 와요.` : `${by}(이)는 다음에 빌기로 했어요.`, accepted ? 'good' : 'info');
+    refreshMe().then(() => { if (state.tab === 'friends') renderPanel(); });
+  });
   socket.on('trade:new', ({ from }) => {
     sfx.notify();
     toast(`🎁 ${from}(이)가 멍뭉거래를 제안했어요! 친구 탭에서 확인해요.`, 'good');
@@ -885,11 +895,56 @@ function showTalentUp(ev) {
   return waitModal({ title: `${ev.name} 재능 ${ev.stage}단계!`, className: 'celebrate', body: talentUpBody(ev) });
 }
 
+// 아기 강아지 선물 상자: 열어 보고 이름을 지어 주면 새 가족!
+function openBabyBox(m) {
+  const b = m.baby;
+  if (m.claimed) { toast('이미 우리 가족이 되었어요!'); return; }
+  const input = el('input', { class: 'chat-input', maxlength: 8, placeholder: '아기 이름 (2~8글자)', 'aria-label': '아기 이름' });
+  const reveal = el('div', { class: 'baby-reveal', hidden: true },
+    el('img', { class: 'pixel baby-img', src: dogPortrait(b.breed, 0), alt: '' }),
+    el('h3', {}, breedOf(b.breed)?.name ?? '아기 강아지'),
+    el('p', { class: 'help' }, `${PERSONALITIES[b.personality]?.emoji ?? ''} ${PERSONALITIES[b.personality]?.name ?? ''} · 👪 ${b.parents.map((p) => `${p.name}(${p.owner})`).join(' & ')}의 아기`),
+    input);
+  const giftBox = el('button', { class: 'baby-box', type: 'button' }, el('img', { class: 'pixel', src: iconURL('heart', 6), alt: '' }), el('span', {}, '톡 눌러서 열어 보기!'));
+  const { close } = modal({
+    title: '아기 강아지 선물 상자',
+    className: 'celebrate baby-modal',
+    body: el('div', { class: 'center' }, el('p', {}, m.body), giftBox, reveal),
+    buttons: [
+      { label: '나중에', kind: 'secondary' },
+      {
+        label: '우리 가족이 되어 줘!',
+        onClick: async () => {
+          if (reveal.hidden) { giftBox.click(); return false; }
+          try {
+            const res = await post('/baby/adopt', { mailId: m.id, name: input.value.trim() });
+            close();
+            applyMe(res);
+            const sp = res.events.find((e) => e.type === 'special');
+            if (sp) await playSpecialReveal(res.dog, sp);
+            await enterRoom(myId(), { quiet: true });
+            setTab('home');
+            sfx.levelUp();
+            toast(`${res.dog.name}(이)가 우리 집 막내가 되었어요!`, 'good');
+          } catch (err) { toast(err.message, 'bad'); }
+          return false;
+        },
+      },
+    ],
+  });
+  giftBox.addEventListener('click', () => {
+    giftBox.classList.add('opening');
+    sfx.pop();
+    setTimeout(() => { giftBox.hidden = true; reveal.hidden = false; sfx.levelUp(); input.focus(); }, 700);
+  });
+}
+
 async function openMail() {
   try {
     await openMailbox({
       api, post,
       itemName: (id) => ITEMS[id]?.name ?? '선물',
+      onBaby: openBabyBox,
       onOpened: (res) => { applyMe(res); if (state.tab === 'home') renderPanel(); },
       playCapsule: async (result) => {
         await playGacha(result, itemThumb);
@@ -1048,7 +1103,7 @@ function homePanel() {
   const g = dog.growth;
   const away = !!dog.school;
   return el('div', {},
-    el('h3', {}, `${dog.name}`, el('span', { class: 'chip' }, `${BREEDS[dog.breed].name}`), el('span', { class: 'chip' }, `${p.emoji} ${p.name}`)),
+    el('h3', {}, `${dog.name}`, el('span', { class: 'chip' }, `${breedOf(dog.breed)?.name ?? ''}`), el('span', { class: 'chip' }, `${p.emoji} ${p.name}`)),
     el('div', { class: 'stats' },
       statRow('fullness', '포만감', 'food', 'var(--stat-full)'),
       statRow('cleanliness', '청결도', 'sparkle', 'var(--stat-clean)'),
@@ -1273,7 +1328,7 @@ function visitPanel() {
   const mine = state.me.dog;
   return el('div', {},
     el('h3', {}, `${room.owner.nickname}네 집`),
-    dog ? el('p', { class: 'sub' }, `${dog.name} · ${BREEDS[dog.breed].name} · ${PERSONALITIES[dog.personality].name} · ${STAGES[dog.stage].name}`) : null,
+    dog ? el('p', { class: 'sub' }, `${dog.name} · ${breedOf(dog.breed)?.name ?? ''} · ${PERSONALITIES[dog.personality].name} · ${STAGES[dog.stage].name}`) : null,
     dog?.level ? el('div', { class: 'growth' },
       el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`), titleChip(dog),
       el('button', { class: 'btn small secondary card-btn', onclick: () => openDogCard(dog, { ownerName: room.owner.nickname, badges: showcaseIcons(dog.showcase) }) }, '강아지 카드')) : null,
@@ -1594,6 +1649,7 @@ async function friendsPanel() {
           el('span', { class: 'btns' },
             el('button', { class: 'btn small', onclick: () => respond(r.id, false) }, '거절'),
             el('button', { class: 'btn small green', onclick: () => respond(r.id, true) }, '수락'))))))) : null,
+    wishSection(),
     tradeSection(trades, {
       thumb: itemThumb,
       onCompose: () => (data.friends.length ? modal({
@@ -1611,14 +1667,65 @@ async function friendsPanel() {
       f.dog ? el('img', { class: 'pixel', src: dogPortrait(f.dog.breed, f.dog.stage, { equip: f.dog.equip }), alt: '' }) : el('span'),
       el('div', {},
         el('div', { class: 'title' }, el('span', {}, el('i', { class: `online ${f.online ? 'on' : ''}` }), f.nickname)),
-        el('div', { class: 'meta' }, f.dog ? `${f.dog.name} · ${BREEDS[f.dog.breed].name}${f.dog.atSchool ? ' · 학교 가는 중' : ''}` : ''),
+        el('div', { class: 'meta' }, f.dog ? `${f.dog.name} · ${breedOf(f.dog.breed)?.name ?? ''}${f.dog.atSchool ? ' · 학교 가는 중' : ''}` : ''),
         f.bond ? el('div', { class: 'meta' }, el('span', { class: 'hearts' }, '♥'.repeat(f.bond.level + 1)), ` ${f.bond.name}`) : null),
       el('div', { class: 'btns' },
         el('button', { class: 'btn small green', onclick: () => enterRoom(f.id) }, '놀러 가기'),
         el('button', { class: 'btn small', onclick: () => tradeWith(f) }, '거래'),
+        canWish(f) ? el('button', { class: 'btn small primary', onclick: () => askWish(f) }, '🎁 아기 소원') : null,
         f.online && atHome() ? el('button', { class: 'btn small secondary', onclick: () => invite(f) }, '초대') : null,
         el('button', { class: 'btn small', title: '친구 끊기', 'aria-label': '친구 끊기', onclick: () => unfriend(f) }, '…'))))) : el('p', { class: 'help' }, '아직 친구가 없어요. 친구 코드를 주고받아 보세요!'),
     data.outgoing.length ? el('p', { class: 'hint' }, `수락을 기다리는 신청: ${data.outgoing.map((o) => o.nickname).join(', ')}`) : null);
+}
+
+// ---------- 아기 강아지 소원 ----------
+function canWish(f) {
+  return (f.bond?.level ?? 0) >= BABY.bondLevel && f.dog?.stage === 2 && state.me.dog.stage === 2;
+}
+
+function askWish(f) {
+  modal({
+    title: '아기 강아지 소원 빌기',
+    body: el('div', { class: 'center' },
+      el('p', {}, `${state.me.dog.name}와(과) ${f.dog.name}(은)는 ${BOND_LEVELS[BABY.bondLevel].name}이에요!`),
+      el('p', {}, `두 친구가 함께 소원을 빌면, 이틀 뒤 두 집 우편함에 두 강아지를 반씩 닮은 아기 강아지 선물 상자가 와요.`),
+      el('p', { class: 'help' }, `${f.nickname}도 좋다고 해야 소원이 이루어져요. 보호자와 함께 이야기해 봐요!`)),
+    buttons: [{ label: '다음에', kind: 'secondary' }, {
+      label: '소원 빌기!',
+      onClick: async () => {
+        try { await post('/baby/wish', { to: f.id }); sfx.star(); toast(`${f.nickname}에게 소원을 보냈어요!`, 'good'); refreshMe(); } catch (err) { toast(err.message, 'bad'); }
+      },
+    }],
+  });
+}
+
+function wishSection() {
+  const list = state.me.wishes ?? [];
+  if (!list.length) return null;
+  return el('div', { class: 'wish-box' },
+    el('b', {}, '🎁 소원 쿠션'),
+    el('div', { class: 'cards' }, list.map((w) => el('div', { class: 'card' },
+      el('div', { class: 'title' }, `${w.with.nickname}와(과)의 소원`,
+        w.status === 'pending' && w.incoming ? el('span', { class: 'btns' },
+          el('button', { class: 'btn small', onclick: () => answerWish(w, false) }, '다음에'),
+          el('button', { class: 'btn small primary', onclick: () => answerWish(w, true) }, '좋아요!')) : null,
+        w.status === 'pending' && !w.incoming ? el('button', { class: 'btn small', onclick: () => cancelWish(w) }, '취소') : null),
+      el('div', { class: 'meta' }, w.status === 'pending'
+        ? (w.incoming ? `${w.fromDog?.name ?? '친구 강아지'}와(과) 우리 강아지의 아기 강아지 소원이에요. 좋다고 하면 이틀 뒤 두 집에 선물 상자가 와요!` : '친구가 좋다고 하기를 기다려요.')
+        : `선물 상자가 오고 있어요! ${fmtDuration(w.arrivesAt - serverNow())} 뒤 도착`)))));
+}
+
+async function answerWish(w, accept) {
+  try {
+    const res = await post(`/baby/${w.id}/respond`, { accept });
+    applyMe(res);
+    if (accept) { sfx.levelUp(); toast('소원이 이루어지고 있어요! 선물 상자를 기다려요.', 'good'); } else toast('다음에 빌기로 했어요.');
+    renderPanel();
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+async function cancelWish(w) {
+  try { await post(`/baby/${w.id}/cancel`); await refreshMe(); renderPanel(); } catch (err) { toast(err.message, 'bad'); }
 }
 
 async function respond(requestId, accept) {
@@ -2135,7 +2242,7 @@ function openPlazaDog(e) {
     title: e.nickname,
     body: el('div', { class: 'center' },
       el('img', { class: 'pixel', style: { width: '96px', height: '88px' }, src: dogPortrait(e.dog.breed, e.dog.stage, { equip: e.dog.equip }), alt: '' }),
-      el('p', {}, `${e.dog.name} · ${BREEDS[e.dog.breed].name} · ${STAGES[e.dog.stage].name}`),
+      el('p', {}, `${e.dog.name} · ${breedOf(e.dog.breed)?.name ?? ''} · ${STAGES[e.dog.stage].name}`),
       e.friend ? el('p', { class: 'chip' }, '내 친구예요') : el('p', { class: 'hint' }, '친구가 되려면 친구 코드를 직접 주고받아야 해요.')),
     buttons: [
       { label: '반갑게 인사', onClick: () => { state.socket.emit('plaza:emote', { kind: 'wave' }); state.socket.emit('plaza:sticker', { id: 'heart' }); } },

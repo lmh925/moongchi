@@ -1,5 +1,6 @@
 // 매일 오고 싶은 이유 + 자랑거리 화면: 오늘의 약속·도장판, 우편함(강아지 편지), 배지 보드, 도감, 포토카드, 친구 코드 QR
 import { BADGES, BREEDS, ITEMS, RARITY, SHOWCASE_MAX, SCHOOL_BOOSTS, SPECIALS } from '../shared/data.js';
+import { breedOf } from '../shared/rules.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal, toast } from './ui.js';
 import { sfx } from './audio.js';
@@ -120,14 +121,14 @@ export function dexPanel(user, progress, itemThumb) {
 // ---------- 우편함 ----------
 const fmtDate = (t) => { const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
 
-export async function openMailbox({ api, post, onOpened, playCapsule, itemName }) {
+export async function openMailbox({ api, post, onOpened, playCapsule, itemName, onBaby }) {
   const { mail } = await api('/mail');
   const list = el('div', { class: 'mail-list' });
   const renderList = () => list.replaceChildren(...(mail.length ? mail.map((m) => el('button', {
     type: 'button', class: `mail-item ${m.opened ? '' : 'new'} ${m.kind}`,
     onclick: () => openOne(m),
   },
-  el('img', { class: 'pixel', src: iconURL(m.kind === 'capsule' ? 'star' : 'mail', 3), alt: '' }),
+  el('img', { class: 'pixel', src: iconURL(m.kind === 'capsule' ? 'star' : m.kind === 'baby' ? 'heart' : 'mail', 3), alt: '' }),
   el('span', { class: 'mail-meta' }, el('b', {}, m.title), el('small', {}, `${m.from} · ${fmtDate(m.createdAt)}`)),
   !m.opened ? el('span', { class: 'chip' }, 'NEW') : (m.coins || m.item) ? el('span', { class: 'meta' }, '받음') : null))
     : [el('p', { class: 'help center' }, '아직 편지가 없어요. 강아지가 곧 편지를 쓸 거예요!')]));
@@ -140,6 +141,7 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName }
     m.opened = true;
     renderList();
     onOpened?.(res);
+    if (m.kind === 'baby') { box.close(); onBaby?.(m); return; }
     if (m.kind === 'capsule' && res.result.capsule) {
       box.close();
       sfx.levelUp();
@@ -237,7 +239,7 @@ export async function makePhotoCard(dog, user, progress) {
     ctx.fillStyle = '#4a3330'; ctx.fillText(dog.titleName, W / 2, 466);
   }
   ctx.font = font(18); ctx.fillStyle = '#7a5a50';
-  const kind = dog.special ? `${dog.original ? '👑 원조 · ' : '✨ '}${SPECIALS[dog.special].label}` : BREEDS[dog.breed].name;
+  const kind = dog.special ? `${dog.original ? '👑 원조 · ' : '✨ '}${SPECIALS[dog.special].label}` : breedOf(dog.breed)?.name ?? '';
   if (dog.special) ctx.fillStyle = '#e0507f';
   ctx.fillText(`${kind} · ${user.nickname}의 강아지`, W / 2, 506);
   // 재능 오각형 + 대표 배지

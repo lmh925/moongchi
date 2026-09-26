@@ -1,6 +1,7 @@
 // 16비트 스타일 픽셀 아트를 코드로 그리는 스프라이트 엔진
 // 강아지는 오른쪽을 바라보는 옆모습(2등신)으로 그리고, 왼쪽을 볼 때는 좌우 반전해요.
 import { BREEDS } from '../shared/data.js';
+import { breedOf } from '../shared/rules.js';
 
 export const DOG_W = 48;
 export const DOG_H = 44;
@@ -223,7 +224,7 @@ function dogPalette(b) {
 // pose: stand | walk1 | walk2 | sit | lie | bow | paw | beg | front(정면)
 // opts: { eyes: open|happy|closed|sad, mouth: closed|open|tongue, tail: 0|1, fluff: 0|1|2, equip }
 export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
-  const b = BREEDS[breedId] ?? BREEDS.bichon;
+  const b = breedOf(breedId) ?? BREEDS.bichon;
   if (pose === 'front') return buildDogFront(b, stage, opts);
   const g = geoFor(b, stage);
   if (b.legs === 'short') g.leg = Math.max(2, g.leg - 3);

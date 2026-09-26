@@ -135,6 +135,20 @@ export function openDb(file) {
   ensure('users', 'kibble_at', 'INTEGER');
   ensure('users', 'treats', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'poop', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('dogs', 'parents', 'TEXT');
+  ensure('dogs', 'kids', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`CREATE TABLE IF NOT EXISTS wishes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_dog INTEGER NOT NULL,
+    to_dog INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    baby TEXT,
+    created_at INTEGER NOT NULL,
+    arrives_at INTEGER,
+    delivered INTEGER NOT NULL DEFAULT 0
+  );`);
   ensure('abuse_reports', 'resolved', 'INTEGER NOT NULL DEFAULT 0');
   ensure('users', 'trade_locks', "TEXT NOT NULL DEFAULT '{}'");
   allowManyDogs(db);

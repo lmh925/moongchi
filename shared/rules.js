@@ -92,13 +92,35 @@ export function talentEffects(talents = {}, special = null) {
 }
 
 // 지금 달 수 있는 칭호 목록
-export function unlockedTitles(level, talents = {}, special = null) {
+export function unlockedTitles(level, talents = {}, special = null, kids = 0) {
   const st = talentStages(talents);
   return Object.keys(TITLES).filter((id) => {
     const t = TITLES[id];
     if (t.special) return t.special === special;
+    if (t.parent) return kids > 0;
     return t.talent ? st[t.talent] >= t.stage : level >= t.level;
   });
+}
+
+// 견종 정보. 'mix:털색견종:모양견종'은 두 부모를 반씩 닮은 믹스견이에요 (아기 강아지 선물).
+const mixCache = new Map();
+export function breedOf(id) {
+  if (BREEDS[id]) return BREEDS[id];
+  if (typeof id !== 'string' || !id.startsWith('mix:')) return null;
+  if (mixCache.has(id)) return mixCache.get(id);
+  const [, colorId, shapeId] = id.split(':');
+  const color = BREEDS[colorId]; const shape = BREEDS[shapeId];
+  if (!color || !shape) return null;
+  const { geo: _g, fluffBase: _f, topknot: _t, special: _s, ...shapeParams } = shape;
+  const mix = {
+    ...shapeParams,
+    fur: color.fur, furShade: color.furShade, furLight: color.furLight, accent: color.accent, tanHead: color.tanHead,
+    name: `믹스견 (${color.name.replace(' 프리제', '')}×${shape.name.replace(' 프리제', '')})`,
+    desc: '두 부모 강아지를 반씩 닮은, 세상에 하나뿐인 믹스 강아지예요.',
+    mix: true,
+  };
+  mixCache.set(id, mix);
+  return mix;
 }
 
 // 이름 → 스페셜 캐릭터 (띄어쓰기는 무시해요)

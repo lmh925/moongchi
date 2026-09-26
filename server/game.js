@@ -47,6 +47,8 @@ function rowToDog(row) {
     baseBreed: row.base_breed ?? null,
     original: !!row.original,
     poop: JSON.parse(row.poop ?? '{}'),
+    parents: row.parents ? JSON.parse(row.parents) : null,
+    kids: row.kids ?? 0,
   };
 }
 
@@ -195,6 +197,20 @@ export class Game {
     return dog;
   }
 
+  // 아기 강아지 선물: 믹스 견종도 괜찮아요. 새 아기가 대표가 돼요.
+  createBaby(userId, { name, breed, personality, parents }) {
+    const now = this.now();
+    const res = this.db.prepare(`INSERT INTO dogs (user_id, name, breed, personality, fullness, cleanliness, affection, fluff, exp, stage, tricks, equip, born_at, updated_at, level, title, parents)
+      VALUES (?, ?, ?, ?, 80, 80, 70, 0, 0, 0, ?, '{}', ?, ?, 1, 'sprout', ?)`)
+      .run(userId, name, breed, personality, JSON.stringify(STARTING_TRICKS), now, now, JSON.stringify(parents ?? null));
+    const id = Number(res.lastInsertRowid);
+    this.db.prepare('UPDATE users SET active_dog = ? WHERE id = ?').run(id, userId);
+    const dog = this.loadDogById(id);
+    this.applySpecial(dog, specialForName(name));
+    this.saveDog(dog);
+    return dog;
+  }
+
   // ---------- 스페셜 캐릭터 ----------
   // 이름이 스페셜 이름이면 변신, 아니면 원래 견종으로 돌아가요. 바뀐 게 있으면 이벤트를 돌려줘요.
   applySpecial(dog, key) {
@@ -307,13 +323,13 @@ export class Game {
       const amount = Math.min(raw * (k === fav ? TALENT_PERSONALITY_BONUS : 1), TALENT_DAILY_CAP - got);
       if (amount <= 0) continue;
       const before = talentStage(dog.talents[k] ?? 0);
-      const titlesBefore = unlockedTitles(level, dog.talents, dog.special);
+      const titlesBefore = unlockedTitles(level, dog.talents, dog.special, dog.kids);
       dog.talents[k] = Math.round(((dog.talents[k] ?? 0) + amount) * 10) / 10;
       dog.talentDay.got[k] = Math.round((got + amount) * 10) / 10;
       const after = talentStage(dog.talents[k]);
       if (after > before) {
         const perks = TALENT_PERKS[k].filter((p) => p.stage > before && p.stage <= after).map((p) => p.text);
-        const titles = unlockedTitles(level, dog.talents, dog.special).filter((t) => !titlesBefore.includes(t)).map((t) => TITLES[t].name);
+        const titles = unlockedTitles(level, dog.talents, dog.special, dog.kids).filter((t) => !titlesBefore.includes(t)).map((t) => TITLES[t].name);
         events.push({ type: 'talentUp', talent: k, name: TALENTS[k].name, stage: after, perks, titleNames: titles });
       }
     }
@@ -371,7 +387,7 @@ export class Game {
   setTitle(userId, titleId) {
     const dog = this.loadDog(userId);
     if (!dog) throw new GameError('강아지가 없어요.', 404);
-    if (titleId !== null && !unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special).includes(titleId)) throw new GameError('아직 얻지 못한 칭호예요.');
+    if (titleId !== null && !unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids).includes(titleId)) throw new GameError('아직 얻지 못한 칭호예요.');
     dog.title = titleId;
     this.saveDog(dog);
     return dog;
@@ -820,7 +836,7 @@ export class Game {
       ...this.levelView(dog),
       talentDay: undefined,
       effects: talentEffects(dog.talents, dog.special),
-      titles: unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special),
+      titles: unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids),
       emotes: unlockedEmotes(levelFromExp(dog.exp)),
     };
   }
@@ -847,6 +863,7 @@ export class Game {
       showcase: this.progress?.showcase(dog.userId) ?? [],
       special: dog.special ?? null,
       original: !!dog.original,
+      parents: dog.parents ?? null,
     };
   }
 
