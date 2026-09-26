@@ -91,6 +91,14 @@ function drawWorld() {
   const td = PLAZA_SPOTS.tidy;
   ellipse(ctx, td.x, td.y + 2, 14, 5, OUT); rect(ctx, td.x - 13, td.y - 8, 26, 10, OUT); rect(ctx, td.x - 12, td.y - 7, 24, 8, '#ffd23f');
   ellipse(ctx, td.x - 5, td.y - 10, 4, 4, '#ff5d7a'); rect(ctx, td.x + 1, td.y - 12, 8, 3, '#fff6e6'); ellipse(ctx, td.x + 7, td.y - 11, 3, 3, '#c68642');
+  // 멍뭉 패션쇼 무대: 무대 바닥 + 분홍 커튼 + 전구
+  const sg = PLAZA_SPOTS.stage;
+  rect(ctx, sg.x - 28, sg.y - 30, 56, 6, OUT); rect(ctx, sg.x - 27, sg.y - 29, 54, 4, '#b9773f');
+  for (const cx of [sg.x - 28, sg.x + 20]) { rect(ctx, cx, sg.y - 26, 8, 22, OUT); rect(ctx, cx + 1, sg.y - 25, 6, 20, '#ff7fa3'); rect(ctx, cx + 2, sg.y - 25, 1, 20, '#ffb3c8'); }
+  rect(ctx, sg.x - 22, sg.y - 6, 44, 10, OUT); rect(ctx, sg.x - 21, sg.y - 5, 42, 8, '#dca36a');
+  for (let x = sg.x - 20; x < sg.x + 20; x += 6) rect(ctx, x, sg.y - 4, 3, 1, '#f0c58c');
+  rect(ctx, sg.x - 4, sg.y + 5, 8, 16, '#ff9fb8'); rect(ctx, sg.x - 3, sg.y + 5, 6, 16, '#ffc2d6'); // 레드카펫(분홍)
+  for (let i = 0; i < 7; i++) rect(ctx, sg.x - 24 + i * 8, sg.y - 31, 2, 2, ['#ffe066', '#ff6f91', '#7cc7ff'][i % 3]);
   // 선물 상자 받침
   const r = PLAZA_SPOTS.ribbon;
   ellipse(ctx, r.x, r.y + 8, 26, 9, '#ffd9e3');
@@ -437,6 +445,7 @@ export class PlazaView {
       ...(this.ball ? [{ y: this.ball.y, draw: () => this.drawBall() }] : []),
     ].sort((a, b) => a.y - b.y);
     for (const d of drawables) d.draw();
+    this.drawShow();
     for (const p of this.particles) {
       if (!p.icon || p.age < 0) continue;
       ctx.globalAlpha = Math.min(1, (p.life - p.age) * 2);
@@ -445,6 +454,30 @@ export class PlazaView {
     }
     ctx.restore();
     this.drawTags(camX, camY);
+  }
+
+  // 패션쇼: 무대에 선 친구를 조명 아래 정면으로 보여 줘요
+  setShow(show) { this.show = show; }
+
+  drawShow() {
+    const s = this.show;
+    if (!s || s.status !== 'walk' || !s.walker) return;
+    const e = this.entities.get(s.walker);
+    if (!e?.dog) return;
+    const { ctx } = this;
+    const sg = PLAZA_SPOTS.stage;
+    ctx.fillStyle = 'rgba(255,245,180,0.35)';
+    ctx.beginPath(); ctx.moveTo(sg.x - 6, sg.y - 30); ctx.lineTo(sg.x + 6, sg.y - 30); ctx.lineTo(sg.x + 18, sg.y + 2); ctx.lineTo(sg.x - 18, sg.y + 2); ctx.fill();
+    const pose = Math.floor(this.t * 1.5) % 3 === 2 ? 'beg' : 'front';
+    const spr = dogSprite(e.dog.breed, e.dog.stage, pose, { eyes: 'happy', mouth: 'tongue', tail: Math.floor(this.t * 6) % 2, equip: e.dog.equip, fluff: 2 });
+    ctx.drawImage(spr.canvas, Math.round(sg.x - DOG_W / 2), sg.y - 41 + 1);
+    if (Math.floor(this.t * 4) % 2) rect(ctx, sg.x + 12, sg.y - 30, 2, 2, '#fff7a8');
+  }
+
+  // 응원 효과 (무대 위로 아이콘이 퐁퐁)
+  cheer(kind) {
+    const sg = PLAZA_SPOTS.stage;
+    this.particles.push({ icon: kind, x: sg.x + (Math.random() - 0.5) * 24, y: sg.y - 30, vx: (Math.random() - 0.5) * 16, vy: -18 - Math.random() * 10, life: 1.4, age: 0 });
   }
 
   drawBall() {

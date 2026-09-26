@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -1627,6 +1627,40 @@ function bindPlazaSocket(socket) {
     toast(reason, 'bad');
     leavePlaza(false);
   });
+  // ---------- 멍뭉 패션쇼 ----------
+  socket.on('show:state', (s) => {
+    if (!state.plaza) return;
+    const before = state.plaza.show;
+    state.plaza.show = s;
+    state.plaza.view.setShow(s);
+    const joined = s?.players.some((p) => p.userId === myId());
+    if (joined && s.status === 'dress' && before?.status !== 'dress') { sfx.bell(); toast(`패션쇼 주제: ${s.theme}! 옷을 갈아입어요.`, 'good'); }
+    if (s?.status === 'walk' && s.walker === myId() && before?.walker !== myId()) { sfx.levelUp(); toast('내 차례! 무대 위에서 반짝반짝~', 'good'); }
+    renderSpotBox();
+  });
+  socket.on('show:reaction', ({ kind, to, cheers }) => {
+    if (!state.plaza) return;
+    state.plaza.view.cheer(kind);
+    if (state.plaza.show) state.plaza.show.cheers = cheers;
+    if (to === myId()) sfx.love();
+    const n = $('#show-cheers');
+    if (n) n.textContent = `응원 ${cheers}`;
+  });
+  socket.on('show:end', ({ theme, results }) => {
+    if (!state.plaza) return;
+    sfx.levelUp();
+    modal({
+      title: '패션쇼 결과!',
+      className: 'celebrate',
+      body: el('div', {}, el('p', { class: 'center' }, `주제: ${theme}`),
+        el('div', { class: 'party-results' }, results.map((r, i) => el('div', { class: `party-result ${r.userId === myId() ? 'me' : ''}` },
+          el('span', { class: 'rank' }, r.star ? '👑' : `${i + 1}`),
+          el('span'),
+          el('div', {}, el('b', {}, r.nickname, r.star ? ' · 오늘의 스타!' : ''), el('div', { class: 'meta' }, `응원 ${r.cheers} · 코인 +${r.coins}`)))))),
+      buttons: [{ label: '또 하자!' }],
+    });
+    refreshMe();
+  });
   socket.on('tag:state', (t) => {
     if (!state.plaza) return;
     const before = state.plaza.tag;
@@ -1749,7 +1783,8 @@ function mountPlaza(res) {
     onFloor: () => sfx.tap(),
   });
   for (const m of res.members) if (m.userId !== myId()) view.upsert({ ...m, friend: friends.has(m.userId) });
-  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null, soccer: res.soccer };
+  state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null, soccer: res.soccer, show: res.show };
+  view.setShow(res.show);
   view.soccer = res.soccer;
   if (res.soccer) view.setBall(res.soccer.ball.x, res.soccer.ball.y, res.soccer.ball.vx, res.soccer.ball.vy);
   view.tag = res.tag;
@@ -1854,7 +1889,7 @@ function renderSpotBox() {
   const info = spot && PLAZA_SPOTS[spot];
   let content;
   if (!info) {
-    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '선물 상자·줄넘기 터·장난감 방(왼쪽), 쿠션 탑·간식 공장·축구장(오른쪽 아래), 술래잡기 마당(오른쪽 위), 보물 모래밭(연못 아래)에 가면 같이 놀 수 있어요.')];
+    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '선물 상자·줄넘기 터·장난감 방(왼쪽), 쿠션 탑·간식 공장·축구장(오른쪽 아래), 술래잡기 마당·패션쇼 무대(위쪽), 보물 모래밭(연못 아래)에 가면 같이 놀 수 있어요.')];
   } else if (spot === 'soccer') {
     const g = p.soccer;
     const team = g?.teams[myId()];
@@ -1877,6 +1912,8 @@ function renderSpotBox() {
       el('button', { class: 'btn primary', onclick: digHere }, '여기 파기!')];
   } else if (info.soon) {
     content = [el('b', {}, info.name), el('div', { class: 'meta' }, '곧 열려요! 조금만 기다려 주세요.')];
+  } else if (spot === 'stage') {
+    content = showSpotBox(info);
   } else if (spot === 'tag') {
     const t = p.tag;
     const joined = t?.players.includes(myId());
@@ -1896,6 +1933,60 @@ function renderSpotBox() {
         : el('button', { class: 'btn primary', onclick: () => queueCoop(info.game) }, w ? '같이 하기!' : '같이 할 친구 기다리기')];
   }
   box.replaceChildren(...content.filter(Boolean));
+}
+
+// 패션쇼 무대 안내 + 참가/옷장/응원 버튼
+function showSpotBox(info) {
+  const s = state.plaza.show;
+  const joined = s?.players.some((p) => p.userId === myId());
+  const left = (t) => Math.max(0, Math.ceil((t - serverNow()) / 1000));
+  if (!s || s.status === 'waiting') {
+    return [el('b', {}, info.name),
+      el('div', { class: 'meta' }, `주제에 맞게 꾸미고 무대에 올라요! 보는 친구들이 하트·별·반짝으로 응원해요. ${FASHION.minPlayers}~${FASHION.maxPlayers}명.`),
+      s?.players.length ? el('div', { class: 'meta' }, `참가: ${s.players.map((p) => p.nickname).join(', ')}${s.startsAt ? ` · 곧 시작해요!` : ' · 친구를 기다려요'}`) : null,
+      joined
+        ? el('div', { class: 'btns' }, el('button', { class: 'btn primary', disabled: true }, '참가했어요!'), el('button', { class: 'btn small', onclick: () => state.socket.emit('show:leave') }, '그만하기'))
+        : el('button', { class: 'btn primary', onclick: async () => { const r = await emitAck('show:join', {}); if (!r.ok) toast(r.reason, 'bad'); else sfx.pop(); } }, '패션쇼 참가하기')];
+  }
+  if (s.status === 'dress') {
+    return [el('b', {}, `오늘의 주제: ${s.theme}`),
+      el('div', { class: 'meta' }, joined ? `${left(s.phaseEnds)}초 안에 주제에 맞게 갈아입어요!` : '참가한 친구들이 옷을 갈아입는 중이에요. 곧 무대가 시작돼요!'),
+      joined ? el('button', { class: 'btn primary', onclick: openQuickCloset }, '옷장 열기') : null];
+  }
+  const walker = s.players.find((p) => p.userId === s.walker);
+  const mine = s.walker === myId();
+  return [el('b', {}, `무대 위: ${walker?.nickname ?? '친구'} ✨`),
+    el('div', { class: 'meta' }, `주제: ${s.theme} · `, el('span', { id: 'show-cheers' }, `응원 ${s.cheers ?? 0}`)),
+    mine ? el('div', { class: 'meta' }, '내 차례예요! 몸짓 버튼으로 포즈를 해 보세요.')
+      : el('div', { class: 'btns cheer-btns' }, Object.entries(FASHION.reactions).map(([k, label]) => el('button', {
+        class: 'btn small', onclick: () => { state.socket.emit('show:react', { kind: k }); sfx.tap(); },
+      }, el('img', { class: 'pixel', src: iconURL(k, 2), alt: '' }), label)))];
+}
+
+// 놀이터를 떠나지 않고 바로 갈아입는 작은 옷장
+function openQuickCloset() {
+  const render = () => {
+    const { user, dog } = state.me;
+    return el('div', { class: 'quick-closet' }, DOG_SLOTS.map((slot) => {
+      const ids = user.owned.filter((id) => ITEMS[id]?.slot === slot && (ITEMS[id].stage ?? 0) <= dog.stage);
+      return el('div', {},
+        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴' }[slot]),
+        ids.length ? el('div', { class: 'items' }, ids.map((id) => {
+          const on = dog.equip[slot] === id;
+          return el('button', {
+            class: `item ${on ? 'equipped' : ''}`,
+            onclick: async () => {
+              try {
+                const res = await post('/equip', { slot, itemId: on ? null : id });
+                applyMe(res); sfx.pop();
+                box.card.querySelector('.modal-body').replaceChildren(render());
+              } catch (err) { toast(err.message, 'bad'); }
+            },
+          }, el('img', { class: 'pixel', src: accessoryURL(id, 4), alt: '' }), el('span', { class: 'name' }, ITEMS[id].name));
+        })) : el('p', { class: 'help' }, '아직 없어요.'));
+    }));
+  };
+  const box = modal({ title: '패션쇼 옷장', className: 'trade-modal', body: render(), buttons: [{ label: '다 입었어요!' }] });
 }
 
 function plazaPanel() {

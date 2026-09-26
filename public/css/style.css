@@ -945,3 +945,11 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .legal-link { font-size: 12px; margin: 10px 0 0; text-align: center; color: var(--ink-soft); }
 .link.danger { color: var(--red); }
 .danger-btn { background: var(--red); color: #fff; }
+
+/* 멍뭉 패션쇼 */
+.cheer-btns { display: flex; gap: 6px; margin-top: 6px; }
+.cheer-btns .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.cheer-btns img { width: 18px; height: 18px; }
+.quick-closet .item { padding: 6px 4px; }
+.quick-closet .item img { width: 48px; height: auto; display: block; margin: 0 auto 2px; }
+.quick-closet .item .name { font-size: 11px; }

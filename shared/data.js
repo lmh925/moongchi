@@ -64,9 +64,10 @@ export const TALENT_GAINS = {
   soccer: { strong: 4 },
   tag: { strong: 3 },
   treasure: { curious: 4 },
+  fashion: { charm: 4 },
 };
 // 여럿이 하는 놀이의 경험치
-export const PLAY_EXP = { coop: 8, soccer: 6, tag: 4, treasure: 4, party: 4 };
+export const PLAY_EXP = { coop: 8, soccer: 6, tag: 4, treasure: 4, party: 4, fashion: 6 };
 
 // 칭호: 레벨이나 재능으로 얻고, 강아지 카드에서 골라 달아요. 놀이터에서는 레벨 대신 칭호가 보여요.
 export const TITLES = {
@@ -446,6 +447,21 @@ export const PLAZA_SPOTS = {
   tidy: { name: '장난감 방', x: 184, y: 104, game: 'tidy' },
   sand: { name: '보물 모래밭', x: 91, y: 119, w: 68, h: 38 },
   soccer: { name: '멍멍 축구장', x: 380, y: 280, w: 160, h: 88 },
+  stage: { name: '멍뭉 패션쇼 무대', x: 290, y: 96, w: 64, h: 40 },
+};
+
+// 멍뭉 패션쇼: 주제에 맞춰 꾸미고 무대에 올라요. 보는 친구들은 정해진 응원(하트·별·반짝)만 보내요.
+export const FASHION = {
+  minPlayers: 2,
+  maxPlayers: 6,
+  countdownMs: 8000,
+  dressMs: 45000, // 옷 갈아입는 시간
+  walkMs: 7000, // 한 명이 무대에 서 있는 시간
+  votesPerWalk: 3, // 한 친구에게 보낼 수 있는 응원 수
+  coins: { join: 6, star: 12 },
+  dailyCoins: 45,
+  reactions: { heart: '하트', star: '별', sparkle: '반짝' },
+  themes: ['소풍 가는 날 🧺', '반짝반짝 파티 🎉', '겨울 눈사람 ⛄', '바다 여행 🏖️', '왕자님·공주님 👑', '학교 가는 날 🎒', '꽃밭 산책 🌸', '우주 탐험 🚀'],
 };
 
 export const TREASURE = {
@@ -621,6 +637,7 @@ export const BADGES = {
   talent: { name: '재능 꽃', desc: '재능 하나를 10단계로', icon: 'sparkle', color: '#3fb58a', special: 'talent', n: 10 },
   legends: { name: '전설의 친구들', desc: '스페셜 강아지 5마리 모두 만나기', icon: 'star', color: '#ff9fe0', special: 'specials', n: 5 },
   trio: { name: '요크 삼형제 모임', desc: '키리쿠·건·피츄가 한자리에', icon: 'heart', color: '#6d7a8e', stat: ['trio'], n: 1 },
+  fashion: { name: '패션쇼 스타', desc: '패션쇼에서 응원 1등 3번', icon: 'star', color: '#ff6f91', stat: ['showStar'], n: 3 },
   trader: { name: '멍뭉 상인', desc: '친구와 거래 5번 하기', icon: 'coin', color: '#3fb58a', stat: ['trade'], n: 5 },
 };
 export const BADGE_COINS = 20; // 배지를 얻으면 받는 코인

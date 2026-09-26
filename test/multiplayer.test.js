@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { io as ioClient } from 'socket.io-client';
 import { createServer } from '../server/index.js';
 import { ribbon, gaugeAt } from '../shared/coop/ribbon.js';
-import { COOP_GAMES } from '../shared/data.js';
+import { FASHION, COOP_GAMES } from '../shared/data.js';
 
 test('리본 풀기 규칙: 둘이 0.3초 안에 초록 칸에서 당겨야 성공', () => {
   const s = ribbon.init({ now: 0 });
@@ -296,4 +296,32 @@ test('운영자 화면: 코드가 있어야 하고, 신고를 보고 놀이터 �
   const after = await (await admin('/reports', null, 'admin-secret')).json();
   assert.ok(!after.targets.some((x) => x.targetId === c.id), '확인한 신고는 목록에서 빠져요');
   delete process.env.ADMIN_CODE;
+});
+
+test('멍뭉 패션쇼: 참가 → 옷 갈아입기 → 한 명씩 무대, 응원은 한 친구에게 3번까지 → 결과', async () => {
+  const saved = { ...FASHION };
+  Object.assign(FASHION, { countdownMs: 100, dressMs: 250, walkMs: 1200 });
+  try {
+    const a = await player(); const b = await player(); const fan = await player();
+    for (const p of [a, b, fan]) await ask(p.socket, 'plaza:join', {});
+    assert.equal((await ask(a.socket, 'show:join', {})).ok, true);
+    const dress = next(fan.socket, 'show:state', (s) => s?.status === 'dress');
+    assert.equal((await ask(b.socket, 'show:join', {})).ok, true);
+    const st = await dress;
+    assert.ok(st.theme);
+    assert.equal((await ask(fan.socket, 'show:join', {})).ok, false, '시작하면 더 못 들어와요');
+    const walkA = await next(fan.socket, 'show:state', (s) => s?.status === 'walk' && s.walker === a.id);
+    assert.equal(walkA.players.length, 2);
+    for (let i = 0; i < 5; i++) { fan.socket.emit('show:react', { kind: 'heart' }); await wait(170); }
+    a.socket.emit('show:react', { kind: 'heart' }); // 나 자신은 응원 못 해요
+    const end = await next(fan.socket, 'show:end');
+    const ra = end.results.find((r) => r.userId === a.id);
+    const rb = end.results.find((r) => r.userId === b.id);
+    assert.equal(ra.cheers, 3, '한 친구에게 3번까지');
+    assert.equal(ra.star, true);
+    assert.equal(rb.star, false);
+    assert.ok(ra.coins > rb.coins);
+  } finally {
+    Object.assign(FASHION, saved);
+  }
 });

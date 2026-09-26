@@ -279,8 +279,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/equip', authed, wrap((req) => {
     const slot = req.body?.slot;
     const res = game.equip(req.userId, slot, req.body?.itemId ?? null);
-    if (['head', 'neck', 'face'].includes(slot)) hub.dogChanged(req.userId);
-    else hub.roomDecorChanged(req.userId);
+    if (['head', 'neck', 'face'].includes(slot)) { hub.dogChanged(req.userId); plaza.dogChanged(req.userId); } else hub.roomDecorChanged(req.userId);
     return me(req.userId, { events: res.events ?? [] });
   }));
 
