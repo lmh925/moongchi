@@ -52,10 +52,12 @@ const LAYERS = {
     }
   }),
   fence: () => layer(W, 24, (ctx) => {
-    rect(ctx, 0, 8, W, 3, '#b98c5a'); rect(ctx, 0, 15, W, 3, '#b98c5a');
+    // 배경 울타리는 연하고 흐리게 (장애물이 잘 보이도록)
+    const line = '#c9b8a4';
+    rect(ctx, 0, 8, W, 3, '#e8dccb'); rect(ctx, 0, 15, W, 3, '#e8dccb');
     for (let x = 4; x < W; x += 16) {
-      rect(ctx, x - 1, 1, 7, 23, OUT); rect(ctx, x, 2, 5, 22, '#f0d6b0'); rect(ctx, x, 2, 1, 22, '#fff0d8');
-      rect(ctx, x + 1, 0, 3, 2, OUT);
+      rect(ctx, x - 1, 1, 7, 23, line); rect(ctx, x, 2, 5, 22, '#f6efe4'); rect(ctx, x, 2, 1, 22, '#fffaf2');
+      rect(ctx, x + 1, 0, 3, 2, line);
     }
   }),
   ground: () => layer(W, H - GROUND, (ctx) => {
@@ -69,17 +71,27 @@ const LAYERS = {
 
 // ---------- 장애물 그리기 ----------
 function drawHydrant(ctx, x, y) {
-  rect(ctx, x - 1, y - 1, 16, 19, OUT);
+  rect(ctx, x - 2, y - 2, 18, 21, OUT);
   rect(ctx, x + 1, y + 2, 12, 15, '#e84a5f'); rect(ctx, x + 2, y + 2, 2, 15, '#ff7f8f');
   rect(ctx, x + 3, y, 8, 3, '#e84a5f'); rect(ctx, x - 1, y + 7, 16, 4, OUT); rect(ctx, x, y + 8, 14, 2, '#c2334a');
   rect(ctx, x + 6, y + 11, 2, 2, '#ffe066');
 }
-function drawBox(ctx, x, y, h) {
+// 장난감 블록: 배경(하늘·풀·흙)과 겹치지 않는 선명한 색 + 두꺼운 테두리
+const BLOCKS = [['#4f7dff', '#8fb0ff', '#2f58d6'], ['#ff4f86', '#ff9dbb', '#d62f63'], ['#8a4fff', '#b99bff', '#6a2fdc']];
+function drawBox(ctx, x, y, h, c0 = 0) {
+  let i = c0;
   for (let yy = y; yy < y + h; yy += 17) {
-    rect(ctx, x - 1, yy - 1, 18, 18, OUT);
-    rect(ctx, x, yy, 16, 16, '#d9a066'); rect(ctx, x, yy, 16, 2, '#e9b983');
-    rect(ctx, x + 6, yy, 4, 7, '#f5e0b8'); rect(ctx, x + 2, yy + 11, 6, 2, '#b97f47');
+    const [c, l, d] = BLOCKS[i % BLOCKS.length]; i += 1;
+    rect(ctx, x - 2, yy - 2, 20, 20, OUT);
+    rect(ctx, x, yy, 16, 16, c); rect(ctx, x, yy, 16, 3, l); rect(ctx, x, yy + 13, 16, 3, d);
+    rect(ctx, x + 5, yy + 5, 6, 6, '#ffffff'); rect(ctx, x + 6, yy + 6, 4, 4, l); // 가운데 별 무늬
   }
+}
+
+// 땅 그림자 + 테두리 강조
+function obstacleShadow(ctx, x, w) {
+  ctx.fillStyle = 'rgba(40,20,10,0.35)';
+  ctx.fillRect(Math.round(x - 1), GROUND - 1, w + 2, 3);
 }
 function drawLaundry(ctx, x, y) {
   rect(ctx, x - 6, y - 2, 40, 1, OUT);
@@ -93,8 +105,8 @@ function drawLaundry(ctx, x, y) {
 
 const OBSTACLES = {
   hydrant: { w: 14, h: 17, draw: (ctx, o) => drawHydrant(ctx, o.x, GROUND - 17), box: (o) => ({ x: o.x + 1, y: GROUND - 16, w: 12, h: 16 }) },
-  box: { w: 16, h: 16, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 16, 16), box: (o) => ({ x: o.x + 1, y: GROUND - 15, w: 14, h: 15 }) },
-  tower: { w: 16, h: 33, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 33, 33), box: (o) => ({ x: o.x + 1, y: GROUND - 32, w: 14, h: 32 }) },
+  box: { w: 16, h: 16, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 16, 16, o.c ?? 0), box: (o) => ({ x: o.x + 1, y: GROUND - 15, w: 14, h: 15 }) },
+  tower: { w: 16, h: 33, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 33, 33, o.c ?? 0), box: (o) => ({ x: o.x + 1, y: GROUND - 32, w: 14, h: 32 }) },
   laundry: { w: 34, h: 20, draw: (ctx, o) => drawLaundry(ctx, o.x, GROUND - 38), box: (o) => ({ x: o.x, y: GROUND - 40, w: 34, h: 25 }) },
 };
 
@@ -118,12 +130,12 @@ function makeChunk(x, t, rnd) {
     for (let i = 0; i < 6; i++) bone(x + 20 + i * 11, GROUND - 7);
     len = 110;
   } else if (pick < 0.62 + 0.18 * (0.4 + hard)) {
-    obs.push({ type: 'tower', x: x + 50 });
+    obs.push({ type: 'tower', x: x + 50, c: Math.floor(rnd() * 3) });
     for (let i = 0; i < 8; i++) bone(x + 14 + i * 12, GROUND - 16 - Math.sin((i / 7) * Math.PI) * 62);
     len = 130;
   } else {
-    obs.push({ type: 'box', x: x + 20 });
-    obs.push({ type: 'box', x: x + 20 + 70 - hard * 16 });
+    obs.push({ type: 'box', x: x + 20, c: Math.floor(rnd() * 3) });
+    obs.push({ type: 'box', x: x + 20 + 70 - hard * 16, c: Math.floor(rnd() * 3) });
     for (let i = 0; i < 4; i++) bone(x + 8 + i * 10, GROUND - 26 - i * 4);
     for (let i = 0; i < 4; i++) bone(x + 58 + i * 10, GROUND - 12);
     len = 120;
@@ -330,10 +342,21 @@ export function playRunner(dog) {
       ellipse(ctx, 214, 22, 8, 8, '#fff3b0'); ellipse(ctx, 214, 22, 6, 6, '#ffe066');
       tile(layers.hills, s.dist * 0.15, 46);
       tile(layers.trees, s.dist * 0.35, 58);
+      ctx.fillStyle = 'rgba(216,241,255,0.45)'; ctx.fillRect(0, 40, W, GROUND - 40); // 먼 풍경은 흐릿하게
       tile(layers.fence, s.dist * 0.7, GROUND - 22);
       tile(layers.ground, s.dist, GROUND);
-      // 장애물, 간식
+      // 장애물 (그림자 → 본체), 간식
+      for (const o of s.obs) obstacleShadow(ctx, o.x, OBSTACLES[o.type].w);
       for (const o of s.obs) OBSTACLES[o.type].draw(ctx, o);
+      // 곧 나타날 장애물 미리 알림: 오른쪽 끝에 빨간 "!"
+      for (const o of s.obs) {
+        if (o.x <= W || o.x > W + 70) continue;
+        if (Math.floor(s.t * 6) % 2) continue;
+        const def = OBSTACLES[o.type];
+        const my = o.type === 'laundry' ? GROUND - 30 : GROUND - def.h / 2 - 2;
+        ellipse(ctx, W - 7, my, 6, 6, OUT); ellipse(ctx, W - 7, my, 5, 5, '#e84a5f');
+        rect(ctx, W - 8, my - 3, 2, 4, '#ffffff'); rect(ctx, W - 8, my + 2, 2, 1, '#ffffff');
+      }
       for (const it of s.items) {
         const bob = Math.round(Math.sin(s.t * 6 + it.x * 0.1));
         const icon = it.kind === 'bone' ? 'coin' : it.kind;
