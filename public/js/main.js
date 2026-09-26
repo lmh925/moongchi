@@ -18,6 +18,7 @@ import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
 import { playSpecialReveal, specialMark } from './special.js';
+import { tradeSection, openComposer, openReview, openHistory } from './trade.js';
 import {
   questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal, openPhotoCard,
 } from './progress.js';
@@ -352,7 +353,7 @@ function applyMe(me) {
   $('#top-level').className = `chip lv-badge frame-${me.dog.frame ?? 0}`;
   $('#top-coins').textContent = me.user.coins;
   $('#badge-notebook').hidden = !me.unreadReports;
-  $('#badge-friends').hidden = !me.pendingFriends;
+  $('#badge-friends').hidden = !me.pendingFriends && !me.pendingTrades;
   $('#badge-mail').hidden = !me.progress?.unreadMail;
   if (me.progress?.unreadMail) $('#badge-mail').textContent = me.progress.unreadMail;
   // 내 강아지 모습 갱신
@@ -565,6 +566,17 @@ function connectSocket() {
     });
   });
   socket.on('presence', () => { if (state.tab === 'friends') renderPanel(); });
+  socket.on('trade:new', ({ from }) => {
+    sfx.notify();
+    toast(`🎁 ${from}(이)가 멍뭉거래를 제안했어요! 친구 탭에서 확인해요.`, 'good');
+    $('#badge-friends').hidden = false;
+    if (state.tab === 'friends') renderPanel();
+  });
+  socket.on('trade:answer', ({ accepted, by }) => {
+    if (accepted) { sfx.levelUp(); toast(`${by}(이)가 거래를 수락했어요! 꾸미기에서 확인해요.`, 'good'); refreshMe(); } else toast(`${by}(이)가 이번 거래는 거절했어요.`);
+    if (state.tab === 'friends') renderPanel();
+  });
+  socket.on('trade:cancelled', () => { if (state.tab === 'friends') renderPanel(); });
   socket.on('friends:changed', async () => {
     if (state.tab === 'friends') renderPanel();
     try {
@@ -1471,9 +1483,10 @@ async function itemClick(id, { owned, on, locked }) {
 }
 
 async function friendsPanel() {
-  const data = await api('/friends');
+  const [data, trades] = await Promise.all([api('/friends'), api('/trades')]);
   if (state.tab !== 'friends') return null;
-  $('#badge-friends').hidden = !data.incoming.length;
+  $('#badge-friends').hidden = !data.incoming.length && !trades.incoming.length;
+  const tradeWith = (f) => openComposer(f, { api, post, thumb: itemThumb, onSent: renderPanel });
   const code = state.me.user.friendCode;
   const link = `${location.origin}/?code=${code}`;
   const codeInput = el('input', { class: 'chat-input', maxlength: 6, placeholder: '친구 코드 6글자', style: { textTransform: 'uppercase' }, 'aria-label': '친구 코드' });
@@ -1500,6 +1513,18 @@ async function friendsPanel() {
           el('span', { class: 'btns' },
             el('button', { class: 'btn small', onclick: () => respond(r.id, false) }, '거절'),
             el('button', { class: 'btn small green', onclick: () => respond(r.id, true) }, '수락'))))))) : null,
+    tradeSection(trades, {
+      thumb: itemThumb,
+      onCompose: () => (data.friends.length ? modal({
+        title: '누구와 거래할까요?',
+        body: el('div', { class: 'cards' }, data.friends.map((f) => el('button', { class: 'card', onclick: () => { closeAllModals(); tradeWith(f); } },
+          el('div', { class: 'title' }, f.nickname)))),
+        buttons: [{ label: '닫기', kind: 'secondary' }],
+      }) : toast('친구가 생기면 거래할 수 있어요!')),
+      onReview: (t) => openReview(t, { post, thumb: itemThumb, onDone: async (res) => { if (res?.dog) { applyMe(res); await handleEvents(res.events); } renderPanel(); } }),
+      onCancel: async (t) => { try { await post(`/trades/${t.id}/cancel`); toast('제안을 취소했어요.'); renderPanel(); } catch (err) { toast(err.message, 'bad'); } },
+      onHistory: () => openHistory(trades.history, itemThumb),
+    }),
     el('div', { class: 'section-title' }, `내 친구 (${data.friends.length})`),
     data.friends.length ? el('div', { class: 'cards' }, data.friends.map((f) => el('div', { class: 'card friend' },
       f.dog ? el('img', { class: 'pixel', src: dogPortrait(f.dog.breed, f.dog.stage, { equip: f.dog.equip }), alt: '' }) : el('span'),
@@ -1509,6 +1534,7 @@ async function friendsPanel() {
         f.bond ? el('div', { class: 'meta' }, el('span', { class: 'hearts' }, '♥'.repeat(f.bond.level + 1)), ` ${f.bond.name}`) : null),
       el('div', { class: 'btns' },
         el('button', { class: 'btn small green', onclick: () => enterRoom(f.id) }, '놀러 가기'),
+        el('button', { class: 'btn small', onclick: () => tradeWith(f) }, '거래'),
         f.online && atHome() ? el('button', { class: 'btn small secondary', onclick: () => invite(f) }, '초대') : null,
         el('button', { class: 'btn small', title: '친구 끊기', 'aria-label': '친구 끊기', onclick: () => unfriend(f) }, '…'))))) : el('p', { class: 'help' }, '아직 친구가 없어요. 친구 코드를 주고받아 보세요!'),
     data.outgoing.length ? el('p', { class: 'hint' }, `수락을 기다리는 신청: ${data.outgoing.map((o) => o.nickname).join(', ')}`) : null);

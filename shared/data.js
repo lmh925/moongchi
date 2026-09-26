@@ -621,6 +621,7 @@ export const BADGES = {
   talent: { name: '재능 꽃', desc: '재능 하나를 10단계로', icon: 'sparkle', color: '#3fb58a', special: 'talent', n: 10 },
   legends: { name: '전설의 친구들', desc: '스페셜 강아지 5마리 모두 만나기', icon: 'star', color: '#ff9fe0', special: 'specials', n: 5 },
   trio: { name: '요크 삼형제 모임', desc: '키리쿠·건·피츄가 한자리에', icon: 'heart', color: '#6d7a8e', stat: ['trio'], n: 1 },
+  trader: { name: '멍뭉 상인', desc: '친구와 거래 5번 하기', icon: 'coin', color: '#3fb58a', stat: ['trade'], n: 5 },
 };
 export const BADGE_COINS = 20; // 배지를 얻으면 받는 코인
 export const SHOWCASE_MAX = 3; // 강아지 카드에 다는 대표 배지 수
@@ -711,3 +712,16 @@ export const RENAME_PRICE = 30; // 이름표 바꾸기
 // ---------- 둘째 입양 ----------
 // 강아지 중 한 마리라도 이 레벨이 되면 입양 칸이 하나씩 열려요 (최대 3마리)
 export const ADOPT = { slotLevels: [10, 25], inactiveDecay: 0.5 };
+
+// ---------- 멍뭉거래 (친구끼리 소품·옷 바꾸기) ----------
+// 안전장치: 친구끼리만, 아이템끼리만(코인 거래 없음), 둘 다 확인해야 성사, 하루 횟수 제한,
+// 받은 아이템은 하루 동안 다시 거래 못 해요(되팔기·속이기 방지), 착용 중인 건 못 내놓아요.
+export const TRADE = {
+  maxItems: 3, // 한쪽이 내놓을 수 있는 아이템 수
+  dailyTrades: 5, // 하루에 성사되는 거래 수 (한 사람 기준)
+  maxPending: 3, // 동시에 보낼 수 있는 제안 수
+  expireMs: 24 * 3600_000, // 제안은 하루 뒤 사라져요
+  lockMs: 24 * 3600_000, // 받은 아이템은 하루 동안 다시 거래 못 해요
+  value: { common: 1, rare: 3, epic: 8 }, // 공평한지 알려 줄 때 쓰는 점수
+  unfairRatio: 2.5, // 한쪽이 이만큼 더 많이 주면 "정말 괜찮아요?" 확인
+};

@@ -15,6 +15,7 @@ import { Safety } from './safety.js';
 import { PlazaHub } from './plaza.js';
 import { CoopHub } from './coop/index.js';
 import { Progress } from './progress.js';
+import { Trades } from './trades.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
 import { RULES } from '../shared/data.js';
@@ -35,6 +36,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const io = new Server(server);
   const hub = new RoomHub(io, { auth, game, friends, bonds });
   const safety = new Safety(db, { now });
+  const trades = new Trades(db, { game, friends, safety, progress });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -130,6 +132,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
+      pendingTrades: trades.pendingFor(userId),
       events: [...(extra.events ?? []), ...events],
       speed,
       serverNow: game.now(),
@@ -271,6 +274,26 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: res.events }), result: res };
   }));
 
+  // ---------- 멍뭉거래 ----------
+  api.get('/trades', authed, wrap((req) => trades.list(req.userId)));
+  api.get('/trades/options/:friendId', authed, wrap((req) => trades.options(req.userId, Number(req.params.friendId))));
+  api.post('/trades', authed, limiter(30, 10 * 60_000), wrap((req) => {
+    const trade = trades.offer(req.userId, req.body?.to, req.body?.give, req.body?.ask);
+    hub.emitToUser(trade.with.id, 'trade:new', { from: game.getUser(req.userId).nickname });
+    return { trade };
+  }));
+  api.post('/trades/:id/respond', authed, wrap((req) => {
+    const res = trades.respond(req.userId, req.params.id, !!req.body?.accept);
+    hub.emitToUser(res.trade.with.id, 'trade:answer', { accepted: res.trade.status === 'accepted', by: game.getUser(req.userId).nickname });
+    if (res.fromEvents?.length) game.onGrowth(res.trade.with.id, res.fromEvents);
+    return { ...me(req.userId, { events: res.events }), trade: res.trade };
+  }));
+  api.post('/trades/:id/cancel', authed, wrap((req) => {
+    const trade = trades.cancel(req.userId, req.params.id);
+    hub.emitToUser(trade.with.id, 'trade:cancelled', {});
+    return { trade };
+  }));
+
   api.get('/friends', authed, wrap((req) => {
     const list = friends.list(req.userId);
     list.friends = list.friends.map((f) => ({ ...f, online: hub.online(f.id), bond: bonds.get(req.userId, f.id) }));
@@ -302,7 +325,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', sendIndex);
 
-  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, rules: RULES };
+  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, trades, rules: RULES };
 }
 
 // public/, shared/ 파일들의 경로·크기·수정 시각으로 짧은 버전 값을 만들어요
