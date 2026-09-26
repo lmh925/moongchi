@@ -198,12 +198,12 @@ test('실시간 줄넘기 규칙: 둘 다 판정 범위 안에서 뛰어야 넘�
   J = s.nextJ;
   jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J }, now: J });
   ev = jumprope.tick(s, J + 1000);
-  assert.deepEqual([ev[0].ok, ev[0].missed, s.lives, s.combo], [false, ['p2'], 2, 0]);
+  assert.deepEqual([ev[0].ok, ev[0].missed, s.lives, s.combo], [false, ['p2'], COOP_GAMES.jumprope.lives - 1, 0]);
   // 너무 이르면 판정 안 됨 (벌칙도 없음)
   J = s.nextJ;
-  assert.equal(jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J - 600 }, now: J - 600 })[0].good, false);
+  assert.equal(jumprope.input(s, { role: 'p1', input: { type: 'jump', at: J - 700 }, now: J - 700 })[0].good, false);
   // 하트를 다 잃으면 끝
-  for (let i = 0; i < 2; i++) jumprope.tick(s, s.nextJ + 1000);
+  for (let i = 0; i < COOP_GAMES.jumprope.lives - 1; i++) jumprope.tick(s, s.nextJ + 1000);
   assert.equal(s.status, 'over');
   assert.ok(jumprope.reward(s).coins >= 2);
 });

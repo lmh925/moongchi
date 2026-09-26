@@ -93,14 +93,19 @@ function obstacleShadow(ctx, x, w) {
   ctx.fillStyle = 'rgba(40,20,10,0.35)';
   ctx.fillRect(Math.round(x - 1), GROUND - 1, w + 2, 3);
 }
+// 빨랫줄: 굵고 진한 줄 + 선명한 빨래 (아래로 슬라이드해서 지나가요)
 function drawLaundry(ctx, x, y) {
-  rect(ctx, x - 6, y - 2, 40, 1, OUT);
-  rect(ctx, x - 6, y - 1, 40, 1, '#fff6e6');
-  // 양말, 셔츠, 수건
-  rect(ctx, x - 1, y, 8, 12, OUT); rect(ctx, x, y + 1, 6, 10, '#7cc7ff'); rect(ctx, x, y + 10, 9, 5, OUT); rect(ctx, x + 1, y + 10, 7, 4, '#7cc7ff');
-  rect(ctx, x + 11, y, 14, 20, OUT); rect(ctx, x + 12, y + 1, 12, 18, '#ffe066'); rect(ctx, x + 9, y + 1, 4, 6, OUT); rect(ctx, x + 23, y + 1, 4, 6, OUT);
-  rect(ctx, x + 16, y + 6, 4, 4, '#ff9fb8');
-  rect(ctx, x + 28, y, 6, 16, OUT); rect(ctx, x + 29, y + 1, 4, 14, '#ff9fb8'); rect(ctx, x + 29, y + 11, 4, 1, '#fff');
+  rect(ctx, x - 8, y - 3, 50, 3, OUT);
+  // 양말 (진한 파랑)
+  rect(ctx, x - 2, y - 1, 10, 14, OUT); rect(ctx, x, y + 1, 6, 10, '#2f6fff'); rect(ctx, x - 2, y + 9, 12, 7, OUT); rect(ctx, x, y + 11, 8, 3, '#2f6fff');
+  rect(ctx, x, y + 1, 6, 2, '#ffffff');
+  // 셔츠 (주황)
+  rect(ctx, x + 10, y - 1, 16, 22, OUT); rect(ctx, x + 12, y + 1, 12, 18, '#ff8a1c'); rect(ctx, x + 7, y, 5, 8, OUT); rect(ctx, x + 24, y, 5, 8, OUT);
+  rect(ctx, x + 8, y + 1, 3, 6, '#ff8a1c'); rect(ctx, x + 25, y + 1, 3, 6, '#ff8a1c'); rect(ctx, x + 16, y + 6, 4, 4, '#ffffff');
+  // 수건 (진한 분홍 줄무늬)
+  rect(ctx, x + 30, y - 1, 9, 19, OUT); rect(ctx, x + 32, y + 1, 5, 15, '#e8408a'); rect(ctx, x + 32, y + 5, 5, 2, '#ffffff'); rect(ctx, x + 32, y + 11, 5, 2, '#ffffff');
+  // 빨래집게
+  for (const cx of [x + 2, x + 17, x + 33]) rect(ctx, cx, y - 5, 3, 5, '#ffe066');
 }
 
 const OBSTACLES = {

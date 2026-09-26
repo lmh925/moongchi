@@ -13,6 +13,8 @@ const DOGS_X = [74, 118];
 const TOP_Y = 14; // 밧줄 가장 높은 곳
 const BEST_KEY = 'meongmung.jumprope.best';
 const JUMP_TIME = 0.42;
+// 난이도: 넉넉한 판정, 천천히 빨라지기, 하트 3개 (한 번 걸려도 괜찮아요)
+const EASY = { period: 1.8, window: 0.3, minPeriod: 0.95, minWindow: 0.2, speedEvery: 8, lives: 3 };
 const OUT = '#4a3330';
 
 function rect(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -88,7 +90,7 @@ export function playJumpRope(me, friend, names) {
 
     // 상태: ready → count → play → over
     const s = {
-      mode: 'ready', t: 0, count: 0, phase: 0.1, period: 1.6, window: 0.2, combo: 0, best: loadBest(),
+      mode: 'ready', t: 0, count: 0, phase: 0.1, period: EASY.period, window: EASY.window, combo: 0, best: loadBest(), lives: EASY.lives,
       judged: false, jumpT: [9, 9], fail: 0, pops: [], perfect: 0,
     };
 
@@ -115,9 +117,9 @@ export function playJumpRope(me, friend, names) {
         comboEl.textContent = `${s.combo} 콤보!`;
         comboEl.classList.remove('bump'); void comboEl.offsetWidth; comboEl.classList.add('bump');
         // 콤보가 쌓일수록 줄이 빨라지고 판정이 조금씩 좁아져요
-        if (s.combo % 5 === 0) {
-          s.period = Math.max(0.75, s.period - 0.1);
-          s.window = Math.max(0.12, s.window - 0.012);
+        if (s.combo % EASY.speedEvery === 0) {
+          s.period = Math.max(EASY.minPeriod, s.period - 0.08);
+          s.window = Math.max(EASY.minWindow, s.window - 0.01);
           s.pops.push({ text: '빨라진다!', age: 0 });
         }
       } else if (dt > s.window) {
@@ -126,13 +128,23 @@ export function playJumpRope(me, friend, names) {
     };
 
     const start = () => {
-      Object.assign(s, { mode: 'count', count: 3, phase: 0.95, period: 1.6, window: 0.2, combo: 0, judged: false, fail: 0, pops: [] });
+      Object.assign(s, { mode: 'count', count: 3, phase: 0.95, period: EASY.period, window: EASY.window, combo: 0, judged: false, fail: 0, pops: [], lives: EASY.lives });
       comboEl.textContent = '';
       result.hidden = true;
       jumpBtn.hidden = false;
       msgEl.textContent = '3';
       playBgm('play');
       sfx.pop();
+    };
+
+    // 걸렸어요: 하트가 남았으면 잠깐 쉬고 계속 (콤보는 그대로 이어져요)
+    const miss = () => {
+      s.lives -= 1;
+      if (s.lives <= 0) { gameOver(); return; }
+      s.judged = true;
+      s.hurtT = 0.6;
+      sfx.hurt();
+      s.pops.push({ text: `앗! 하트 ${s.lives}개 남았어요`, age: 0 });
     };
 
     const gameOver = () => {
@@ -191,7 +203,7 @@ export function playJumpRope(me, friend, names) {
       const prev = s.phase;
       s.phase = (s.phase + dt / s.period) % 1;
       // 판정 시간이 지났는데 안 뛰었으면 걸려 넘어져요
-      if (!s.judged && judgeTime() < -s.window && s.phase < 0.9) gameOver();
+      if (!s.judged && judgeTime() < -s.window && s.phase < 0.9) miss();
       // 한 바퀴 돌아 위로 올라가면 다음 판정 준비
       if (prev > s.phase) s.judged = false;
       if (msgEl.textContent && s.mode === 'play' && judgeTime() < 0) msgEl.textContent = '';
@@ -231,6 +243,15 @@ export function playJumpRope(me, friend, names) {
         }
       });
       if (front) drawRope(ctx, s.phase, true);
+      // 남은 하트
+      if (s.mode === 'play' || s.mode === 'count') {
+        const hi = iconCanvas('heart');
+        for (let i = 0; i < EASY.lives; i++) {
+          ctx.globalAlpha = i < s.lives ? 1 : 0.25;
+          ctx.drawImage(hi, 6 + i * 12, 6);
+        }
+        ctx.globalAlpha = 1;
+      }
       ctx.font = 'bold 12px Galmuri11';
       ctx.textAlign = 'center';
       for (const p of s.pops) {
