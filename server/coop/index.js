@@ -6,8 +6,11 @@ import { COOP_GAMES, ITEMS } from '../../shared/data.js';
 import { kstDate } from '../../shared/rules.js';
 import { ribbon } from '../../shared/coop/ribbon.js';
 import { jumprope } from '../../shared/coop/jumprope.js';
+import { cushion } from '../../shared/coop/cushion.js';
+import { bakery } from '../../shared/coop/bakery.js';
+import { tidy } from '../../shared/coop/tidy.js';
 
-export const GAMES = { ribbon, jumprope };
+export const GAMES = { ribbon, jumprope, cushion, bakery, tidy };
 const DAILY_COIN_CAP = 80;
 
 export class CoopHub {
@@ -116,8 +119,10 @@ export class CoopHub {
   tick() {
     const now = this.now();
     for (const session of this.sessions.values()) {
-      const events = GAMES[session.gameId].tick(session.state, now);
-      if (events.length) this.send(session, 'coop:state', { sid: session.sid, state: session.state, events, now });
+      const g = GAMES[session.gameId];
+      const events = g.tick(session.state, now);
+      // 움직임이 있는 게임은 변화가 없어도 매 틱(20번/초) 상태를 보내요
+      if (events.length || g.realtime) this.send(session, 'coop:state', { sid: session.sid, state: session.state, events, now });
       if (session.state.status !== 'play') this.finish(session);
     }
   }

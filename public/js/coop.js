@@ -3,11 +3,14 @@
 import { el } from './ui.js';
 import { sfx, playBgm } from './audio.js';
 import { dogPortrait, iconURL } from './sprites.js';
-import { ITEMS } from '/shared/data.js';
+import { ITEMS, COOP_GAMES } from '/shared/data.js';
 import { RibbonRenderer } from './coop-ribbon.js';
 import { JumpRopeRenderer } from './coop-jumprope.js';
+import { CushionRenderer } from './coop-cushion.js';
+import { BakeryRenderer } from './coop-bakery.js';
+import { TidyRenderer } from './coop-tidy.js';
 
-const RENDERERS = { ribbon: RibbonRenderer, jumprope: JumpRopeRenderer };
+const RENDERERS = { ribbon: RibbonRenderer, jumprope: JumpRopeRenderer, cushion: CushionRenderer, bakery: BakeryRenderer, tidy: TidyRenderer };
 
 export class CoopClient {
   // hooks: { onStart(), onEnd(result), onRetry(game) }
@@ -48,7 +51,7 @@ export class CoopClient {
           el('div', { class: 'coop-players' },
             ...['p1', 'p2'].map((r) => el('span', { class: `coop-player ${r === p.role ? 'me' : ''}` },
               el('img', { class: 'pixel', src: dogPortrait(p.players[r].dog.breed, p.players[r].dog.stage, { equip: p.players[r].dog.equip }), alt: '' }),
-              r === p.role ? `나 (${r === 'p1' ? '왼쪽' : '오른쪽'})` : p.players[r].nickname)))),
+              r === p.role ? `나${COOP_GAMES[p.game].roles ? ` · ${COOP_GAMES[p.game].roles[r]}` : ` (${r === 'p1' ? '왼쪽' : '오른쪽'})`}` : p.players[r].nickname)))),
         body,
         el('div', { class: 'modal-buttons' }, el('button', { class: 'btn ghost', type: 'button', onclick: () => this.leave() }, '그만하기'))));
     document.getElementById('modal-root').append(wrap);
@@ -98,6 +101,6 @@ export class CoopClient {
             el('button', { class: 'btn primary', type: 'button', onclick: () => { wrap.remove(); this.hooks.onRetry?.(s.game); } }, '한 번 더!'))));
       document.getElementById('modal-root').append(wrap);
       this.hooks.onEnd?.(p);
-    }, clear ? 1800 : 400);
+    }, clear ? (s.renderer.endDelay ?? 1800) : 400);
   }
 }

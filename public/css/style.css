@@ -314,6 +314,65 @@ h2 { font-size: 20px; margin: 4px 0 12px; line-height: 1.4; }
 .coop-btn { width: 100%; margin-top: 10px; font-size: 24px; touch-action: manipulation; }
 .coop-btn.glow { background: var(--grass-l); text-shadow: 1px 1px 0 var(--grass-d); }
 
+/* 쿠션 탑 */
+.cushion-stage { aspect-ratio: 4 / 3; }
+.cushion-controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; margin-top: 10px; }
+.cushion-btn { touch-action: none; user-select: none; -webkit-user-select: none; font-size: 22px; }
+.cushion-btn.down { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+
+/* 간식 공장 */
+.bk-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bk-orders { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.bk-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-right: 2px; }
+.bk-order { display: grid; justify-items: center; font-size: 10px; border: 2px solid var(--line); border-radius: 8px; background: #fff; padding: 2px 4px; }
+.bk-order.first { border-color: var(--pink-d); background: var(--pink-l); }
+.bk-order img { width: 32px; height: 32px; }
+.bk-score { font-weight: 700; color: var(--pink-d); }
+.bk-msg { min-height: 20px; text-align: center; font-weight: 700; font-size: 14px; opacity: 0; transition: opacity .2s; }
+.bk-msg.show { opacity: 1; }
+.bk-msg.good { color: var(--grass-d); }
+.bk-msg.bad { color: var(--red); }
+.bk-panel { border: 3px solid var(--ink); border-radius: 12px; padding: 8px; background: #fff; }
+.bk-panel.theirs { opacity: .6; background: var(--cream); }
+.bk-panel.theirs button, .bk-panel.theirs .bk-tool { pointer-events: none; }
+.bk-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.bk-doughs { display: flex; gap: 6px; margin-bottom: 6px; }
+.bk-dough { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.bk-dough img { width: 24px; height: 24px; }
+.bk-dough.on { background: var(--butter); }
+.bk-ovens { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bk-oven { border: 3px solid var(--ink); border-radius: 10px; background: #c9c2d6; padding: 6px; display: grid; gap: 4px; justify-items: center; font-weight: 700; font-size: 12px; cursor: pointer; min-height: 92px; }
+.bk-oven .bar { width: 100%; height: 8px; }
+.bk-oven .bar > i { background: var(--stat-full); transition: none; }
+.bk-oven-window { width: 56px; height: 44px; background: #3a2a2a; border: 3px solid var(--ink); border-radius: 8px; display: grid; place-items: center; position: relative; }
+.bk-oven-window img { width: 40px; height: 40px; }
+.bk-oven.baking .bk-oven-window { background: #ff9f5a; }
+.bk-oven.ready { background: #bff0c8; animation: glowReady .6s infinite alternate; }
+@keyframes glowReady { to { box-shadow: 0 0 0 4px var(--butter); } }
+.bk-oven.burnt { background: #8a7a7a; }
+.bk-oven.burnt img { filter: brightness(.35); }
+.smoke { position: absolute; top: -10px; font-size: 18px; animation: hop 1s infinite; }
+.bk-belt {
+  display: flex; gap: 6px; align-items: center; min-height: 58px; margin: 8px 0; padding: 6px 8px; border: 3px solid var(--ink); border-radius: 10px;
+  background: repeating-linear-gradient(90deg, #b8b0c8 0 10px, #a49cb6 10px 20px); background-size: 20px 100%; animation: belt 1s linear infinite;
+}
+@keyframes belt { to { background-position: 20px 0; } }
+.bk-belt .meta { color: #fff; font-size: 12px; }
+.bk-bread { border: 2px solid var(--ink); border-radius: 8px; background: #fff; padding: 2px; cursor: pointer; }
+.bk-bread img { width: 40px; height: 40px; display: block; }
+.bk-work { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; }
+.bk-plate { width: 96px; height: 96px; border: 3px dashed var(--pink-d); border-radius: 50%; display: grid; place-items: center; background: #ffd9e3; text-align: center; font-size: 11px; }
+.bk-plate img { width: 80px; height: 80px; }
+.bk-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bk-tool { border: 2px solid var(--ink); border-radius: 8px; background: var(--cream); display: flex; align-items: center; gap: 4px; padding: 4px; font-size: 12px; font-weight: 700; cursor: grab; touch-action: none; user-select: none; }
+.bk-tool img { width: 30px; height: 30px; pointer-events: none; }
+.bk-actions { display: flex; gap: 6px; margin-top: 8px; }
+.bk-actions .btn.primary { flex: 1; }
+
+/* 장난감 정리 */
+.tidy-stage { aspect-ratio: 4 / 3; }
+.tidy-canvas { touch-action: none; cursor: grab; }
+
 /* 마이룸 미니게임 버튼 */
 .room-games { margin-top: 10px; }
 .room-games-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

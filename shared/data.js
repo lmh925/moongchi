@@ -327,6 +327,9 @@ export const PLAZA_SPOTS = {
   tag: { name: '술래잡기 마당', x: 392, y: 76, w: 120, h: 96 },
   ribbon: { name: '대왕 선물 상자', x: 104, y: 250, game: 'ribbon' },
   jumprope: { name: '줄넘기 터', x: 150, y: 298, game: 'jumprope' },
+  cushion: { name: '쿠션 탑 놀이터', x: 318, y: 212, game: 'cushion' },
+  bakery: { name: '멍뭉 간식 공장', x: 420, y: 212, game: 'bakery' },
+  tidy: { name: '장난감 방', x: 184, y: 104, game: 'tidy' },
   sand: { name: '보물 모래밭', x: 91, y: 119, w: 68, h: 38 },
   soccer: { name: '멍멍 축구장', x: 380, y: 280, w: 160, h: 88 },
 };
@@ -391,6 +394,27 @@ export const COOP_GAMES = {
     minWindowMs: 150,
     graceMs: 180, // 네트워크 지연을 감안해 판정을 조금 기다려요
     reward: { clear: 12, perCombo: 0.4 },
+  },
+  cushion: {
+    name: '영차영차 쿠션 탑 쌓기',
+    desc: '방장은 떨어지는 쿠션을 옮겨 탑을 쌓고, 손님은 쿠션을 밟고 올라가 선반 위 뼈다귀를 잡아요!',
+    timeLimit: 150,
+    roles: { p1: '쿠션 담당', p2: '등반 담당' },
+    reward: { clear: 14, timeout: 3 },
+  },
+  bakery: {
+    name: '우당탕탕 수제 간식 공장',
+    desc: '방장은 빵을 굽고, 손님은 생크림과 과일을 올려 포장해요. 60초 동안 주문을 많이 완성해요!',
+    timeLimit: 60,
+    roles: { p1: '빵 굽기', p2: '토핑 얹기' },
+    reward: { base: 3, perCake: 1, max: 14 },
+  },
+  tidy: {
+    name: '장난감 방 정리 정돈',
+    desc: '어질러진 장난감을 제자리에! 공은 노란 바구니, 뼈다귀는 파란 상자, 인형은 침대 위로.',
+    timeLimit: 240,
+    roles: { p1: '같이 정리', p2: '같이 정리' },
+    reward: { clear: 10, timeout: 4 },
   },
 };
 

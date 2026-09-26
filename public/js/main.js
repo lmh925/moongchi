@@ -1461,7 +1461,7 @@ function renderSpotBox() {
   const info = spot && PLAZA_SPOTS[spot];
   let content;
   if (!info) {
-    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '대왕 선물 상자·줄넘기 터(왼쪽 아래), 술래잡기 마당(오른쪽 위)에 가면 같이 놀 수 있어요.')];
+    content = [el('b', {}, '놀이터를 돌아다녀 보세요!'), el('div', { class: 'meta' }, '선물 상자·줄넘기 터·장난감 방(왼쪽), 쿠션 탑·간식 공장·축구장(오른쪽 아래), 술래잡기 마당(오른쪽 위), 보물 모래밭(연못 아래)에 가면 같이 놀 수 있어요.')];
   } else if (spot === 'soccer') {
     const g = p.soccer;
     const team = g?.teams[myId()];
@@ -1496,6 +1496,7 @@ function renderSpotBox() {
     const w = p.waiting[info.game];
     const mine = state.coopWaiting === info.game;
     content = [el('b', {}, g.name), el('div', { class: 'meta' }, g.desc),
+      g.roles && g.roles.p1 !== g.roles.p2 ? el('div', { class: 'meta' }, `먼저 기다린 친구는 ${g.roles.p1}, 나중에 온 친구는 ${g.roles.p2}!`) : null,
       w && !mine ? el('div', { class: 'meta' }, `${w.nickname}(이)가 기다리고 있어요!`) : null,
       mine
         ? el('button', { class: 'btn secondary', onclick: () => { state.socket.emit('coop:cancel'); state.coopWaiting = null; renderSpotBox(); } }, '기다리는 중… (취소)')

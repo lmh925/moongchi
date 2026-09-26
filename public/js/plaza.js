@@ -75,6 +75,21 @@ function drawWorld() {
   ellipse(ctx, j.x, j.y + 2, 34, 9, '#6cc070');
   for (const px of [j.x - 30, j.x + 30]) { rect(ctx, px - 2, j.y - 16, 4, 18, OUT); rect(ctx, px - 1, j.y - 15, 2, 16, '#c98a4b'); ellipse(ctx, px, j.y - 16, 3, 3, '#ff9fb8'); }
   for (let x = -28; x <= 28; x++) rect(ctx, j.x + x, j.y - 14 + Math.round((1 - (x / 28) ** 2) * 14), 1, 2, '#e84a5f');
+  // 쿠션 탑 놀이터: 알록달록 쿠션 더미
+  const cu = PLAZA_SPOTS.cushion;
+  ellipse(ctx, cu.x, cu.y + 4, 24, 7, '#fff1c9');
+  [['#ff9fb8', 0], ['#9fe0c8', -7], ['#ffe066', -14]].forEach(([c, dy], i) => {
+    rect(ctx, cu.x - 12 + i * 2, cu.y - 6 + dy, 22, 8, OUT); rect(ctx, cu.x - 11 + i * 2, cu.y - 5 + dy, 20, 6, c);
+  });
+  // 멍뭉 간식 공장: 줄무늬 차양이 있는 가게
+  const bk = PLAZA_SPOTS.bakery;
+  rect(ctx, bk.x - 18, bk.y - 22, 36, 26, OUT); rect(ctx, bk.x - 17, bk.y - 12, 34, 15, '#fff6e6');
+  for (let i = 0; i < 6; i++) rect(ctx, bk.x - 17 + i * 6, bk.y - 21, 6, 8, i % 2 ? '#ffffff' : '#ff9fb8');
+  rect(ctx, bk.x - 6, bk.y - 8, 12, 6, '#f2c078'); rect(ctx, bk.x - 4, bk.y - 11, 8, 3, '#ffffff'); rect(ctx, bk.x - 1, bk.y - 13, 2, 2, '#ff4d6d');
+  // 장난감 방: 장난감 바구니
+  const td = PLAZA_SPOTS.tidy;
+  ellipse(ctx, td.x, td.y + 2, 14, 5, OUT); rect(ctx, td.x - 13, td.y - 8, 26, 10, OUT); rect(ctx, td.x - 12, td.y - 7, 24, 8, '#ffd23f');
+  ellipse(ctx, td.x - 5, td.y - 10, 4, 4, '#ff5d7a'); rect(ctx, td.x + 1, td.y - 12, 8, 3, '#fff6e6'); ellipse(ctx, td.x + 7, td.y - 11, 3, 3, '#c68642');
   // 선물 상자 받침
   const r = PLAZA_SPOTS.ribbon;
   ellipse(ctx, r.x, r.y + 8, 26, 9, '#ffd9e3');
