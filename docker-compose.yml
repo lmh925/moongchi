@@ -1,0 +1,15 @@
+# NAS(시놀로지 Container Manager 등)나 집 서버에서 멍뭉고치 실행하기
+#   docker compose up -d --build
+# 데이터는 이 폴더의 data/ 안에 저장돼요. (백업은 data/ 폴더만 복사하면 끝)
+services:
+  moongchi:
+    build: .
+    container_name: moongchi
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_FILE=/data/meongmung.db
+      - TRUST_PROXY=1
+    volumes:
+      - ./data:/data

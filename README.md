@@ -27,6 +27,19 @@ npm start            # http://localhost:3000
 
 ## 배포
 
+### NAS / 집 서버 (Docker)
+
+```bash
+git clone https://github.com/lmh925/moongchi.git && cd moongchi
+docker compose up -d --build     # http://NAS주소:3000
+```
+
+데이터는 `data/` 폴더에 쌓여요. 이 폴더만 정기적으로 백업하면 됩니다.
+밖에서 접속하려면 NAS 관리 화면을 직접 열지 말고, **역방향 프록시 + HTTPS**(시놀로지 DDNS + Let's Encrypt)
+또는 **Cloudflare Tunnel / Tailscale Funnel**처럼 게임 포트(3000)만 내보내는 방법을 쓰세요.
+
+### 클라우드
+
 단일 Node 프로세스 + SQLite 파일 하나로 동작합니다. Render, Fly.io, Railway 같은 곳에
 **영구 디스크(볼륨)** 를 붙이고 `DB_FILE`을 그 디스크 경로로 지정하면 됩니다.
 
