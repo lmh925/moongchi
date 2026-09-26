@@ -79,7 +79,7 @@ function talentRow(k, points, stage) {
 }
 
 // 강아지 카드. mine이면 칭호를 고를 수 있어요. onTitle(titleId) → Promise
-export function openDogCard(dog, { mine = false, ownerName = null, onTitle = null } = {}) {
+export function openDogCard(dog, { mine = false, ownerName = null, onTitle = null, badges = null, onPhotoCard = null } = {}) {
   const stages = dog.talentStages ?? {};
   const p = PERSONALITIES[dog.personality];
   const body = el('div', { class: 'dog-card' },
@@ -91,6 +91,8 @@ export function openDogCard(dog, { mine = false, ownerName = null, onTitle = nul
         el('p', { class: 'help' }, `${BREEDS[dog.breed].name} · ${p ? `${p.emoji} ${p.name}` : ''} · ${STAGES[dog.stage].name}`),
         ownerName ? el('p', { class: 'help' }, `${ownerName}의 강아지`) : null),
       radarCanvas(stages)),
+    badges?.length ? el('div', { class: 'card-badges' }, badges) : null,
+    onPhotoCard ? el('button', { class: 'btn small primary photocard-btn', onclick: onPhotoCard }, '포토카드 만들기') : null,
     el('div', { class: 'talent-list' }, TALENT_KEYS.map((k) => talentRow(k, dog.talents?.[k] ?? 0, stages[k] ?? 1))));
   if (mine) {
     body.append(el('div', { class: 'section-title' }, '다음 레벨 선물'), nextRewards(dog.level));

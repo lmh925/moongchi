@@ -537,3 +537,81 @@ export const RULES = {
 };
 
 export const CHAT_MAX_LEN = 20;
+
+// ---------- 오늘의 약속 (하루 3개) + 7칸 도장판 ----------
+// group마다 하나씩 뽑아요: 돌봄(care) · 놀이(play) · 바깥(out)
+export const QUESTS = {
+  feed: { text: '밥 주기 2번', n: 2, group: 'care' },
+  brush: { text: '빗질해 주기', n: 1, group: 'care' },
+  pet: { text: '쓰다듬기 3번', n: 3, group: 'care' },
+  trick: { text: '개인기 보여 주기', n: 1, group: 'care' },
+  school: { text: '학교 보내기', n: 1, group: 'play' },
+  train: { text: '훈련 수업 1번', n: 1, group: 'play' },
+  run: { text: '멍뭉런 1판', n: 1, group: 'play' },
+  catch: { text: '간식 받기 놀이 1판', n: 1, group: 'play' },
+  plaza: { text: '놀이터 놀러 가기', n: 1, group: 'out' },
+  dig: { text: '보물 모래밭 3번 파 보기', n: 3, group: 'out' },
+  visit: { text: '친구 집 놀러 가기', n: 1, group: 'out', needFriend: true },
+  equip: { text: '꾸미기 바꿔 보기', n: 1, group: 'out' },
+};
+export const STAMP = {
+  card: 7, // 7칸을 채우면 특별 캡슐! (하루 빠져도 모은 도장은 그대로예요)
+  questCoins: 5, // 약속 하나 지킬 때마다
+};
+export const SPECIAL_CAPSULE = { rare: 80, epic: 20 }; // 특별 캡슐 확률 (희귀 이상만)
+
+// ---------- 배지 ----------
+// stat: 모은 횟수(여러 개면 합), special: 따로 계산하는 조건
+export const BADGES = {
+  carer: { name: '돌봄 천사', desc: '밥·빗질·쓰다듬기 50번', icon: 'heart', color: '#ff6f91', stat: ['feed', 'brush', 'pet'], n: 50 },
+  scholar: { name: '모범생', desc: '학교 10번 다녀오기', icon: 'star', color: '#5b8cff', stat: ['school'], n: 10 },
+  trainer: { name: '훈련 대장', desc: '훈련 수업 20번', icon: 'star', color: '#3fb58a', stat: ['train'], n: 20 },
+  runner: { name: '멍뭉런 달인', desc: '멍뭉런 10판', icon: 'paw', color: '#ff8a5c', stat: ['run'], n: 10 },
+  catcher: { name: '간식 사냥꾼', desc: '간식 받기 놀이 10판', icon: 'food', color: '#ffb84d', stat: ['catch'], n: 10 },
+  digger: { name: '보물 사냥꾼', desc: '보물 10개 찾기', icon: 'coin', color: '#d9a400', stat: ['treasure'], n: 10 },
+  teamwork: { name: '환상의 짝꿍', desc: '협동 게임 10번 성공', icon: 'heart', color: '#ff5d7a', stat: ['coop'], n: 10 },
+  coopAll: { name: '협동 마스터', desc: '협동 게임 5종 모두 성공', icon: 'sparkle', color: '#b07cff', special: 'coopAll', n: 5 },
+  striker: { name: '골잡이', desc: '축구에서 골 5개', icon: 'paw', color: '#5b8cff', stat: ['goal'], n: 5 },
+  tagger: { name: '술래잡기 왕', desc: '술래잡기 10판', icon: 'paw', color: '#e84a5f', stat: ['tag'], n: 10 },
+  visitor: { name: '마실 대장', desc: '친구 집 10번 놀러 가기', icon: 'heart', color: '#3fb58a', stat: ['visit'], n: 10 },
+  gacha: { name: '뽑기 요정', desc: '캡슐 뽑기 20번', icon: 'sparkle', color: '#ff9fb8', stat: ['gacha'], n: 20 },
+  promise: { name: '약속 지킴이', desc: '도장판 한 장 다 채우기', icon: 'star', color: '#ffd23f', stat: ['stampCard'], n: 1 },
+  letters: { name: '편지 친구', desc: '강아지 편지 10통 읽기', icon: 'mail', color: '#ff9fb8', stat: ['letter'], n: 10 },
+  tricks: { name: '개인기 스타', desc: '개인기 모두 배우기', icon: 'star', color: '#ff8a5c', special: 'tricks' },
+  collector: { name: '수집가', desc: '아이템 도감 절반 채우기', icon: 'book', color: '#6cc070', special: 'items' },
+  breeds: { name: '견종 박사', desc: '모든 견종 친구 만나기', icon: 'book', color: '#5b8cff', special: 'breeds' },
+  level10: { name: '쑥쑥 Lv 10', desc: '레벨 10 되기', icon: 'medal', color: '#ffd23f', special: 'level', n: 10 },
+  level20: { name: '반짝 Lv 20', desc: '레벨 20 되기', icon: 'medal', color: '#b07cff', special: 'level', n: 20 },
+  talent: { name: '재능 꽃', desc: '재능 하나를 10단계로', icon: 'sparkle', color: '#3fb58a', special: 'talent', n: 10 },
+};
+export const BADGE_COINS = 20; // 배지를 얻으면 받는 코인
+export const SHOWCASE_MAX = 3; // 강아지 카드에 다는 대표 배지 수
+
+// ---------- 강아지 편지 ----------
+// 한동안 못 만났다가 돌아오면 강아지가 편지를 남겨요 (벌이 아니라 궁금함!). {name} = 강아지, {owner} = 보호자 닉네임
+export const LETTER = {
+  awayMs: 4 * 3600_000, // 이만큼 떨어져 있다 오면
+  gapMs: 4 * 3600_000, // 편지는 이 간격보다 자주 오지 않아요
+  maxUnread: 3,
+  giftChance: 0.6,
+  itemChance: 0.12,
+};
+export const LETTERS = {
+  any: [
+    '{owner}에게! 오늘 창밖에서 노랑나비를 봤어. 너한테 보여 주고 싶어서 꼬리를 막 흔들었어!',
+    '{owner}, 내 밥그릇 옆에 반짝이는 걸 찾았어. 선물로 줄게! 우리 내일도 같이 놀자.',
+    '있잖아 {owner}, 꿈에서 너랑 구름 위를 뛰어다녔어. 구름은 솜사탕 맛이었어!',
+    '{owner}가 없는 동안 방을 지켰어. 문 소리 날 때마다 너인 줄 알고 달려갔어 멍!',
+    '오늘 놀이터에서 새 친구 냄새가 났어. 다음에 같이 가 보자, {owner}!',
+    '{owner}, 내가 제일 좋아하는 건… 비밀이야! 힌트: 지금 이 편지를 읽고 있는 사람!',
+    '빗방울 소리를 들으면서 낮잠을 잤어. 일어나 보니 {owner} 생각이 났어.',
+    '{owner}에게. 오늘 공을 굴리다가 침대 밑에 들어가 버렸어. 꺼내 줄 수 있어?',
+  ],
+  sleepy: ['{owner}… 쿨쿨… 꿈에서 너랑 산책했어… 일어나면 진짜로 가자… 쿨…', '베개가 너무 폭신해서 {owner} 기다리다 잠들었어. 미안해 헤헤.'],
+  hyper: ['{owner}!!! 방을 100바퀴 뛰었어!!! 너 오면 101바퀴 같이 뛰자!!!', '오늘 내 꼬리 잡기 신기록 세웠어! {owner}도 봤어야 했는데!'],
+  foodie: ['{owner}, 부엌에서 맛있는 냄새가 났어… 혹시 나 주려고 만든 거야? 킁킁.', '간식 창고 지도를 그렸어! 보물 지도야. 같이 찾으러 가자 {owner}!'],
+  sweet: ['{owner} 보고 싶어서 네 양말을 꼭 안고 있었어. 빨리 와서 쓰다듬어 줘!', '오늘도 {owner}가 세상에서 제일 좋아. 내일도, 모레도!'],
+  shy: ['{owner}… 사실 할 말이 있었는데… 좋아한다고… 헤헤 말해 버렸다.', '오늘 처음 보는 새가 인사해서 깜짝 놀랐어. 그래도 용기 내서 멍! 했어.'],
+  smart: ['{owner}, 오늘 혼자 "앉아"를 100번 연습했어. 이제 눈 감고도 할 수 있어!', '책장에 있는 책 냄새를 다 맡아 봤어. 제일 재밌는 책은 {owner} 사진첩!'],
+  welcome: ['{owner}, 우리 오늘부터 가족이야! 매일매일 같이 놀자. 가끔 편지를 써서 우편함에 넣어 둘게!'],
+};

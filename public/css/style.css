@@ -756,3 +756,97 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .pb-locked { opacity: .5; cursor: default; flex-direction: column; gap: 0; border-style: dashed; }
 .pb-locked small { font-size: 10px; }
 .pb-locked img { max-height: 30px; }
+
+/* ---------- 우편함 · 오늘의 약속 · 배지 · 도감 · 포토카드 ---------- */
+.mail-btn { position: relative; margin-right: 6px; }
+.mail-btn img { width: 24px; height: 20px; }
+.dot-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
+  background: var(--red); color: #fff; border: 2px solid var(--ink); font-size: 10px; font-weight: 700; line-height: 14px; text-align: center;
+  animation: wiggle 1.4s ease-in-out infinite;
+}
+@keyframes wiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-14deg); } 90% { transform: rotate(14deg); } 95% { transform: rotate(-8deg); } }
+
+.quest-card { border: 3px solid var(--ink); border-radius: 12px; background: #fff; padding: 8px 10px; margin: 6px 0 12px; box-shadow: 0 3px 0 var(--line); }
+.quest-card.all { background: #f1fff6; }
+.quest-head { display: flex; justify-content: space-between; align-items: baseline; }
+.quest-head .meta, .quest-list .meta, .stamp-row .meta { font-size: 11px; color: var(--ink-soft); }
+.quest-list { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.quest-list li { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; align-items: center; font-size: 14px; }
+.quest-list .check { width: 18px; height: 18px; border: 2px solid var(--ink); border-radius: 5px; display: grid; place-items: center; font-size: 12px; color: #fff; background: #fff; }
+.quest-list li.done .check { background: var(--grass-l); }
+.quest-list li.done .text { color: var(--ink-soft); text-decoration: line-through; }
+.stamp-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.stamp {
+  width: 28px; height: 28px; border: 2px dashed #d8c3a8; border-radius: 50%; display: grid; place-items: center; font-size: 14px; background: #fffaf0;
+}
+.stamp.on { border: 2px solid var(--red); background: #ffe3e8; }
+.stamp.on img { width: 18px; height: 18px; }
+.stamp.today { animation: stamp .4s cubic-bezier(.3, 1.6, .5, 1); }
+.stamp.goal:not(.on) { border-color: var(--pink-d); }
+.stamp-row .meta { margin-left: 4px; }
+.stamp-big img { width: 72px; height: 72px; transform: rotate(-10deg); animation: stamp .4s cubic-bezier(.3, 1.6, .5, 1); }
+.celebrate .stamp-row { justify-content: center; margin: 8px 0; }
+
+.badge-medal {
+  --medal: #ffd23f;
+  display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--medal); border: 3px solid var(--ink); box-shadow: inset 0 -3px 0 rgba(0,0,0,.15), 0 2px 0 var(--ink);
+}
+.badge-medal img { width: 18px; height: 18px; }
+.badge-medal.locked { background: #e9dccb; filter: grayscale(1); opacity: .6; }
+.badge-big .badge-medal { width: 84px; height: 84px; }
+.badge-big .badge-medal img { width: 44px; height: 44px; }
+.badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.badge-cell {
+  font: inherit; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 8px 4px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; text-align: center;
+}
+.badge-cell b { font-size: 12px; }
+.badge-cell small { font-size: 10px; color: var(--ink-soft); line-height: 1.3; }
+.badge-cell.locked { border-style: dashed; background: #fbf6ee; }
+.badge-cell.on { background: var(--pink-l); box-shadow: inset 0 0 0 2px var(--pink-d); }
+.mini-bar { width: 80%; height: 5px; border-radius: 3px; background: #efe2d0; overflow: hidden; }
+.mini-bar i { display: block; height: 100%; background: var(--pink-d); }
+.showcase-row { display: flex; gap: 10px; justify-content: center; margin: 4px 0; }
+.showcase-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 84px; font-size: 11px; font-weight: 700; text-align: center; }
+.showcase-slot.empty { width: 44px; height: 44px; border: 2px dashed #d8c3a8; border-radius: 50%; justify-content: center; color: #c9b39a; margin: 0 20px; }
+.showcase-slot .badge-medal { width: 44px; height: 44px; }
+.showcase-slot .badge-medal img { width: 24px; height: 24px; }
+.card-badges { display: flex; gap: 6px; justify-content: center; margin: 8px 0 0; }
+.photocard-btn { display: block; margin: 8px auto 0; }
+
+.dex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.dex-grid.items { grid-template-columns: repeat(4, 1fr); }
+.dex-cell { border: 2px solid var(--ink); border-radius: 10px; background: #fff; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.dex-cell img { width: 56px; height: auto; }
+.dex-grid.items .dex-cell img { width: 40px; }
+.dex-cell b { font-size: 11px; }
+.dex-cell small { font-size: 10px; font-weight: 700; }
+.dex-cell.unknown { background: #f6efe4; border-style: dashed; }
+.dex-cell.unknown img { filter: brightness(0) opacity(.25); }
+
+.mailbox { max-width: 420px; }
+.mail-list { display: grid; gap: 6px; max-height: 56vh; overflow-y: auto; }
+.mail-item {
+  font: inherit; color: var(--ink); display: grid; grid-template-columns: 40px 1fr auto; gap: 8px; align-items: center; text-align: left;
+  background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 6px 8px; cursor: pointer;
+}
+.mail-item img { width: 36px; height: auto; }
+.mail-item.new { background: #fff4f7; }
+.mail-item.capsule.new { background: #fffbe0; }
+.mail-meta { display: flex; flex-direction: column; }
+.mail-meta small { font-size: 11px; color: var(--ink-soft); }
+.letter {
+  background: repeating-linear-gradient(#fffdf6, #fffdf6 27px, #f3e3cb 28px); border: 2px solid var(--line); border-radius: 8px;
+  padding: 12px 14px; text-align: left; animation: pop .3s ease-out;
+}
+.letter-dog { float: right; width: 64px; height: auto; margin: 0 0 6px 8px; }
+.letter-body { font-size: 15px; line-height: 28px; margin: 0; }
+.letter-sign { text-align: right; font-size: 13px; color: var(--ink-soft); margin: 6px 0 0; clear: both; }
+.letter-gifts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.letter-gifts small { width: 100%; font-size: 12px; color: var(--pink-d); font-weight: 700; }
+
+.qr-img { width: 200px; height: 200px; image-rendering: pixelated; border: 3px solid var(--ink); border-radius: 10px; background: #fff; }
+.photocard-modal { max-width: 400px; }
+.photocard { width: 100%; max-width: 320px; height: auto; border-radius: 12px; box-shadow: 0 4px 0 var(--ink); }

@@ -14,6 +14,8 @@ import { Bonds } from './bonds.js';
 import { Safety } from './safety.js';
 import { PlazaHub } from './plaza.js';
 import { CoopHub } from './coop/index.js';
+import { Progress } from './progress.js';
+import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
 import { RULES } from '../shared/data.js';
 
@@ -24,6 +26,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const game = new Game(db, { speed, now });
   const auth = new Auth(db, { now });
   const friends = new Friends(db, game);
+  const progress = new Progress(db, { game, friends });
+  game.progress = progress;
   const bonds = new Bonds(db, { now });
 
   const app = express();
@@ -114,10 +118,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const me = (userId, extra = {}) => {
     const { dog, events } = game.refreshDog(userId);
     if (events.length) hub.dogChanged(userId);
+    if (extra.visit) events.push(...progress.onMe(userId, dog));
     const user = game.getUser(userId);
     return {
       user,
       dog: game.dogView(dog),
+      progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
       events: [...(extra.events ?? []), ...events],
@@ -129,14 +135,41 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
 
   api.get('/me', authed, wrap((req) => {
     const dailyCoins = game.loadDog(req.userId) ? game.claimDaily(req.userId) : 0;
-    return me(req.userId, { dailyCoins });
+    return me(req.userId, { dailyCoins, visit: true });
   }));
+
+  // ---------- 우편함 · 배지 ----------
+  api.get('/mail', authed, wrap((req) => ({ mail: progress.listMail(req.userId) })));
+  api.post('/mail/:id/open', authed, wrap((req) => {
+    const res = progress.openMail(req.userId, req.params.id);
+    if (!res) throw new GameError('그런 편지는 없어요.', 404);
+    return { ...me(req.userId, { events: [...res.events, ...(res.capsule?.events ?? [])] }), result: res };
+  }));
+  api.post('/badges/showcase', authed, wrap((req) => {
+    progress.setShowcase(req.userId, req.body?.ids);
+    hub.dogChanged(req.userId);
+    return me(req.userId);
+  }));
+
+  // 친구 코드 QR (휴대폰 카메라로 찍으면 초대 주소가 열려요)
+  const qrCache = new Map();
+  api.get('/qr/:code', async (req, res) => {
+    const code = String(req.params.code).replace(/\.svg$/, '').toUpperCase();
+    if (!/^[A-Z0-9]{4,12}$/.test(code)) return res.status(400).json({ error: '코드가 올바르지 않아요.' });
+    const origin = `${req.get('x-forwarded-proto') ?? req.protocol}://${req.get('host')}`;
+    const key = `${origin}|${code}`;
+    if (!qrCache.has(key)) {
+      if (qrCache.size > 500) qrCache.clear();
+      qrCache.set(key, await QRCode.toString(`${origin}/?code=${code}`, { type: 'svg', margin: 1, color: { dark: '#4a3330', light: '#ffffff' } }));
+    }
+    res.set('Content-Type', 'image/svg+xml').set('Cache-Control', 'public, max-age=86400').send(qrCache.get(key));
+  });
 
   api.post('/dog', authed, wrap((req) => {
     const name = checkDogName(req.body?.name);
     if (!name.ok) throw new GameError(name.reason);
     game.createDog(req.userId, { name: name.name, breed: req.body?.breed, personality: req.body?.personality });
-    return me(req.userId);
+    return me(req.userId, { visit: true });
   }));
 
   api.post('/dog/action', authed, wrap((req) => {
@@ -231,7 +264,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   app.use('/api', (req, res) => res.status(404).json({ error: '없는 주소예요.' }));
   app.get('/{*splat}', sendIndex);
 
-  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, rules: RULES };
+  return { build: BUILD, app, server, io, db, game, auth, friends, bonds, hub, safety, plaza, coop, progress, rules: RULES };
 }
 
 // public/, shared/ 파일들의 경로·크기·수정 시각으로 짧은 버전 값을 만들어요

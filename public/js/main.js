@@ -17,6 +17,9 @@ import { playJumpRope } from './jumprope.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
+import {
+  questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal, openPhotoCard,
+} from './progress.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
 const state = {
@@ -275,6 +278,8 @@ function applyMe(me) {
   $('#top-coins').textContent = me.user.coins;
   $('#badge-notebook').hidden = !me.unreadReports;
   $('#badge-friends').hidden = !me.pendingFriends;
+  $('#badge-mail').hidden = !me.progress?.unreadMail;
+  if (me.progress?.unreadMail) $('#badge-mail').textContent = me.progress.unreadMail;
   // 내 강아지 모습 갱신
   if (state.scene && state.room) {
     const e = state.scene.entities.get(myId());
@@ -309,6 +314,7 @@ function enterGame(me) {
     t.querySelector('.ti').style.backgroundImage = `url(${iconURL(icons[t.dataset.tab], 3)})`;
   });
   $('#coin-icon').src = iconURL('coin', 2);
+  $('#mail-icon').src = iconURL('mail', 2);
   if (!entered) {
     entered = true;
     state.scene = new Scene($('#stage-canvas'), $('#stage-overlay'), {
@@ -335,6 +341,7 @@ function enterGame(me) {
     renderSoundBtn();
     document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => setTab(t.dataset.tab)));
     $('.topbar .who').addEventListener('click', openSettings);
+    $('#mail-btn').addEventListener('click', openMail);
   }
   setTab('home');
   playBgm('home');
@@ -641,6 +648,11 @@ async function handleEvents(events = []) {
   for (const ev of mergeLevelUps(events)) {
     if (ev.type === 'levelUp') await playLevelUp(state.me.dog, ev);
     if (ev.type === 'talentUp') await showTalentUp(ev);
+    if (ev.type === 'questDone') { sfx.coin(); toast(`약속 완료! "${ev.text}" · 코인 +${ev.coins}`, 'good'); }
+    if (ev.type === 'stamp') { sfx.levelUp(); await waitModal({ title: ev.full ? '도장판 완성!' : '도장 쾅!', className: 'celebrate', body: stampBody(ev) }); }
+    if (ev.type === 'badge') { sfx.star(); await waitModal({ title: '새 배지를 얻었어요!', className: 'celebrate', body: badgeBody(ev) }); }
+    if (ev.type === 'mail') { sfx.notify(); toast(`💌 ${ev.from}(이)가 편지를 남겼어요! 우편함을 열어 보세요.`, 'good'); }
+    if (ev.type === 'dex') toast(`견종 도감에 ${ev.name} 등록!`, 'good');
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
   }
@@ -654,6 +666,21 @@ function showTalentUp(ev) {
   }
   sfx.levelUp();
   return waitModal({ title: `${ev.name} 재능 ${ev.stage}단계!`, className: 'celebrate', body: talentUpBody(ev) });
+}
+
+async function openMail() {
+  try {
+    await openMailbox({
+      api, post,
+      itemName: (id) => ITEMS[id]?.name ?? '선물',
+      onOpened: (res) => { applyMe(res); if (state.tab === 'home') renderPanel(); },
+      playCapsule: async (result) => {
+        await playGacha(result, itemThumb);
+        await handleEvents(result.events ?? []);
+        renderPanel();
+      },
+    });
+  } catch (err) { toast(err.message, 'bad'); }
 }
 
 // 여럿이 하는 놀이 중에 레벨업하면 놀이가 끝나고 창이 다 닫힌 뒤에 보여 줘요
@@ -675,9 +702,15 @@ async function flushGrowth() {
   } catch { /* 다음에 다시 */ } finally { state.flushingGrowth = false; }
 }
 
+function showcaseIcons(ids = []) {
+  return ids.map((id) => badgeIcon(id, { size: 2 })).filter(Boolean);
+}
+
 function openMyCard() {
   openDogCard(state.me.dog, {
     mine: true,
+    badges: showcaseIcons(state.me.progress?.showcase),
+    onPhotoCard: () => openPhotoCard(state.me.dog, state.me.user, state.me.progress),
     onTitle: async (title) => {
       try {
         const me = await post('/dog/title', { title });
@@ -788,6 +821,7 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
+    questCard(state.me.progress),
     roomGames(),
     partyButton(),
     bondList(),
@@ -1006,7 +1040,7 @@ function visitPanel() {
     dog ? el('p', { class: 'sub' }, `${dog.name} · ${BREEDS[dog.breed].name} · ${PERSONALITIES[dog.personality].name} · ${STAGES[dog.stage].name}`) : null,
     dog?.level ? el('div', { class: 'growth' },
       el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`), titleChip(dog),
-      el('button', { class: 'btn small secondary card-btn', onclick: () => openDogCard(dog, { ownerName: room.owner.nickname }) }, '강아지 카드')) : null,
+      el('button', { class: 'btn small secondary card-btn', onclick: () => openDogCard(dog, { ownerName: room.owner.nickname, badges: showcaseIcons(dog.showcase) }) }, '강아지 카드')) : null,
     el('div', { class: 'actions' },
       actionBtn(dog ? `${dog.name} 쓰다듬기` : '쓰다듬기', 'heart', () => state.socket.emit('room:pet', { userId: room.owner.id }), !dog || dog.atSchool),
       actionBtn('개인기', 'star', openTricks, !!mine.school),
@@ -1265,7 +1299,8 @@ async function friendsPanel() {
       el('div', { class: 'meta' }, '나의 친구 코드'),
       el('div', { class: 'code' }, code),
       el('div', { class: 'row' },
-        el('button', { class: 'btn small secondary', onclick: () => shareLink(link) }, '초대 링크 보내기'))),
+        el('button', { class: 'btn small secondary', onclick: () => shareLink(link) }, '초대 링크 보내기'),
+        el('button', { class: 'btn small', onclick: () => qrModal(code, link, { onShare: shareLink }) }, 'QR 보여 주기'))),
     el('div', { class: 'chat-row' }, codeInput, el('button', { class: 'btn small primary', onclick: request }, '친구 신청')),
     el('p', { class: 'hint' }, '실제로 아는 친구하고만 코드를 주고받아요. 친구가 수락해야 친구가 돼요.'),
     data.incoming.length ? el('div', {},
@@ -1776,10 +1811,27 @@ async function startGame(type) {
 }
 
 async function notebookPanel() {
+  const sub = state.notebookTab ?? 'reports';
+  const tabs = el('div', { class: 'segmented' },
+    [['reports', '알림장'], ['badges', '배지'], ['dex', '도감']].map(([k, label]) => el('button', {
+      class: sub === k ? 'on' : '', onclick: () => { state.notebookTab = k; renderPanel(); },
+    }, label)));
+  if (sub === 'badges' || sub === 'dex') {
+    const me = await api('/me');
+    if (state.tab !== 'notebook') return null;
+    applyMe(me);
+    return el('div', {}, tabs, sub === 'badges'
+      ? badgeBoard(me.progress, {
+        onShowcase: async (ids) => {
+          try { applyMe(await post('/badges/showcase', { ids })); return true; } catch (err) { toast(err.message, 'bad'); return false; }
+        },
+      })
+      : dexPanel(me.user, me.progress, itemThumb));
+  }
   const { reports } = await api('/reports');
   if (state.tab !== 'notebook') return null;
   $('#badge-notebook').hidden = true;
-  return el('div', {},
+  return el('div', {}, tabs,
     el('h3', {}, '알림장 모음'),
     reports.length ? el('div', { class: 'cards' }, reports.map((r) => {
       const d = new Date(r.date);

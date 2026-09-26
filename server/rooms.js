@@ -103,6 +103,7 @@ export class RoomHub {
       const dog = this.game.loadDog(userId);
       if (!dog?.tricks.includes(msg.trick) || !this.chatGate(socket, 1500)) return;
       socket.to(this.channel(socket.data.room)).emit('room:trick', { userId, trick: msg.trick });
+      this.game.track(userId, 'trick', 1, { push: true });
     });
     socket.on('party:start', (_, ack) => {
       const reply = typeof ack === 'function' ? ack : () => {};
@@ -303,7 +304,13 @@ export class RoomHub {
     socket.join(this.channel(ownerId));
     socket.to(this.channel(ownerId)).emit('room:enter', this.memberView(m));
     // 친구 집에 놀러 가면 다정 재능이 자라요 (하루 한도 안에서)
-    if (ownerId !== userId) this.game.grant(userId, { talents: TALENT_GAINS.visit });
+    if (ownerId !== userId) {
+      this.game.grant(userId, { talents: TALENT_GAINS.visit });
+      this.game.track(userId, 'visit', 1, { push: true });
+    }
+    // 친구 집에서 만난 견종은 견종 도감에 올라가요
+    const breeds = [ownerId, ...this.rooms.get(ownerId).keys()].filter((id) => id !== userId).map((id) => this.game.loadDog(id)?.breed).filter(Boolean);
+    if (breeds.length) this.game.seeBreeds(userId, breeds);
     const others = [...new Set([ownerId, ...this.rooms.get(ownerId).keys()])].filter((id) => id !== userId);
     const running = this.parties.get(ownerId);
     reply({

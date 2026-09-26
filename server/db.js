@@ -118,6 +118,23 @@ export function openDb(file) {
   ensure('dogs', 'talents', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'talent_day', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'title', 'TEXT');
+  ensure('users', 'quest', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'stamps', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('users', 'stats', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'badges', "TEXT NOT NULL DEFAULT '[]'");
+  ensure('users', 'showcase', "TEXT NOT NULL DEFAULT '[]'");
+  ensure('users', 'seen_breeds', "TEXT NOT NULL DEFAULT '[]'");
+  ensure('users', 'last_seen', 'INTEGER');
+  ensure('users', 'letter_at', 'INTEGER');
+  db.exec(`CREATE TABLE IF NOT EXISTS mail (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    data TEXT NOT NULL,
+    opened INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS mail_user ON mail(user_id, created_at);`);
   migrateLevels(db);
   return db;
 }

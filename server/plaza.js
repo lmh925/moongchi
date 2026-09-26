@@ -138,6 +138,10 @@ export class PlazaHub {
     socket.join(`plaza:${id}`);
     const blocked = m.hidden;
     this.broadcast(m, 'plaza:enter', this.view(m));
+    this.game.track(userId, 'plaza', 1, { push: true });
+    const others = [...ch.members.values()].filter((o) => o.userId !== userId && !blocked.has(o.userId));
+    if (others.length) this.game.seeBreeds(userId, others.map((o) => o.dog?.breed));
+    for (const o of others) this.game.seeBreeds(o.userId, [m.dog?.breed]);
     return {
       ok: true,
       channel: id,
@@ -266,6 +270,7 @@ export class PlazaHub {
     m.lastDig = now;
     const ch = this.channels.get(socket.data.plaza);
     ch.diggers.set(m.userId, now);
+    this.game.track(m.userId, 'dig', 1, { push: true });
     this.broadcast(m, 'treasure:dig', { userId: m.userId, x: m.x, y: m.y });
     const near = ch.treasures.map((t) => ({ t, d: Math.hypot(t.x - m.x, (t.y - m.y) * 1.3) })).sort((a, b) => a.d - b.d)[0];
     if (!near) return { ok: true, found: false, hint: 'none' };
@@ -295,6 +300,7 @@ export class PlazaHub {
       this.game.grant(uid, { talents: { curious: 1 } });
     }
     this.game.grant(m.userId, { exp: PLAY_EXP.treasure, talents: TALENT_GAINS.treasure });
+    this.game.track(m.userId, 'treasure', 1, { push: true });
     this.io.to(`plaza:${ch.id}`).emit('treasure:found', {
       userId: m.userId, nickname: m.nickname, kind: near.t.kind, x: near.t.x, y: near.t.y, helpers, n: ch.treasures.length,
     });
@@ -429,7 +435,7 @@ export class PlazaHub {
     const f = this.field();
     g.score[team] += 1;
     const by = g.lastTouch && g.teams.get(g.lastTouch) === team ? g.lastTouch : null;
-    if (by) g.goals.set(by, (g.goals.get(by) ?? 0) + 1);
+    if (by) { g.goals.set(by, (g.goals.get(by) ?? 0) + 1); this.game.track(by, 'goal', 1, { push: true }); }
     Object.assign(g.ball, { x: f.cx, y: f.cy, vx: 0, vy: 0 });
     g.pauseUntil = now + 1800;
     this.io.to(`plaza:${ch.id}`).emit('soccer:goal', { team, by, byName: by ? ch.members.get(by)?.nickname : null, score: g.score });
@@ -513,6 +519,7 @@ export class PlazaHub {
         this.tagCoins.set(key, got + coins);
         this.game.addCoins(userId, coins);
         this.game.grant(userId, { exp: PLAY_EXP.tag, talents: TALENT_GAINS.tag });
+        this.game.track(userId, 'tag', 1, { push: true });
       }
       return { userId, nickname: ch.members.get(userId)?.nickname ?? '친구', tags, coins: t.status === 'play' ? coins : 0 };
     }).sort((a, b) => b.tags - a.tags);

@@ -156,6 +156,7 @@ export class CoopHub {
       const a = session.players.p1.userId; const b = session.players.p2.userId;
       this.bonds.add(a, b, 'play', { bonus: this.game.bondBonus(a, b) });
       for (const uid of [a, b]) this.game.grant(uid, { exp: PLAY_EXP.coop, talents: TALENT_GAINS.coop });
+      if (session.state.status === 'clear') for (const uid of [a, b]) this.game.track(uid, 'coop', 1, { push: true, game: session.gameId });
     }
     const summary = GAMES[session.gameId].summary?.(session.state) ?? null;
     this.send(session, 'coop:end', { sid: session.sid, status: reason ?? session.state.status, results, summary });
