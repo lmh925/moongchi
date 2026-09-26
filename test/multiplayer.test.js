@@ -201,9 +201,11 @@ test('보물찾기: 모래밭에서 파면 힌트를 주고, 가까이 파면 �
   const ch = plazaHub.channels.get(ja.channel);
   assert.ok(ch.treasures.length >= 1);
   const t = ch.treasures[0];
-  b.socket.emit('plaza:pos', { x: t.x + 30, y: t.y });
+  // 모래밭 안쪽(가운데 방향)으로 25픽셀 떨어진 곳을 파요
+  b.socket.emit('plaza:pos', { x: t.x + (t.x > 91 ? -25 : 25), y: t.y });
   await wait(150);
   const miss = await ask(b.socket, 'treasure:dig', {});
+  assert.equal(miss.ok, true, miss.reason);
   assert.equal(miss.found, false);
   assert.ok(['warm', 'hot', 'cold'].includes(miss.hint));
   a.socket.emit('plaza:pos', { x: t.x, y: t.y });
