@@ -58,6 +58,41 @@ export class Safety {
     return { banned };
   }
 
+  // ---------- 운영자 화면 ----------
+  // 신고받은 친구별로 묶어서: 아직 확인 안 한 신고가 있는 친구가 먼저
+  adminReports({ includeResolved = false } = {}) {
+    const rows = this.db.prepare(`SELECT r.*, a.nickname AS reporter, b.nickname AS target FROM abuse_reports r
+      JOIN users a ON a.id = r.reporter_id JOIN users b ON b.id = r.target_id
+      ${includeResolved ? '' : 'WHERE r.resolved = 0'} ORDER BY r.created_at DESC LIMIT 500`).all();
+    const byTarget = new Map();
+    for (const r of rows) {
+      if (!byTarget.has(r.target_id)) byTarget.set(r.target_id, { targetId: r.target_id, target: r.target, reports: [] });
+      byTarget.get(r.target_id).reports.push({ id: r.id, reporter: r.reporter, reporterId: r.reporter_id, reason: REPORT_REASONS[r.reason] ?? r.reason, place: r.place, at: r.created_at, resolved: !!r.resolved });
+    }
+    const dayAgo = this.now() - 24 * 3600_000;
+    return [...byTarget.values()].map((t) => ({
+      ...t,
+      reporters: new Set(t.reports.map((r) => r.reporterId)).size,
+      recent: t.reports.filter((r) => r.at > dayAgo).length,
+      latest: t.reports[0]?.at ?? 0,
+      bannedUntil: this.bannedUntil(t.targetId),
+    })).sort((x, y) => y.reporters - x.reporters || y.latest - x.latest);
+  }
+
+  ban(targetId, hours) {
+    const until = this.now() + Math.max(1, Math.min(24 * 30, Number(hours) || 24)) * 3600_000;
+    this.db.prepare('INSERT INTO plaza_bans (user_id, until) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET until = excluded.until').run(targetId, until);
+    return until;
+  }
+
+  unban(targetId) {
+    this.db.prepare('DELETE FROM plaza_bans WHERE user_id = ?').run(targetId);
+  }
+
+  resolve(targetId) {
+    return this.db.prepare('UPDATE abuse_reports SET resolved = 1 WHERE target_id = ? AND resolved = 0').run(targetId).changes;
+  }
+
   bannedUntil(userId) {
     const row = this.db.prepare('SELECT until FROM plaza_bans WHERE user_id = ?').get(userId);
     return row && row.until > this.now() ? row.until : 0;

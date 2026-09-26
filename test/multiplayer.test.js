@@ -269,3 +269,31 @@ test('멍멍 축구: 두 팀으로 나뉘고, 공을 골대에 넣으면 점수�
   assert.ok(end.results.every((r) => r.coins > 0));
   a.socket.emit('plaza:leave'); b.socket.emit('plaza:leave');
 });
+
+test('운영자 화면: 코드가 있어야 하고, 신고를 보고 놀이터 제한·풀기·확인 완료를 해요', async () => {
+  const a = await player(); const b = await player(); const c = await player();
+  safety.report(a.id, c.id, 'mean');
+  safety.report(b.id, c.id, 'follow');
+  const admin = (path, body, code) => fetch(`${base}/api/admin${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'content-type': 'application/json', ...(code ? { 'x-admin-code': code } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  delete process.env.ADMIN_CODE;
+  assert.equal((await admin('/reports')).status, 404, '코드를 안 정하면 꺼져 있어요');
+  process.env.ADMIN_CODE = 'admin-secret';
+  assert.equal((await admin('/reports', null, 'wrong-secret')).status, 401);
+  const { targets } = await (await admin('/reports', null, 'admin-secret')).json();
+  const t = targets.find((x) => x.targetId === c.id);
+  assert.equal(t.reporters, 2);
+  assert.equal((await admin('/ban', { userId: c.id, hours: 24 }, 'admin-secret')).status, 200);
+  assert.ok(safety.bannedUntil(c.id) > Date.now());
+  const join = await ask(c.socket, 'plaza:join', {});
+  assert.equal(join.ok, false, '제한 중엔 놀이터에 못 들어가요');
+  await admin('/unban', { userId: c.id }, 'admin-secret');
+  assert.equal(safety.bannedUntil(c.id), 0);
+  await admin('/resolve', { userId: c.id }, 'admin-secret');
+  const after = await (await admin('/reports', null, 'admin-secret')).json();
+  assert.ok(!after.targets.some((x) => x.targetId === c.id), '확인한 신고는 목록에서 빠져요');
+  delete process.env.ADMIN_CODE;
+});

@@ -74,6 +74,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   // 개인정보처리방침 (문의처는 환경 변수 CONTACT_EMAIL)
   const privacyHtml = fs.readFileSync(path.join(root, 'public', 'privacy.html'), 'utf8')
     .replace('{{CONTACT}}', (process.env.CONTACT_EMAIL ?? '운영자에게 문의 (연락처 준비 중)').replace(/[<>&"]/g, ''));
+  app.get(['/admin', '/admin/'], (req, res) => { res.set('Cache-Control', 'no-store'); res.sendFile(path.join(root, 'public', 'admin.html')); });
   app.get(['/privacy', '/privacy.html'], (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(privacyHtml); });
   app.use('/v/:build/shared', express.static(path.join(root, 'shared'), forever));
   app.use('/v/:build', express.static(path.join(root, 'public'), forever));
@@ -289,6 +290,26 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
     return { ...me(req.userId, { events: res.events }), result: res };
   }));
+
+  // ---------- 운영자 (신고 확인) ----------
+  // 환경 변수 ADMIN_CODE가 있을 때만 켜져요. 요청마다 x-admin-code 헤더로 확인해요.
+  const adminOnly = (req, res, next) => {
+    const secret = process.env.ADMIN_CODE;
+    if (!secret) return res.status(404).json({ error: '없는 주소예요.' });
+    const a = Buffer.from(String(req.get('x-admin-code') ?? '')); const b = Buffer.from(secret);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: '운영자 코드가 맞지 않아요.' });
+    next();
+  };
+  api.get('/admin/reports', limiter(60, 10 * 60_000), adminOnly, wrap((req) => ({ targets: safety.adminReports({ includeResolved: req.query.all === '1' }) })));
+  api.post('/admin/ban', limiter(60, 10 * 60_000), adminOnly, wrap((req) => {
+    const userId = Number(req.body?.userId);
+    if (!game.getUser(userId)) throw new GameError('없는 계정이에요.', 404);
+    const until = safety.ban(userId, req.body?.hours);
+    plaza.kick(userId, '운영자 확인 결과 잠시 놀이터에 들어올 수 없어요.');
+    return { until };
+  }));
+  api.post('/admin/unban', limiter(60, 10 * 60_000), adminOnly, wrap((req) => { safety.unban(Number(req.body?.userId)); }));
+  api.post('/admin/resolve', limiter(60, 10 * 60_000), adminOnly, wrap((req) => ({ resolved: safety.resolve(Number(req.body?.userId)) })));
 
   // ---------- 멍뭉거래 ----------
   api.get('/trades', authed, wrap((req) => trades.list(req.userId)));

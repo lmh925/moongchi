@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>멍뭉고치 운영자</title>
+  <style>
+    :root { --ink: #4a3330; --soft: #7a5a50; --line: #eadbc6; --paper: #fffaf0; --red: #e84a5f; --green: #3fb58a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3ead9; color: var(--ink); font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif; }
+    header { background: #8a5429; color: #fff; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    header h1 { font-size: 18px; margin: 0; flex: 1; }
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    .card { background: var(--paper); border: 2px solid var(--ink); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .grow { flex: 1; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; background: #fff1d6; border: 1px solid var(--line); font-size: 12px; }
+    .pill.red { background: #ffe1e5; border-color: var(--red); color: var(--red); }
+    .pill.green { background: #dcf5ea; border-color: var(--green); color: #1f7a5a; }
+    button, select, input { font: inherit; }
+    button { border: 2px solid var(--ink); border-radius: 8px; background: #fff; padding: 4px 10px; cursor: pointer; }
+    button.primary { background: var(--red); color: #fff; }
+    button.ok { background: var(--green); color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+    .muted { color: var(--soft); font-size: 13px; }
+    #login { max-width: 360px; margin: 60px auto; }
+    #login input { width: 100%; padding: 8px; border: 2px solid var(--ink); border-radius: 8px; margin: 8px 0; }
+    @media (max-width: 600px) { td:nth-child(4), th:nth-child(4) { display: none; } header h1 { flex-basis: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🐶 멍뭉고치 운영자 · 신고 확인</h1>
+    <label class="row" style="color:#fff"><input type="checkbox" id="all"> 확인한 신고도 보기</label>
+    <button id="reload">새로고침</button>
+    <button id="logout">나가기</button>
+  </header>
+  <div id="login" class="card" hidden>
+    <b>운영자 코드</b>
+    <p class="muted">서버 환경 변수 ADMIN_CODE에 넣은 코드를 입력하세요. 이 창을 닫으면 다시 입력해야 해요.</p>
+    <input id="code" type="password" autocomplete="off">
+    <button class="primary" id="enter">들어가기</button>
+    <p id="err" class="muted" style="color:var(--red)"></p>
+  </div>
+  <main id="list"></main>
+<script>
+const $ = (s) => document.querySelector(s);
+let code = sessionStorage.getItem('mm.admin') || '';
+const fmt = (t) => new Date(t).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function call(path, body) {
+  const res = await fetch(`/api/admin${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'content-type': 'application/json', 'x-admin-code': code },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || '오류'); e.status = res.status; throw e; }
+  return data;
+}
+
+function showLogin(msg = '') {
+  $('#login').hidden = false; $('#list').innerHTML = ''; $('#err').textContent = msg; $('#code').focus();
+}
+
+async function load() {
+  if (!code) return showLogin();
+  try {
+    const { targets } = await call(`/reports${$('#all').checked ? '?all=1' : ''}`);
+    $('#login').hidden = true;
+    $('#list').innerHTML = targets.length ? '' : '<div class="card">확인할 신고가 없어요. 🎉</div>';
+    for (const t of targets) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const banned = t.bannedUntil ? `<span class="pill red">놀이터 제한 ~${fmt(t.bannedUntil)}</span>` : '<span class="pill green">제한 없음</span>';
+      card.innerHTML = `
+        <div class="row">
+          <b class="grow">${esc(t.target)} <span class="muted">#${t.targetId}</span></b>
+          <span class="pill">신고한 친구 ${t.reporters}명</span>
+          <span class="pill">24시간 ${t.recent}건</span>
+          ${banned}
+        </div>
+        <table><tr><th>신고한 친구</th><th>이유</th><th>시각</th><th>장소</th></tr>
+        ${t.reports.map((r) => `<tr${r.resolved ? ' class="muted"' : ''}><td>${esc(r.reporter)}</td><td>${esc(r.reason)}</td><td>${fmt(r.at)}</td><td>${esc(r.place)}</td></tr>`).join('')}
+        </table>
+        <div class="row" style="margin-top:8px">
+          <select><option value="24">1일</option><option value="72">3일</option><option value="168" selected>7일</option><option value="720">30일</option></select>
+          <button class="primary" data-act="ban">놀이터 제한</button>
+          ${t.bannedUntil ? '<button data-act="unban">제한 풀기</button>' : ''}
+          <span class="grow"></span>
+          <button class="ok" data-act="resolve">확인 완료 (문제 없음/처리함)</button>
+        </div>`;
+      card.querySelectorAll('button').forEach((b) => b.addEventListener('click', async () => {
+        try {
+          if (b.dataset.act === 'ban') await call('/ban', { userId: t.targetId, hours: Number(card.querySelector('select').value) });
+          if (b.dataset.act === 'unban') await call('/unban', { userId: t.targetId });
+          if (b.dataset.act === 'resolve') await call('/resolve', { userId: t.targetId });
+          load();
+        } catch (err) { alert(err.message); }
+      }));
+      $('#list').append(card);
+    }
+  } catch (err) {
+    if (err.status === 401 || err.status === 404) { sessionStorage.removeItem('mm.admin'); code = ''; showLogin(err.status === 404 ? '서버에 ADMIN_CODE가 설정되지 않았어요.' : err.message); } else alert(err.message);
+  }
+}
+
+$('#enter').addEventListener('click', () => { code = $('#code').value.trim(); sessionStorage.setItem('mm.admin', code); load(); });
+$('#code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#enter').click(); });
+$('#reload').addEventListener('click', load);
+$('#all').addEventListener('change', load);
+$('#logout').addEventListener('click', () => { sessionStorage.removeItem('mm.admin'); code = ''; showLogin(); });
+load();
+</script>
+</body>
+</html>

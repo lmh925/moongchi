@@ -181,6 +181,15 @@ export class PlazaHub {
     }
   }
 
+  // 운영자가 놀이터 입장을 막으면 지금 있는 놀이터에서도 내보내요
+  kick(userId, reason) {
+    for (const ch of this.channels.values()) {
+      const m = ch.members.get(userId);
+      const s = m && this.io.sockets.sockets.get(m.socketId);
+      if (s) { this.leave(s); s.emit('plaza:kicked', { reason }); }
+    }
+  }
+
   // 칭호·성장 모습이 바뀌면 놀이터 친구들에게도 알려요
   dogChanged(userId) {
     for (const ch of this.channels.values()) {
