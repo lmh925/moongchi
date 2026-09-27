@@ -428,11 +428,19 @@ function openAsk() {
   if (!cur) return;
   sfx.notify();
   const dog = state.me.dog;
-  const go = () => {
-    if (cur.go === 'treat') { openFoodBowl(); return; }
-    if (cur.go === 'school') state.schoolTab = 'train';
+  // '해 줄게!'를 누르면 바로 그 일을 하러 가요 (창만 닫히지 않게)
+  const act = () => {
+    if (cur.kind === 'treat') return openFoodBowl();
+    if (cur.kind === 'feed' || cur.kind === 'brush') { setTab('home'); return doCare(cur.kind); }
+    if (cur.kind === 'trick') { setTab('home'); return openTricks(); }
+    if (cur.kind === 'train') { state.schoolTab = 'train'; setTab('school'); return startTraining(cur.target); }
+    if (cur.kind === 'run') { setTab('play'); return openRunnerReady(); }
+    if (cur.kind === 'plaza') { setTab('play'); return enterPlaza(); }
+    if (cur.kind === 'wear') { setTab('closet'); return toast(`${ITEMS[cur.target]?.name ?? '소원 옷'}을(를) 찾아 입혀 줘요!`); }
+    if (cur.kind === 'friend') { setTab('friends'); return toast('놀러 갈 친구를 골라요!'); }
     setTab(cur.go === 'home' ? 'home' : cur.go);
   };
+  const go = () => { setTimeout(act, 0); };
   modal({
     title: cur.rainbow ? '🌈 무지개 소원!' : `${dog.name}의 소원`,
     className: `ask-modal ${cur.color}`,
@@ -441,7 +449,7 @@ function openAsk() {
       el('div', { class: 'ask-say' }, `${cur.emoji} ${cur.text}`),
       el('p', { class: 'help' }, `이렇게 해 줘요: ${cur.how}`),
       el('p', { class: 'hint' }, cur.rainbow ? '들어주면 💗와 함께 선물 3개 중 하나를 골라요!' : '들어주면 💗 행복 포인트를 받아요. 💗를 모으면 새로운 곳이 열려요!')),
-    buttons: [{ label: '나중에', kind: 'secondary' }, { label: '해 줄게!', onClick: go }],
+    buttons: [{ label: '나중에', kind: 'secondary' }, { label: '지금 하러 가자!', onClick: go }],
   });
 }
 
