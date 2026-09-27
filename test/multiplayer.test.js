@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { io as ioClient } from 'socket.io-client';
 import { createServer } from '../server/index.js';
 import { ribbon, gaugeAt } from '../shared/coop/ribbon.js';
-import { FASHION, COOP_GAMES } from '../shared/data.js';
+import { FASHION, COOP_GAMES, SHOW_WARDROBE } from '../shared/data.js';
 
 test('리본 풀기 규칙: 둘이 0.3초 안에 초록 칸에서 당겨야 성공', () => {
   const s = ribbon.init({ now: 0 });
@@ -300,7 +300,7 @@ test('운영자 화면: 코드가 있어야 하고, 신고를 보고 놀이터 �
 
 test('멍뭉 패션쇼: 참가 → 옷 갈아입기 → 한 명씩 무대, 응원은 한 친구에게 3번까지 → 결과', async () => {
   const saved = { ...FASHION };
-  Object.assign(FASHION, { countdownMs: 100, dressMs: 250, walkMs: 1200 });
+  Object.assign(FASHION, { countdownMs: 100, dressMs: 700, walkMs: 1200 });
   try {
     const a = await player(); const b = await player(); const fan = await player();
     for (const p of [a, b, fan]) await ask(p.socket, 'plaza:join', {});
@@ -310,14 +310,29 @@ test('멍뭉 패션쇼: 참가 → 옷 갈아입기 → 한 명씩 무대, 응�
     const st = await dress;
     assert.ok(st.theme);
     assert.equal((await ask(fan.socket, 'show:join', {})).ok, false, '시작하면 더 못 들어와요');
+    // 의상실: 참가한 친구만, 무대 의상만 빌려 입어요. 주제에 맞으면 응원 +1
+    const match = Object.keys(SHOW_WARDROBE).find((id) => SHOW_WARDROBE[id].theme === st.themeKey && SHOW_WARDROBE[id].slot === 'head');
+    const other = Object.keys(SHOW_WARDROBE).find((id) => SHOW_WARDROBE[id].theme !== st.themeKey && SHOW_WARDROBE[id].slot === 'neck');
+    assert.equal((await ask(fan.socket, 'show:dress', { slot: 'head', itemId: match })).ok, false, '구경하는 친구는 못 입어요');
+    assert.equal((await ask(a.socket, 'show:dress', { slot: 'head', itemId: 'crown' })).ok, false, '의상실 옷만 빌려요');
+    assert.equal((await ask(a.socket, 'show:dress', { slot: 'neck', itemId: match })).ok, false, '자리에 맞는 옷만');
+    const seen = next(fan.socket, 'plaza:dog', (d) => d.userId === a.id && d.dog.equip.head === match);
+    assert.equal((await ask(a.socket, 'show:dress', { slot: 'head', itemId: match })).ok, true);
+    await seen;
+    await wait(170);
+    assert.equal((await ask(b.socket, 'show:dress', { slot: 'neck', itemId: other })).ok, true);
     const walkA = await next(fan.socket, 'show:state', (s) => s?.status === 'walk' && s.walker === a.id);
     assert.equal(walkA.players.length, 2);
+    assert.deepEqual([walkA.bonus, walkA.cheers], [1, 1], '주제에 맞는 의상 보너스');
+    assert.equal((await ask(a.socket, 'show:dress', { slot: 'head', itemId: null })).ok, false, '무대에선 못 갈아입어요');
+    const back = next(fan.socket, 'plaza:dog', (d) => d.userId === a.id && d.dog.equip.head !== match);
     for (let i = 0; i < 5; i++) { fan.socket.emit('show:react', { kind: 'heart' }); await wait(170); }
     a.socket.emit('show:react', { kind: 'heart' }); // 나 자신은 응원 못 해요
     const end = await next(fan.socket, 'show:end');
     const ra = end.results.find((r) => r.userId === a.id);
     const rb = end.results.find((r) => r.userId === b.id);
-    assert.equal(ra.cheers, 3, '한 친구에게 3번까지');
+    assert.equal(ra.cheers, 4, '한 친구에게 3번까지 + 주제 보너스 1');
+    await back; // 쇼가 끝나면 빌린 의상은 돌려줘요
     assert.equal(ra.star, true);
     assert.equal(rb.star, false);
     assert.ok(ra.coins > rb.coins);

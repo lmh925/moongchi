@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -1824,8 +1824,12 @@ function bindPlazaSocket(socket) {
     state.plaza.show = s;
     state.plaza.view.setShow(s);
     const joined = s?.players.some((p) => p.userId === myId());
-    if (joined && s.status === 'dress' && before?.status !== 'dress') { sfx.bell(); toast(`패션쇼 주제: ${s.theme}! 옷을 갈아입어요.`, 'good'); }
-    if (s?.status === 'walk' && s.walker === myId() && before?.walker !== myId()) { sfx.levelUp(); toast('내 차례! 무대 위에서 반짝반짝~', 'good'); }
+    if (joined && s.status === 'dress' && before?.status !== 'dress') { sfx.bell(); toast(`패션쇼 주제: ${s.theme}! 의상실에서 옷을 골라요.`, 'good'); }
+    if (s?.status !== 'dress' && state.wardrobeClose) { state.wardrobeClose(); state.wardrobeClose = null; }
+    if (!s || !joined) state.plaza.costume = null;
+    if (s?.status === 'walk' && s.walker === myId() && before?.walker !== myId()) {
+      sfx.levelUp(); toast(s.bonus ? `내 차례! 주제에 딱 맞는 의상이라 응원 +${s.bonus}!` : '내 차례! 무대 위에서 반짝반짝~', 'good');
+    }
     renderSpotBox();
   });
   socket.on('show:reaction', ({ kind, to, cheers }) => {
@@ -2141,16 +2145,51 @@ function showSpotBox(info) {
   if (s.status === 'dress') {
     return [el('b', {}, `오늘의 주제: ${s.theme}`),
       el('div', { class: 'meta' }, joined ? `${left(s.phaseEnds)}초 안에 주제에 맞게 갈아입어요!` : '참가한 친구들이 옷을 갈아입는 중이에요. 곧 무대가 시작돼요!'),
-      joined ? el('button', { class: 'btn primary', onclick: openQuickCloset }, '옷장 열기') : null];
+      joined ? el('div', { class: 'btns' },
+        el('button', { class: 'btn primary', onclick: openShowWardrobe }, '✨ 패션쇼 의상실'),
+        el('button', { class: 'btn small', onclick: openQuickCloset }, '내 옷장')) : null];
   }
   const walker = s.players.find((p) => p.userId === s.walker);
   const mine = s.walker === myId();
   return [el('b', {}, `무대 위: ${walker?.nickname ?? '친구'} ✨`),
-    el('div', { class: 'meta' }, `주제: ${s.theme} · `, el('span', { id: 'show-cheers' }, `응원 ${s.cheers ?? 0}`)),
+    el('div', { class: 'meta' }, `주제: ${s.theme} · `, el('span', { id: 'show-cheers' }, `응원 ${s.cheers ?? 0}`), s.bonus ? ` · ✨ 주제에 딱 맞는 의상!` : ''),
     mine ? el('div', { class: 'meta' }, '내 차례예요! 몸짓 버튼으로 포즈를 해 보세요.')
       : el('div', { class: 'btns cheer-btns' }, Object.entries(FASHION.reactions).map(([k, label]) => el('button', {
         class: 'btn small', onclick: () => { state.socket.emit('show:react', { kind: k }); sfx.tap(); },
       }, el('img', { class: 'pixel', src: iconURL(k, 2), alt: '' }), label)))];
+}
+
+// 패션쇼 의상실: 무대에서만 빌려 입는 옷·소품 (쇼가 끝나면 원래 옷으로 돌아와요)
+function openShowWardrobe() {
+  const themeKey = state.plaza?.show?.themeKey;
+  const costume = () => state.plaza?.costume ?? {};
+  const render = () => {
+    const { dog } = state.me;
+    const equip = { ...dog.equip, ...costume() };
+    const picks = Object.keys(SHOW_WARDROBE).sort((a, b) => (SHOW_WARDROBE[b].theme === themeKey) - (SHOW_WARDROBE[a].theme === themeKey));
+    return el('div', { class: 'quick-closet wardrobe' },
+      el('img', { class: 'pixel wardrobe-preview', src: dogPortrait(dog.breed, dog.stage, { equip }), alt: '' }),
+      el('p', { class: 'hint center' }, '무대에서만 빌려 입는 옷이에요. ✨ 주제에 맞는 옷을 입으면 응원을 하나 더 받고 시작해요! (최대 2개)'),
+      DOG_SLOTS.map((slot) => el('div', {},
+        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴' }[slot]),
+        el('div', { class: 'items' }, picks.filter((id) => SHOW_WARDROBE[id].slot === slot).map((id) => {
+          const on = costume()[slot] === id;
+          const match = SHOW_WARDROBE[id].theme === themeKey;
+          return el('button', {
+            class: `item ${on ? 'equipped' : ''} ${match ? 'theme-match' : ''}`,
+            onclick: async () => {
+              const r = await emitAck('show:dress', { slot, itemId: on ? null : id });
+              if (!r.ok) { toast(r.reason, 'bad'); return; }
+              if (state.plaza) state.plaza.costume = r.costume;
+              sfx.pop();
+              box.card.querySelector('.modal-body').replaceChildren(render());
+            },
+          }, match ? el('span', { class: 'chip theme-chip' }, '주제!') : null,
+          el('img', { class: 'pixel', src: accessoryURL(id, 4), alt: '' }), el('span', { class: 'name' }, SHOW_WARDROBE[id].name));
+        })))));
+  };
+  const box = modal({ title: '✨ 패션쇼 의상실', className: 'trade-modal', body: render(), buttons: [{ label: '다 입었어요!' }] });
+  state.wardrobeClose = box.close;
 }
 
 // 놀이터를 떠나지 않고 바로 갈아입는 작은 옷장

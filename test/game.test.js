@@ -167,7 +167,8 @@ test('조퇴: 다닌 시간만큼만 보상, 절반 전이면 개인기 없음',
   assert.equal(report.coins, 20);
   assert.equal(report.trick, null);
   assert.equal(res.dog.school, null);
-  assert.equal(game.getUser(userId).coins, coins0 + 20);
+  const levelCoins = res.events.filter((e) => e.type === 'levelUp').reduce((n, e) => n + (e.rewards?.coins ?? 0), 0);
+  assert.equal(game.getUser(userId).coins, coins0 + 20 + levelCoins);
   assert.throws(() => game.leaveSchool(userId), /학교에 가 있지 않아요/);
 });
 

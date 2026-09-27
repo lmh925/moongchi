@@ -23,10 +23,10 @@ function newDog(game, auth, nick, personality = 'hyper') {
   return userId;
 }
 
-test('레벨 곡선: Lv5 ≈ 경험치 150, Lv12 ≈ 500, 끝없이 올라가요', () => {
+test('레벨 곡선: Lv5 ≈ 경험치 100, Lv12 ≈ 360, 끝없이 올라가요', () => {
   assert.equal(levelFromExp(0), 1);
-  assert.equal(levelFromExp(150), 5);
-  assert.equal(levelFromExp(500), 12);
+  assert.equal(levelFromExp(100), 5);
+  assert.equal(levelFromExp(360), 12);
   const deep = levelInfo(20000);
   assert.ok(deep.level > 50);
   for (let l = 1; l < 60; l++) assert.ok(expToNext(l + 1) >= expToNext(l), '필요 경험치는 줄지 않아요');
@@ -127,7 +127,7 @@ test('레벨이 생기기 전 강아지는 지금 경험치로 레벨을 매기�
   db.prepare("UPDATE dogs SET exp = 500, level = 0, talents = '{}' WHERE user_id = ?").run(userId);
   migrateLevels(db); // openDb가 하는 옮기기를 같은 DB에 다시 돌려요
   const dog = game.loadDog(userId);
-  assert.equal(dog.level, 12);
+  assert.equal(dog.level, 15);
   assert.ok(dog.talents.curious > dog.talents.strong, '성격에 맞는 재능이 더 자라 있어요');
   // 옮긴 뒤에는 보상을 다시 주지 않아요
   assert.equal(game.grant(userId, { exp: 1 }).filter((e) => e.type === 'levelUp').length, 0);

@@ -10,8 +10,8 @@ export const STAGES = [
 // 경험치가 쌓이면 레벨이 올라요 (끝없이). 다음 레벨까지 필요한 경험치는 조금씩 늘어나요.
 // Lv 5 ≈ 경험치 150 (꼬마), Lv 12 ≈ 경험치 500 (늠름한 강아지)
 export const LEVEL = {
-  needBase: 30,
-  needPerLevel: 2.5,
+  needBase: 20,
+  needPerLevel: 2,
   needCurveFrom: 11, // 이 레벨부터는 조금 더 가파르게
   needCurve: 0.5,
   coinsBase: 10, // 레벨업 보상 코인 = coinsBase + 레벨
@@ -67,7 +67,7 @@ export const TALENT_GAINS = {
   fashion: { charm: 4 },
 };
 // 여럿이 하는 놀이의 경험치
-export const PLAY_EXP = { coop: 8, soccer: 6, tag: 4, treasure: 4, party: 4, fashion: 6 };
+export const PLAY_EXP = { coop: 12, soccer: 9, tag: 6, treasure: 6, party: 6, fashion: 9 };
 
 // 칭호: 레벨이나 재능으로 얻고, 강아지 카드에서 골라 달아요. 놀이터에서는 레벨 대신 칭호가 보여요.
 export const TITLES = {
@@ -462,7 +462,34 @@ export const FASHION = {
   coins: { join: 6, star: 12 },
   dailyCoins: 45,
   reactions: { heart: '하트', star: '별', sparkle: '반짝' },
-  themes: ['소풍 가는 날 🧺', '반짝반짝 파티 🎉', '겨울 눈사람 ⛄', '바다 여행 🏖️', '왕자님·공주님 👑', '학교 가는 날 🎒', '꽃밭 산책 🌸', '우주 탐험 🚀'],
+  themes: [
+    { key: 'picnic', name: '소풍 가는 날 🧺' }, { key: 'party', name: '반짝반짝 파티 🎉' },
+    { key: 'winter', name: '겨울 눈사람 ⛄' }, { key: 'sea', name: '바다 여행 🏖️' },
+    { key: 'royal', name: '왕자님·공주님 👑' }, { key: 'school', name: '학교 가는 날 🎒' },
+    { key: 'flower', name: '꽃밭 산책 🌸' }, { key: 'space', name: '우주 탐험 🚀' },
+  ],
+  themeBonus: 1, // 주제에 맞는 무대 의상 하나마다 응원 +1
+  themeBonusMax: 2,
+};
+
+// 패션쇼 의상실: 무대에서만 빌려 입는 옷·소품 (가질 수 없고, 쇼가 끝나면 원래 옷으로 돌아와요)
+export const SHOW_WARDROBE = {
+  sw_picnic_hat: { name: '체크무늬 벙거지', slot: 'head', theme: 'picnic' },
+  sw_party_hat: { name: '고깔 파티 모자', slot: 'head', theme: 'party' },
+  sw_party_mask: { name: '반짝 파티 가면', slot: 'face', theme: 'party' },
+  sw_pompom: { name: '방울 털모자', slot: 'head', theme: 'winter' },
+  sw_muffler: { name: '줄무늬 긴 목도리', slot: 'neck', theme: 'winter' },
+  sw_sailor: { name: '세일러 모자', slot: 'head', theme: 'sea' },
+  sw_lei: { name: '하와이 꽃목걸이', slot: 'neck', theme: 'sea' },
+  sw_goggles: { name: '물안경', slot: 'face', theme: 'sea' },
+  sw_tiara: { name: '보석 티아라', slot: 'head', theme: 'royal' },
+  sw_jewel: { name: '루비 목걸이', slot: 'neck', theme: 'royal' },
+  sw_school_tie: { name: '교복 넥타이', slot: 'neck', theme: 'school' },
+  sw_nerd: { name: '네모 모범생 안경', slot: 'face', theme: 'school' },
+  sw_butterfly: { name: '나비 머리핀', slot: 'head', theme: 'flower' },
+  sw_daisy: { name: '데이지 꽃목걸이', slot: 'neck', theme: 'flower' },
+  sw_antenna: { name: '외계인 더듬이', slot: 'head', theme: 'space' },
+  sw_visor: { name: '우주 바이저', slot: 'face', theme: 'space' },
 };
 
 export const TREASURE = {
@@ -573,9 +600,9 @@ export const RULES = {
   decayPerHour: { fullness: 5, cleanliness: 3, affection: 4 },
   fluffDecayPerHour: 200, // 빗질로 뽕긋해진 털은 30분 정도 유지돼요
   actions: {
-    feed: { stat: 'fullness', gain: 30, exp: 10, coins: 2, expBelow: 90, coinBelow: 80, fullAt: 95 },
-    brush: { stat: 'cleanliness', gain: 25, exp: 8, coins: 2, expBelow: 90, coinBelow: 80, fullAt: 101 },
-    pet: { stat: 'affection', gain: 10, exp: 3, coins: 1, expBelow: 90, coinBelow: 60, fullAt: 101 },
+    feed: { stat: 'fullness', gain: 30, exp: 12, coins: 2, expBelow: 90, coinBelow: 80, fullAt: 95 },
+    brush: { stat: 'cleanliness', gain: 25, exp: 10, coins: 2, expBelow: 90, coinBelow: 80, fullAt: 101 },
+    pet: { stat: 'affection', gain: 10, exp: 5, coins: 1, expBelow: 90, coinBelow: 60, fullAt: 101 },
   },
   favoriteBonus: 5, // 좋아하는 돌봄을 받으면 애정도가 추가로 올라요
   dailyCoins: 20,
@@ -761,7 +788,7 @@ export const TREATS = {
   jerky: { name: '소고기 육포', price: 12, fullness: 30, affection: 7, fav: ['foodie', 'smart'], color: '#b0563a' },
   cake: { name: '멍멍 케이크', price: 30, fullness: 40, affection: 20, fav: ['sleepy', 'hyper', 'foodie', 'sweet', 'shy', 'smart'], color: '#ffe066' },
 };
-export const TREAT_RULES = { maxHold: 20, favBonus: 6, exp: 4, fullAt: 98 };
+export const TREAT_RULES = { maxHold: 20, favBonus: 6, exp: 6, fullAt: 98 };
 // 밥을 먹고 조금 지나면 방에 똥을 싸요. 치우면 청결도·코인이 조금 올라요. 오래 두면 청결도가 조금 더 빨리 줄어요.
 export const POOP = {
   delayMs: 45 * 60_000,

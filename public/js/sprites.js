@@ -177,6 +177,39 @@ const ACCESSORIES = {
     map: ['...y...', '..yyy..', 'yyycyyy', '.ycccy.', '.yy.yy.', 'y.....y'] },
   sunglasses: { anchor: 'eye', dx: -3, dy: -2, colors: { o: '#1e1e28', g: '#3a3a4a', w: '#9aa0b8' },
     map: ['oooooooooo', 'ogwgggo...', 'oggggo....', '.oooo.....'] },
+  // 패션쇼 의상실 (무대에서만 입어요)
+  sw_picnic_hat: { anchor: 'head', dx: -6, dy: -6, colors: { o: '#4a3330', r: '#ff6b6b', w: '#ffffff' },
+    map: ['...ooooooo...', '..orwrwrwro..', '..owrwrwrwo..', '..orwrwrwro..', 'ooooooooooooo', 'orwrwrwrwrwro', 'ooooooooooooo'] },
+  sw_party_hat: { anchor: 'head', dx: -4, dy: -8, colors: { o: '#4a3330', y: '#ffe066', p: '#ff7fa8', b: '#6ecbff' },
+    map: ['...yyy...', '...oyo...', '...opo...', '..opbpo..', '..obpbo..', '.opbpbpo.', '.obpbpbo.', 'ooooooooo'] },
+  sw_pompom: { anchor: 'head', dx: -5, dy: -9, colors: { o: '#4a3330', r: '#e84a5f', w: '#ffffff', l: '#dde6f0' },
+    map: ['....ooo....', '...owwwo...', '....ooo....', '..ooooooo..', '.orrrrrrro.', 'orrwrrrwrro', 'orrrrrrrrro', 'owlwlwlwlwo', 'ooooooooooo'] },
+  sw_sailor: { anchor: 'head', dx: -6, dy: -5, colors: { o: '#4a3330', b: '#2f4f9f', w: '#ffffff', y: '#ffd23f' },
+    map: ['...ooooooo...', '..owwwwwwwo..', '..owwwywwwo..', '.obbbbbbbbbo.', 'owwwwwwwwwwwo', 'ooooooooooooo'] },
+  sw_tiara: { anchor: 'head', dx: -5, dy: -6, colors: { o: '#4a3330', y: '#ffd23f', p: '#ff5d9e', b: '#7fd4ff', w: '#ffffff' },
+    map: ['.....w.....', '....opo....', '.w..oyo..w.', 'oyo.oyo.oyo', 'oyyyybyyyyo', 'ooooooooooo'] },
+  sw_butterfly: { anchor: 'head', dx: -4, dy: -7, colors: { o: '#4a3330', p: '#b07cff', y: '#ffe066' },
+    map: ['..o...o..', '...o.o...', '.oo.o.oo.', 'oppoooppo', 'opypopypo', 'oppoooppo', '.oo.o.oo.'] },
+  sw_antenna: { anchor: 'head', dx: -4, dy: -7, colors: { o: '#4a3330', g: '#7dff8a', s: '#b0b8d0' },
+    map: ['oo.....oo', 'ogo...ogo', '.oo...oo.', '..o...o..', '..o...o..', 'ooooooooo', 'ossssssso', 'ooooooooo'] },
+  sw_muffler: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', r: '#e84a5f', y: '#ffe066' },
+    map: ['orrrrrro', 'oryryryo', 'orrrrrro', '....orro', '....oyro', '....orro', '....oyro', '....orro', '.....oo.'] },
+  sw_lei: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', p: '#ff7fa8', y: '#ffe066', b: '#6ecbff', r: '#ff9f43' },
+    map: ['opoyobo', 'oyoroyo', '.opobo.', '..oro..'] },
+  sw_jewel: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#4a3330', y: '#ffd23f', r: '#e8264a', l: '#ff8fa3' },
+    map: ['oyoyoyoyo', '.oyoyoyo.', '...orro..', '...olro..', '....oo...'] },
+  sw_school_tie: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', w: '#ffffff', b: '#2f4f9f', l: '#ffd23f' },
+    map: ['owwowwo', '.owbwo.', '..obo..', '.obbbo.', '.oblbo.', '.obbbo.', '..obo..', '...o...'] },
+  sw_daisy: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#4a3330', w: '#ffffff', y: '#ffd23f', g: '#6cc070' },
+    map: ['owowowowo', '.oyogoyo.', '..owowo..'] },
+  sw_party_mask: { anchor: 'eye', dx: -3, dy: -1, colors: { o: '#4a3330', p: '#b07cff', y: '#ffd23f' },
+    map: ['yooooo', 'op.ppo', 'opppo.', '.ooo..'] },
+  sw_goggles: { anchor: 'eye', dx: -3, dy: -2, colors: { o: '#4a3330', k: '#ff9f43', c: '#7fd4ff', l: '#ffffff' },
+    map: ['..oooo', 'kkocco', 'kkolco', '..oooo'] },
+  sw_nerd: { anchor: 'eye', dx: -2, dy: -2, colors: { o: '#2f4f9f' },
+    map: ['ooooo', 'o...o', 'o...o', 'ooooo'] },
+  sw_visor: { anchor: 'eye', dx: -3, dy: -2, colors: { o: '#4a4a6a', c: '#8fe3ff', l: '#ffffff' },
+    map: ['oooooo', 'olcccc', 'occccc', 'oooooo'] },
 };
 
 // 정면 모습일 때 모양이 달라지는 액세서리 (안경은 두 눈에 씌워요)
@@ -185,6 +218,11 @@ const FRONT_ACC = {
   sunglasses: { dx: -6, dy: -2, map: ['ooooooooooooo', 'oggwgoooggwgo', 'ogggo...ogggo', '.ooo.....ooo.'] },
   round_glasses: { dx: -6, dy: -2, map: ['.ooo....ooo.', 'o...oooo...o', 'o...o..o...o', '.ooo....ooo.'] },
   heart_glasses: { dx: -6, dy: -2, map: ['.o.o....o.o.', 'orproooorpro', 'orrro..orrro', '.oro....oro.', '..o......o..'] },
+  // 패션쇼 의상실
+  sw_party_mask: { dx: -7, dy: -2, map: ['y.ooooooooooo.y', '.op..ppppp..po.', '.opppppppppppo.', '..ooooo.ooooo..'] },
+  sw_goggles: { dx: -7, dy: -2, map: ['..oooo...oooo..', 'kkoccoooooccokk', 'kkolco...olcokk', '..oooo...oooo..'] },
+  sw_nerd: { dx: -6, dy: -2, map: ['oooooo.oooooo', 'o....ooo....o', 'o....o.o....o', 'oooooo.oooooo'] },
+  sw_visor: { dx: -7, dy: -2, map: ['ooooooooooooooo', 'olccccccccccclo', 'occccccccccccco', 'ooooooooooooooo'] },
 };
 
 // ---------- 강아지 그리기 ----------

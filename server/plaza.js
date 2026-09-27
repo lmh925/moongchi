@@ -1,6 +1,6 @@
 // 멍뭉 놀이터: 누구나 들어오는 공개 광장 (채널당 최대 20마리)
 // 흐름: 클라이언트 입력(plaza:pos, plaza:emote ...) → 서버 상태 갱신 → 같은 채널에 방송 → 각자 화면 그리기
-import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER, EMOTES, TALENT_GAINS, PLAY_EXP, FASHION } from '../shared/data.js';
+import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER, EMOTES, TALENT_GAINS, PLAY_EXP, FASHION, SHOW_WARDROBE } from '../shared/data.js';
 import { kstDate, levelFromExp } from '../shared/rules.js';
 import { REPORT_REASONS } from './safety.js';
 
@@ -86,6 +86,7 @@ export class PlazaHub {
     socket.on('show:join', (_, cb) => ack(cb)(this.showJoin(socket)));
     socket.on('show:leave', () => this.showLeave(socket.data.plaza, userId));
     socket.on('show:react', (msg) => this.showReact(socket, msg?.kind));
+    socket.on('show:dress', (msg, cb) => ack(cb)(this.showDress(socket, msg?.slot, msg?.itemId ?? null)));
     socket.on('tag:join', (_, cb) => ack(cb)(this.tagJoin(socket)));
     socket.on('tag:leave', () => this.tagLeave(socket.data.plaza, userId));
     socket.on('disconnect', () => this.leave(socket));
@@ -201,10 +202,17 @@ export class PlazaHub {
     for (const ch of this.channels.values()) {
       const m = ch.members.get(userId);
       if (!m) continue;
-      m.dog = this.game.plazaDog(this.game.loadDog(userId));
-      this.broadcast(m, 'plaza:dog', { userId, dog: m.dog });
-      this.io.sockets.sockets.get(m.socketId)?.emit('plaza:dog', { userId, dog: m.dog });
+      this.refreshMemberDog(m);
     }
+  }
+
+  // 패션쇼 무대 의상을 입고 있으면 내 옷 위에 덧입혀서 보여 줘요
+  refreshMemberDog(m) {
+    const dog = this.game.plazaDog(this.game.loadDog(m.userId));
+    if (dog && m.costume && Object.keys(m.costume).length) dog.equip = { ...dog.equip, ...m.costume };
+    m.dog = dog;
+    this.broadcast(m, 'plaza:dog', { userId: m.userId, dog: m.dog });
+    this.io.sockets.sockets.get(m.socketId)?.emit('plaza:dog', { userId: m.userId, dog: m.dog });
   }
 
   member(socket) {
@@ -549,8 +557,9 @@ export class PlazaHub {
   showView(ch) {
     const s = ch.show;
     if (!s) return null;
+    const walker = s.status === 'walk' ? s.players[s.walkIndex] : null;
     return {
-      status: s.status, theme: s.theme, players: s.players.map((id) => ({ userId: id, nickname: ch.members.get(id)?.nickname ?? '친구' })),
+      status: s.status, theme: s.theme, themeKey: s.themeKey, bonus: walker ? s.bonus?.get(walker) ?? 0 : 0, players: s.players.map((id) => ({ userId: id, nickname: ch.members.get(id)?.nickname ?? '친구' })),
       startsAt: s.startsAt, phaseEnds: s.phaseEnds, walker: s.status === 'walk' ? s.players[s.walkIndex] : null,
       cheers: s.status === 'walk' ? s.cheers.get(s.players[s.walkIndex]) ?? 0 : 0, now: Date.now(),
     };
@@ -575,10 +584,44 @@ export class PlazaHub {
     return { ok: true };
   }
 
+  // 의상실: 옷 갈아입는 시간에만, 참가한 친구만 빌려 입어요 (itemId가 null이면 벗기)
+  showDress(socket, slot, itemId) {
+    const m = this.member(socket);
+    if (!m) return { ok: false, reason: '놀이터에 들어가 있지 않아요.' };
+    const s = this.channels.get(socket.data.plaza)?.show;
+    if (!s || !s.players.includes(m.userId) || s.status !== 'dress') return { ok: false, reason: '옷 갈아입는 시간에만 의상실을 쓸 수 있어요.' };
+    if (!['head', 'neck', 'face'].includes(slot)) return { ok: false, reason: '그런 자리는 없어요.' };
+    if (itemId !== null && SHOW_WARDROBE[itemId]?.slot !== slot) return { ok: false, reason: '그런 의상은 없어요.' };
+    const now = Date.now();
+    if (now - (m.lastDress ?? 0) < 150) return { ok: false, reason: '천천히 갈아입어요!' };
+    m.lastDress = now;
+    m.costume = { ...(m.costume ?? {}) };
+    if (itemId) m.costume[slot] = itemId; else delete m.costume[slot];
+    this.refreshMemberDog(m);
+    return { ok: true, costume: m.costume };
+  }
+
+  // 쇼가 끝나거나 그만두면 빌린 의상은 의상실로 돌아가요
+  undress(ch, userId) {
+    const m = ch?.members.get(userId);
+    if (!m?.costume) return;
+    const had = Object.keys(m.costume).length;
+    m.costume = null;
+    if (had) this.refreshMemberDog(m);
+  }
+
+  // 주제에 맞는 무대 의상을 입으면 응원을 조금 더 받고 시작해요
+  themeBonus(ch, userId, themeKey) {
+    const costume = ch.members.get(userId)?.costume ?? {};
+    const matched = Object.values(costume).filter((id) => SHOW_WARDROBE[id]?.theme === themeKey).length;
+    return Math.min(FASHION.themeBonusMax, matched * FASHION.themeBonus);
+  }
+
   showLeave(channelId, userId) {
     const ch = this.channels.get(channelId);
     const s = ch?.show;
     if (!s || !s.players.includes(userId)) return;
+    this.undress(ch, userId);
     const idx = s.players.indexOf(userId);
     s.players.splice(idx, 1);
     if (s.status === 'waiting') {
@@ -618,11 +661,17 @@ export class PlazaHub {
     if (!s) return;
     if (s.status === 'waiting' && s.startsAt && now >= s.startsAt) {
       s.status = 'dress';
-      s.theme = FASHION.themes[Math.floor(Math.random() * FASHION.themes.length)];
+      const theme = FASHION.themes[Math.floor(Math.random() * FASHION.themes.length)];
+      s.theme = theme.name; s.themeKey = theme.key;
       s.phaseEnds = now + FASHION.dressMs;
       this.emitShow(ch);
     } else if (s.status === 'dress' && now >= s.phaseEnds) {
       s.status = 'walk'; s.walkIndex = 0; s.phaseEnds = now + FASHION.walkMs;
+      s.bonus = new Map();
+      for (const id of s.players) {
+        const b = this.themeBonus(ch, id, s.themeKey);
+        if (b) { s.bonus.set(id, b); s.cheers.set(id, (s.cheers.get(id) ?? 0) + b); }
+      }
       this.emitShow(ch);
     } else if (s.status === 'walk' && now >= s.phaseEnds) {
       s.walkIndex += 1;
@@ -650,6 +699,7 @@ export class PlazaHub {
     if (this.showCoins.size > 5000) this.showCoins.clear();
     const theme = s.theme;
     ch.show = null;
+    for (const r of results) this.undress(ch, r.userId);
     this.io.to(`plaza:${ch.id}`).emit('show:end', { theme, results });
     this.emitShow(ch);
   }

@@ -813,7 +813,7 @@ export class Game {
       let exp = 0;
       if (dog && !dog.school && safeScore > 0) {
         dog.affection = Math.min(RULES.statMax, dog.affection + 5);
-        exp = Math.min(10, 2 + Math.floor(coins / 2));
+        exp = Math.min(15, 4 + Math.floor(coins / 2));
         dog.exp += exp;
         const talent = game.type === 'run' ? 'strong' : 'curious';
         events = [...this.addTalents(dog, { [talent]: Math.min(5, 1 + Math.floor(coins / 3)) }), ...this.checkGrowth(dog, this.now())];
