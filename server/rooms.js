@@ -32,6 +32,19 @@ export class RoomHub {
     io.on('connection', (socket) => this.onConnect(socket));
   }
 
+  // 운영자 화면용: 지금 접속한 친구들과 어디에 있는지
+  liveStatus() {
+    const list = [];
+    for (const [userId, set] of this.sockets) {
+      if (!set.size) continue;
+      const s = [...set].at(-1);
+      const where = s.data.plaza !== undefined ? `놀이터 ${s.data.plaza}번`
+        : s.data.room && s.data.room !== userId ? '친구 집 놀러 감' : '우리 집';
+      list.push({ userId, nickname: this.game.getUser(userId)?.nickname ?? '?', where, tabs: set.size });
+    }
+    return list.sort((a, b) => a.nickname.localeCompare(b.nickname, 'ko'));
+  }
+
   online(userId) {
     return (this.sockets.get(userId)?.size ?? 0) > 0;
   }

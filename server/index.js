@@ -327,6 +327,22 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: '운영자 코드가 맞지 않아요.' });
     next();
   };
+  // 실시간 현황: 접속자 · 놀이터 채널 · 오늘 들어온 친구 · 새 가입
+  api.get('/admin/stats', limiter(120, 10 * 60_000), adminOnly, wrap(() => {
+    const online = hub.liveStatus();
+    const dayStart = Date.parse(`${new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)}T00:00:00+09:00`);
+    const count = (sql, ...args) => db.prepare(sql).get(...args).n;
+    const plazaCounts = {};
+    for (const u of online) if (u.where.startsWith('놀이터')) plazaCounts[u.where] = (plazaCounts[u.where] ?? 0) + 1;
+    return {
+      now: Date.now(),
+      online: online.length,
+      list: online.slice(0, 200),
+      plaza: plazaCounts,
+      today: { active: count('SELECT COUNT(*) AS n FROM users WHERE last_seen >= ?', dayStart), signups: count('SELECT COUNT(*) AS n FROM users WHERE created_at >= ?', dayStart) },
+      total: { users: count('SELECT COUNT(*) AS n FROM users'), dogs: count('SELECT COUNT(*) AS n FROM dogs') },
+    };
+  }));
   api.get('/admin/reports', limiter(60, 10 * 60_000), adminOnly, wrap((req) => ({ targets: safety.adminReports({ includeResolved: req.query.all === '1' }) })));
   api.post('/admin/ban', limiter(60, 10 * 60_000), adminOnly, wrap((req) => {
     const userId = Number(req.body?.userId);

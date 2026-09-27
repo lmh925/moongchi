@@ -283,6 +283,11 @@ test('운영자 화면: 코드가 있어야 하고, 신고를 보고 놀이터 �
   assert.equal((await admin('/reports')).status, 404, '코드를 안 정하면 꺼져 있어요');
   process.env.ADMIN_CODE = 'admin-secret';
   assert.equal((await admin('/reports', null, 'wrong-secret')).status, 401);
+  const stats = await (await admin('/stats', null, 'admin-secret')).json();
+  assert.ok(stats.online >= 1, '지금 접속한 친구 수');
+  assert.ok(stats.list.some((u) => u.nickname && u.where), '접속자 이름과 있는 곳');
+  assert.ok(stats.total.users >= stats.online);
+  assert.equal((await admin('/stats', null, 'wrong')).status, 401);
   const { targets } = await (await admin('/reports', null, 'admin-secret')).json();
   const t = targets.find((x) => x.targetId === c.id);
   assert.equal(t.reporters, 2);

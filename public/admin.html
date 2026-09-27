@@ -26,13 +26,21 @@
     th, td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; }
     .muted { color: var(--soft); font-size: 13px; }
     #login { max-width: 360px; margin: 60px auto; }
+    .sec { font-size: 16px; margin: 18px 0 8px; }
+    .nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+    .num { background: #fff; border: 2px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
+    .num b { display: block; font-size: 26px; }
+    .num.live b { color: var(--green); }
+    .who { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 4px; animation: blink 1.4s infinite; }
+    @keyframes blink { 50% { opacity: .3; } }
     #login input { width: 100%; padding: 8px; border: 2px solid var(--ink); border-radius: 8px; margin: 8px 0; }
     @media (max-width: 600px) { td:nth-child(4), th:nth-child(4) { display: none; } header h1 { flex-basis: 100%; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>🐶 멍뭉고치 운영자 · 신고 확인</h1>
+    <h1>🐶 멍뭉고치 운영자</h1>
     <label class="row" style="color:#fff"><input type="checkbox" id="all"> 확인한 신고도 보기</label>
     <button id="reload">새로고침</button>
     <button id="logout">나가기</button>
@@ -44,7 +52,11 @@
     <button class="primary" id="enter">들어가기</button>
     <p id="err" class="muted" style="color:var(--red)"></p>
   </div>
-  <main id="list"></main>
+  <main>
+    <section id="stats"></section>
+    <h2 class="sec">신고 확인</h2>
+    <div id="list"></div>
+  </main>
 <script>
 const $ = (s) => document.querySelector(s);
 let code = sessionStorage.getItem('mm.admin') || '';
@@ -63,11 +75,35 @@ async function call(path, body) {
 }
 
 function showLogin(msg = '') {
-  $('#login').hidden = false; $('#list').innerHTML = ''; $('#err').textContent = msg; $('#code').focus();
+  $('#login').hidden = false; $('#list').innerHTML = ''; $('#stats').innerHTML = ''; $('#err').textContent = msg; $('#code').focus();
 }
+
+// 실시간 현황 (10초마다 새로고침)
+async function loadStats() {
+  if (!code) return;
+  try {
+    const s = await call('/stats');
+    const plaza = Object.entries(s.plaza).map(([k, n]) => `${esc(k.replace('놀이터 ', ''))} ${n}명`).join(' · ') || '없음';
+    $('#stats').innerHTML = `
+      <div class="card">
+        <div class="row"><b class="grow"><span class="dot"></span>실시간 현황</b><span class="muted">${fmt(s.now)} 기준 · 10초마다 새로고침</span></div>
+        <div class="nums" style="margin-top:8px">
+          <div class="num live"><b>${s.online}</b>지금 접속</div>
+          <div class="num"><b>${s.today.active}</b>오늘 들어온 친구</div>
+          <div class="num"><b>${s.today.signups}</b>오늘 새로 가입</div>
+          <div class="num"><b>${s.total.users}</b>전체 가입</div>
+          <div class="num"><b>${s.total.dogs}</b>전체 강아지</div>
+        </div>
+        <p class="muted">놀이터: ${plaza}</p>
+        <div class="who">${s.list.map((u) => `<span class="pill" title="${u.tabs}개 창">${esc(u.nickname)} · ${esc(u.where)}</span>`).join('') || '<span class="muted">지금 접속한 친구가 없어요.</span>'}</div>
+      </div>`;
+  } catch { /* 신고 목록 쪽에서 로그인 오류를 알려 줘요 */ }
+}
+setInterval(loadStats, 10_000);
 
 async function load() {
   if (!code) return showLogin();
+  loadStats();
   try {
     const { targets } = await call(`/reports${$('#all').checked ? '?all=1' : ''}`);
     $('#login').hidden = true;
