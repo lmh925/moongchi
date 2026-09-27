@@ -20,6 +20,7 @@ import { Babies } from './babies.js';
 import { Leaderboard } from './leaderboard.js';
 import { Asks } from './asks.js';
 import { Village } from './village.js';
+import { Cafe } from './cafe.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -49,6 +50,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   game.asks = asks;
   const village = new Village(db, { game, asks });
   game.village = village;
+  const cafe = new Cafe(db, { game, friends, asks, village });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -164,6 +166,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       trainingLeft: Math.max(0, TRAINING.dailyLimit - game.trainingsToday(userId)),
       asks: asks.view(userId),
       village: village.view(userId),
+      cafe: cafe.view(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -331,6 +334,18 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/yard/dig', authed, limiter(30, 60_000), wrap((req) => {
     const res = village.dig(req.userId);
     return { ...me(req.userId, { events: res.events }), found: res.found };
+  }));
+
+  // ---------- ☕ 멍뭉 카페 ----------
+  api.post('/cafe/open', authed, wrap((req) => { cafe.open(req.userId, req.body?.menu, String(req.body?.duration ?? '')); return me(req.userId); }));
+  api.post('/cafe/collect', authed, wrap((req) => {
+    const res = cafe.collect(req.userId);
+    return { ...me(req.userId, { events: res.events }), report: res.report };
+  }));
+  api.post('/cafe/staff', authed, wrap((req) => { cafe.setStaff(req.userId, String(req.body?.role ?? ''), req.body?.dogId ?? null); return me(req.userId); }));
+  api.post('/cafe/introduce', authed, wrap((req) => {
+    const ev = cafe.introduce(req.userId, String(req.body?.a ?? ''), String(req.body?.b ?? ''));
+    return me(req.userId, { events: [ev] });
   }));
 
   // ---------- 💭 말풍선 소원 ----------

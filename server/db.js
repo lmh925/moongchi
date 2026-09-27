@@ -164,6 +164,7 @@ export function openDb(file) {
   ensure('users', 'sets', "TEXT NOT NULL DEFAULT '[]'");
   ensure('users', 'taste_day', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'tastes', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'cafe', "TEXT NOT NULL DEFAULT '{}'");
   ensure('minigames', 'course', 'TEXT');
   ensure('minigames', 'exam', 'TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS wishes (

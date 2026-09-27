@@ -972,3 +972,45 @@ export const ROOM_SETS = {
   candy: { name: '사탕 가게 세트', items: ['wall_candy', 'rug_rainbow', 'bed_house', 'toy_bear'] },
 };
 export const SET_REWARD = { hearts: 3, coins: 20 };
+
+// ---------- ☕ 멍뭉 카페 (카이로소프트 경영 + 친구모아 소개) ----------
+// 문을 열어 두면 동물 손님이 찾아와요. 손님의 최애 메뉴를 걸어 두면 팁 두 배, ⭐5!
+export const CAFE = {
+  durations: { short: { name: '30분', minutes: 30 }, mid: { name: '1시간', minutes: 60 }, long: { name: '3시간', minutes: 180 } },
+  perHour: 6, // 한 시간에 오는 손님 (기본)
+  xp: [0, 10, 30, 60, 100, 160], // 카페 Lv 1~6 (손님 수 누적)
+  slots: [2, 2, 3, 3, 4, 4], // Lv마다 걸 수 있는 메뉴 수
+  coinsPerGuest: 3,
+  favTip: 2, // 최애 메뉴면 코인 ×2
+  heartsPerFav: 3, // 최애 손님 3명마다 💗 1 (한 번 영업에 최대 5)
+  maxHearts: 5,
+  friendChance: 0.2, // 친구 강아지가 손님으로 올 확률 (한 손님마다)
+  pairMin: 3, // 손님 소개: 둘 다 3번 이상 온 단골이어야 해요
+  pairHearts: 2,
+  roles: {
+    cook: { name: '요리', emoji: '🍳', talents: ['smart'], desc: '팁이 늘어요' },
+    serve: { name: '서빙', emoji: '🏃', talents: ['strong'], desc: '손님이 늘어요' },
+    host: { name: '접객', emoji: '💗', talents: ['kind', 'charm'], desc: '별점과 💗가 늘어요' },
+  },
+};
+export const CAFE_MENU = {
+  cookie: { name: '멍쿠키', emoji: '🍪', level: 1 },
+  milk: { name: '따뜻한 우유', emoji: '🥛', level: 1 },
+  carrot: { name: '당근 머핀', emoji: '🥕', level: 1 },
+  fish: { name: '생선 구이', emoji: '🐟', level: 1 },
+  cake: { name: '딸기 케이크', emoji: '🍰', level: 2 },
+  tea: { name: '대나무 차', emoji: '🍵', level: 3 },
+  pudding: { name: '푸딩', emoji: '🍮', level: 4 },
+  pancake: { name: '구름 팬케이크', emoji: '🥞', level: 5 },
+};
+export const CAFE_GUESTS = {
+  cat: { name: '고양이', emoji: '🐱', fav: 'fish', level: 1 },
+  bunny: { name: '토끼', emoji: '🐰', fav: 'carrot', level: 1 },
+  hamster: { name: '햄스터', emoji: '🐹', fav: 'cookie', level: 1 },
+  duck: { name: '오리', emoji: '🦆', fav: 'milk', level: 2 },
+  penguin: { name: '펭귄', emoji: '🐧', fav: 'cake', level: 2 },
+  panda: { name: '판다', emoji: '🐼', fav: 'tea', level: 3 },
+  fox: { name: '여우', emoji: '🦊', fav: 'pudding', level: 4 },
+  owl: { name: '부엉이', emoji: '🦉', fav: 'pancake', level: 5 },
+  unicorn: { name: '유니콘', emoji: '🦄', fav: 'pancake', level: 6, rare: true },
+};

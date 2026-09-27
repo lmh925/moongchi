@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -18,6 +18,7 @@ import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
 import { openDogCardMaker } from './dogcard.js';
 import { villageCard, openVillageMap, placeOpenBody, openYard, openTasteBook, tasteToast, setDoneBody } from './village-ui.js';
+import { openCafe } from './cafe-ui.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
@@ -990,6 +991,8 @@ async function handleEvents(events = []) {
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
     if (ev.type === 'taste') { const t = tasteToast(ev); if (t) toast(t, 'good'); }
     if (ev.type === 'placeOpen') { sfx.levelUp(); await waitModal({ title: '🗺️ 새로운 곳!', className: 'celebrate', body: placeOpenBody(ev), buttons: [{ label: '가 보자!', onClick: () => setTimeout(() => visitPlace(ev.id), 200) }] }); }
+    if (ev.type === 'cafeLevel') { sfx.levelUp(); toast(`☕ 카페 Lv ${ev.level}! 새 메뉴와 새 손님이 생겼어요!`, 'good'); }
+    if (ev.type === 'cafePair') { sfx.love(); toast(`🤝 ${CAFE_GUESTS[ev.a].emoji}${CAFE_GUESTS[ev.b].emoji} 단짝이 됐어요! 💗+${ev.hearts}`, 'good'); }
     if (ev.type === 'setDone') { sfx.levelUp(); await waitModal({ title: '가구 세트 완성!', className: 'celebrate', body: setDoneBody(ev), buttons: [{ label: '멋지다!' }] }); }
     if (ev.type === 'askDone') {
       sfx.love();
@@ -2913,7 +2916,10 @@ async function boot() {
 
 boot();
 
-// 3·4단계에서 채워요 (카페·온천·캠핑장)
-let openCafeScreen = null;
+// ☕ 카페
+function openCafeScreen() {
+  openCafe({ post, applyMe, handleEvents, serverNow, me: () => state.me });
+}
+// 4단계에서 채워요 (온천·캠핑장)
 let openSpaScreen = null;
 let openCampScreen = null;

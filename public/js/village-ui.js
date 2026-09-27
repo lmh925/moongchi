@@ -28,9 +28,13 @@ export function villageCard(me, { onMap, onPlace }) {
         el('span', { class: 'bar' }, el('i', { style: { width: `${Math.min(100, (total / next[1].hearts) * 100)}%` } })),
         el('small', {}, ready ? '' : `💗 ${total} / ${next[1].hearts}`))
       : el('div', { class: 'village-next' }, '🎉 마을의 모든 곳을 열었어요!'),
-    v.places.length ? el('div', { class: 'village-places' }, v.places.map((id) => el('button', {
-      class: 'btn small place-btn', onclick: () => onPlace(id),
-    }, `${PLACES[id].emoji} ${PLACES[id].name}`))) : el('p', { class: 'hint' }, '💭 강아지의 소원을 들어주면 💗가 모여요. 💗가 모이면 새로운 곳이 열려요!'));
+    v.places.length ? el('div', { class: 'village-places' }, v.places.map((id) => {
+      const busy = id === 'cafe' && me.cafe?.open;
+      const ready = busy && Date.now() >= me.cafe.open.endsAt;
+      return el('button', {
+        class: `btn small place-btn ${ready ? 'primary' : ''}`, onclick: () => onPlace(id),
+      }, `${PLACES[id].emoji} ${PLACES[id].name}${ready ? ' · 정산!' : busy ? ' · 영업 중' : ''}`);
+    })) : el('p', { class: 'hint' }, '💭 강아지의 소원을 들어주면 💗가 모여요. 💗가 모이면 새로운 곳이 열려요!'));
 }
 
 // 마을 지도
