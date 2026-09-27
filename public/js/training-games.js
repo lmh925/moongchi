@@ -88,12 +88,14 @@ function drawObstacle(ctx, kind, x, g) {
 
 export function playAgility(dog, info) {
   return new Promise((resolve) => {
-    const sh = trainShell('agility', info, { hint: '장애물이 노란 칸에 오면 맞는 버튼을 눌러요!' });
+    const sh = trainShell('agility', info, { hint: '장애물이 노란 칸에 들어와 초록으로 바뀌면 맞는 버튼을 눌러요!' });
     const W = 240; const H = 110; const G = 96; const DX = 58;
     const canvas = el('canvas', { class: 'pixel agility-canvas', width: W, height: H });
     sh.stage.append(canvas);
     const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
-    const speed = 62 + info.level * 7 + (info.exam ? 14 : 0);
+    const speed = 50 + info.level * 6 + (info.exam ? 10 : 0);
+    const OW = { hurdle: 26, tunnel: 28, poles: 28 }; // 장애물 폭
+    const Z0 = DX - 36; const Z1 = DX + 30; // 노란 칸 (그림과 판정이 같아요)
     let ob = null; let spawned = 0; let t = 0; let act = null; let actT = 0; let raf = 0; let last = performance.now();
     const spawn = () => {
       if (spawned >= sh.rounds) return finish();
@@ -101,15 +103,16 @@ export function playAgility(dog, info) {
       ob = { kind: kinds[Math.floor(Math.random() * kinds.length)], x: W + 10, judged: false };
       spawned += 1;
     };
-    const inZone = () => ob && !ob.judged && ob.x < DX + 20 && ob.x > DX - 30;
+    // 장애물이 노란 칸에 조금이라도 걸쳐 있으면 성공이에요
+    const inZone = () => ob && !ob.judged && ob.x < Z1 && ob.x + OW[ob.kind] > Z0;
     const press = (kind) => {
       if (sh.done || !ob || ob.judged) return;
-      if (ob.x > DX + 60) return; // 아직 멀었어요
+      if (!inZone()) { if (ob.x >= Z1) sh.say('조금만 기다려요! 노란 칸에 오면 톡!'); return; } // 너무 일찍 누르면 기회를 잃지 않아요
       ob.judged = true;
-      if (kind === ob.kind && inZone()) {
+      if (kind === ob.kind) {
         act = kind; actT = 0; sh.hit(['좋아!', '완벽해요!', '멋진 몸놀림!'][Math.floor(Math.random() * 3)]);
         if (kind === 'hurdle') sfx.jump(); else sfx.whoosh();
-      } else { act = 'bump'; actT = 0; sh.miss(kind === ob.kind ? '조금 더 가까이 왔을 때!' : `${OBST[ob.kind].label}였어요!`); }
+      } else { act = 'bump'; actT = 0; sh.miss(`${OBST[ob.kind].icon} ${OBST[ob.kind].label}였어요!`); }
     };
     sh.controls.replaceChildren(...Object.entries(OBST).map(([k, o]) => el('button', { class: 'train-opt agility-btn', type: 'button', onpointerdown: (e) => { e.preventDefault(); press(k); } }, el('span', { class: 'big' }, o.icon), el('span', {}, o.label))));
     const frame = (now) => {
@@ -117,15 +120,18 @@ export function playAgility(dog, info) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; actT += dt;
       if (ob) {
         ob.x -= speed * dt;
-        if (!ob.judged && ob.x < DX - 30) { ob.judged = true; act = 'bump'; actT = 0; sh.miss(`${OBST[ob.kind].label}! 늦었어요~`); }
+        if (!ob.judged && ob.x + OW[ob.kind] <= Z0) { ob.judged = true; act = 'bump'; actT = 0; sh.miss(`${OBST[ob.kind].label}! 늦었어요~`); }
         if (ob.x < -40) { ob = null; setTimeout(spawn, rand(250, 700)); }
       }
       // 그리기
       ctx.fillStyle = '#bfe6ff'; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = '#9fd67f'; ctx.fillRect(0, G, W, H - G);
       ctx.fillStyle = '#6cc070'; for (let x = -((t * speed) % 16); x < W; x += 16) ctx.fillRect(x, G, 8, 2);
-      ctx.fillStyle = 'rgba(255,210,63,.45)'; ctx.fillRect(DX - 30, G - 44, 50, 44); // 노란 칸
-      ctx.strokeStyle = '#e0a800'; ctx.lineWidth = 1; ctx.strokeRect(DX - 30 + 0.5, G - 44 + 0.5, 49, 43);
+      // 노란 칸: 장애물이 들어오면 초록으로 바뀌고 "지금!"
+      const hot = inZone();
+      ctx.fillStyle = hot ? 'rgba(108,192,112,.5)' : 'rgba(255,210,63,.4)'; ctx.fillRect(Z0, G - 46, Z1 - Z0, 46);
+      ctx.strokeStyle = hot ? '#2f9e5a' : '#e0a800'; ctx.lineWidth = 2; ctx.strokeRect(Z0 + 1, G - 45, Z1 - Z0 - 2, 44);
+      if (hot) { ctx.font = 'bold 12px Galmuri11, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#1d7440'; ctx.fillText('지금!', (Z0 + Z1) / 2, G - 50); }
       if (ob) {
         drawObstacle(ctx, ob.kind, ob.x, G);
         ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(OBST[ob.kind].icon, ob.x + 12, G - 36);
