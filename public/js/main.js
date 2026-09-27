@@ -15,13 +15,14 @@ import { playTraining } from './training.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
 import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
+import { openDogCardMaker } from './dogcard.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
 import { playSpecialReveal, specialMark, specialGiftBody, specialPerkList } from './special.js';
 import { tradeSection, openComposer, openReview, openHistory } from './trade.js';
 import {
-  questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal, openPhotoCard,
+  questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal,
 } from './progress.js';
 import { sfx, unlock, playBgm, setMuted, isMuted } from './audio.js';
 
@@ -1011,12 +1012,20 @@ function showcaseIcons(ids = []) {
   return ids.map((id) => badgeIcon(id, { size: 2 })).filter(Boolean);
 }
 
+// 자랑 카드: 지금 화면(우리 집 장면)에서 내 강아지 주변을 카드 그림으로 써요
+function openBragCard() {
+  unlock(); sfx.shutter();
+  const e = state.scene?.entities.get(myId());
+  const scene = e && state.scene?.canvas ? { canvas: state.scene.canvas, x: e.x, y: e.y } : null;
+  openDogCardMaker(state.me.dog, state.me.user, state.me.progress, { scene });
+}
+
 function openMyCard() {
   openDogCard(state.me.dog, {
     mine: true,
     badges: showcaseIcons(state.me.progress?.showcase),
     onRename: openRename,
-    onPhotoCard: () => openPhotoCard(state.me.dog, state.me.user, state.me.progress),
+    onPhotoCard: openBragCard,
     onTitle: async (title) => {
       try {
         const me = await post('/dog/title', { title });
@@ -1115,7 +1124,8 @@ function homePanel() {
       statRow('affection', '애정도', 'heart', 'var(--stat-love)')),
     el('div', { class: 'level-row' },
       levelBar(dog),
-      el('button', { class: 'btn small secondary card-btn', onclick: openMyCard }, '강아지 카드')),
+      el('button', { class: 'btn small secondary card-btn', onclick: openMyCard }, '강아지 카드'),
+      el('button', { class: 'btn small primary card-btn', onclick: openBragCard }, '📸 자랑 카드')),
     el('div', { class: 'growth' },
       titleChip(dog),
       dog.special ? el('button', { class: 'chip special-chip', onclick: () => modal({ title: `✨ ${SPECIALS[dog.special].name}의 스페셜 능력`, body: specialPerkList(dog.special), buttons: [{ label: '멋져!' }] }) }, '✨ 스페셜 능력') : null,

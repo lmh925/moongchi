@@ -1037,3 +1037,13 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .special-gift .gift-item { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 8px auto; padding: 8px; border: 3px solid #ffb000; border-radius: 12px; background: #fff6d8; max-width: 220px; }
 .special-gift .gift-item img { height: 40px; width: auto; }
 .chip.special-chip { cursor: pointer; background: linear-gradient(90deg, #ffe3f0, #e3f0ff); border: 2px solid var(--ink); font: inherit; font-size: 12px; margin-left: 4px; }
+
+/* 자랑 카드 (포켓몬 카드 스타일) */
+.tcg-holder { --rx: 0deg; --ry: 0deg; --px: 50%; --py: 50%; position: relative; width: min(100%, 330px); margin: 8px auto; transform: perspective(700px) rotateX(var(--rx)) rotateY(var(--ry)); transition: transform .12s ease-out; border-radius: 18px; touch-action: none; }
+.tcg-holder .tcg-card, .tcg-holder .photocard { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 8px 18px rgba(58,42,40,.35); }
+.tcg-shine { position: absolute; inset: 0; border-radius: 18px; pointer-events: none; mix-blend-mode: soft-light; opacity: 0; transition: opacity .2s; }
+.tcg-holder.holo-silver .tcg-shine, .tcg-holder.holo-gold .tcg-shine, .tcg-holder.holo-rainbow .tcg-shine { opacity: 1; }
+.tcg-holder.holo-silver .tcg-shine { background: radial-gradient(circle at var(--px) var(--py), rgba(255,255,255,.75), transparent 45%); }
+.tcg-holder.holo-gold .tcg-shine { background: radial-gradient(circle at var(--px) var(--py), rgba(255,240,160,.9), transparent 45%), linear-gradient(115deg, transparent 30%, rgba(255,215,64,.35) 50%, transparent 70%); }
+.tcg-holder.holo-rainbow .tcg-shine { background: radial-gradient(circle at var(--px) var(--py), rgba(255,255,255,.8), transparent 40%), linear-gradient(115deg, #ff6f9188, #ffe06688, #6cc07088, #5b8cff88, #b07cff88); background-size: 100% 100%, 200% 200%; background-position: center, var(--px) var(--py); }
+.tcg-modal .segmented.small button { padding: 4px; font-size: 13px; }

@@ -95,7 +95,7 @@ export function openDogCard(dog, { mine = false, ownerName = null, onTitle = nul
       radarCanvas(stages)),
     badges?.length ? el('div', { class: 'card-badges' }, badges) : null,
     onPhotoCard || onRename ? el('div', { class: 'card-actions' },
-      onPhotoCard ? el('button', { class: 'btn small primary', onclick: onPhotoCard }, '포토카드 만들기') : null,
+      onPhotoCard ? el('button', { class: 'btn small primary', onclick: onPhotoCard }, '📸 자랑 카드 만들기') : null,
       onRename ? el('button', { class: 'btn small secondary', onclick: onRename }, '이름표 바꾸기') : null) : null,
     el('div', { class: 'talent-list' }, TALENT_KEYS.map((k) => talentRow(k, dog.talents?.[k] ?? 0, stages[k] ?? 1))));
   if (mine) {
