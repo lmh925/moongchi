@@ -319,6 +319,12 @@ export const ITEMS = {
   toy_cactus: { name: '선인장 화분', slot: 'toy', stage: 0, price: null, rarity: 'common', shop: false },
   clover: { name: '네잎클로버 핀', slot: 'head', stage: 0, price: null, rarity: 'rare', shop: false, gacha: false, reward: true },
   toy_rocket: { name: '우주 로켓', slot: 'toy', stage: 0, price: null, rarity: 'epic', shop: false },
+  // 스페셜 친구 전용 소품 (스페셜이 되면 선물로 받아요, 상점·뽑기·거래 없음)
+  sp_cloud_pin: { name: '뭉치의 구름 머리핀', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'mungchi' },
+  sp_heart_locket: { name: '뽀식이의 왕하트 목걸이', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'bbosik' },
+  sp_explorer_hat: { name: '키리쿠의 탐험가 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'kiriku' },
+  sp_captain_cap: { name: '건의 대장 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'gun' },
+  sp_propeller_hat: { name: '피츄의 프로펠러 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'pichu' },
 };
 
 export const RARITY = {
@@ -729,23 +735,34 @@ export const SPECIALS = {
   mungchi: {
     name: '뭉치', breed: 'mini_bichon', label: '전설의 미니비숑', title: '구름 뭉치', trick: 'cloudroll', hint: 'ㅁㅊ',
     perk: '빗질을 안 해도 늘 뽀송뽀송 몽실몽실해요',
+    games: ['멍뭉런: 가까운 간식이 구름처럼 둥실 끌려와요 (간식 자석)', '간식 받기: 받는 범위가 넓어요'], item: 'sp_cloud_pin',
   },
   bbosik: {
     name: '뽀식이', breed: 'big_maltese', label: '전설의 빅말티', title: '다정한 거인', trick: 'bighug', hint: 'ㅃㅅㅇ',
     perk: '쓰다듬으면 애정도가 조금 더 올라요',
+    games: ['멍뭉런: 튼튼한 몸! 부딪혀도 체력이 절반만 줄어요', '간식 받기: 커다란 몸으로 더 넓게 받아요'], item: 'sp_heart_locket',
   },
   kiriku: {
     name: '키리쿠', breed: 'yorkie_kiriku', label: '요크 삼형제 · 모험가', title: '모험가 키리쿠', trick: 'sniff', hint: 'ㅋㄹㅋ', trio: true,
     perk: '보물찾기 "따뜻해요" 힌트 범위가 넓어져요',
+    games: ['멍뭉런: 별 간식(+10)이 두 배로 자주 나와요', '보물찾기: 힌트 범위가 넓어요'], item: 'sp_explorer_hat',
   },
   gun: {
     name: '건', breed: 'yorkie_gun', label: '요크 삼형제 · 대장', title: '씩씩한 대장 건', trick: 'salute', hint: 'ㄱ', trio: true,
-    perk: '멍뭉런 체력 +15',
+    perk: '멍뭉런 체력 +30, 첫 번째 부딪힘은 방패로 막아요',
+    games: ['멍뭉런: 체력 +30', '멍뭉런: 방패 1번 (처음 부딪힐 때 안 아파요)'], item: 'sp_captain_cap',
   },
   pichu: {
     name: '피츄', breed: 'yorkie_pichu', label: '요크 삼형제 · 막내', title: '애교 막내 피츄', trick: 'propeller', hint: 'ㅍㅊ', trio: true,
     perk: '쓰다듬으면 하트가 두 배로 퐁퐁',
+    games: ['멍뭉런: 꼬리 프로펠러로 3단 점프!', '간식 받기: 발이 빨라요'], item: 'sp_propeller_hat',
   },
+};
+// 스페셜 친구 혜택 (누구나 받아요, 강아지 한 마리당 시작 선물은 한 번)
+export const SPECIAL_PERKS = {
+  expBoost: 1.2, // 모든 경험치 +20%
+  startExp: 80, // 스페셜 친구가 되면 경험치 선물 (Lv 4쯤)
+  startCoins: 50,
 };
 export const SPECIAL_TRICKS = {
   cloudroll: { name: '구름 데굴데굴', desc: '몸을 동그랗게 말고 구름처럼 데굴데굴~' },

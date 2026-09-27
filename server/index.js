@@ -139,7 +139,9 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   }));
 
   const me = (userId, extra = {}) => {
+    const gifts = game.specialGifts(userId);
     const { dog, events } = game.refreshDog(userId);
+    events.unshift(...gifts);
     if (events.length) hub.dogChanged(userId);
     if (extra.visit) events.push(...progress.onMe(userId, dog), ...leaderboard.rewardLastWeek(userId));
     events.push(...babies.deliver(userId));

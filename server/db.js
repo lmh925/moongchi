@@ -154,6 +154,7 @@ export function openDb(file) {
     PRIMARY KEY (user_id, game, week)
   );`);
   ensure('dogs', 'kids', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('dogs', 'special_gift', 'INTEGER NOT NULL DEFAULT 0');
   db.exec(`CREATE TABLE IF NOT EXISTS wishes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

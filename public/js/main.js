@@ -18,7 +18,7 @@ import { openLeaderboard, lbToast } from './leaderboard.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
-import { playSpecialReveal, specialMark } from './special.js';
+import { playSpecialReveal, specialMark, specialGiftBody, specialPerkList } from './special.js';
 import { tradeSection, openComposer, openReview, openHistory } from './trade.js';
 import {
   questCard, stampBody, badgeBody, badgeIcon, badgeBoard, dexPanel, openMailbox, qrModal, openPhotoCard,
@@ -322,7 +322,8 @@ $('#result-submit').addEventListener('click', async () => {
       await enterRoom(myId(), { quiet: true });
       setTab('home');
       sfx.levelUp();
-      modal({ title: `${name}(이)가 새 가족이 되었어요!`, body: el('p', { class: 'center' }, '오늘의 대표로 함께해요. 우리 강아지들 칸에서 언제든 대표를 바꿀 수 있어요.'), buttons: [{ label: '환영해!' }] });
+      await waitModal({ title: `${name}(이)가 새 가족이 되었어요!`, body: el('p', { class: 'center' }, '오늘의 대표로 함께해요. 우리 강아지들 칸에서 언제든 대표를 바꿀 수 있어요.'), buttons: [{ label: '환영해!' }] });
+      await handleEvents(me.events.filter((e) => e.type !== 'special')); // 스페셜 선물 등
       return;
     }
     // 이스터에그: 스페셜 이름이면 여기서 변신 연출부터!
@@ -880,6 +881,7 @@ async function handleEvents(events = []) {
     if (ev.type === 'mail') { sfx.notify(); toast(`💌 ${ev.from}(이)가 편지를 남겼어요! 우편함을 열어 보세요.`, 'good'); }
     if (ev.type === 'dex') toast(`견종 도감에 ${ev.name} 등록!`, 'good');
     if (ev.type === 'special') await playSpecialReveal(state.me.dog, ev);
+    if (ev.type === 'specialGift') { sfx.levelUp(); await waitModal({ title: '🎁 스페셜 친구 선물!', className: 'celebrate', body: specialGiftBody(ev) }); }
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
@@ -1116,6 +1118,7 @@ function homePanel() {
       el('button', { class: 'btn small secondary card-btn', onclick: openMyCard }, '강아지 카드')),
     el('div', { class: 'growth' },
       titleChip(dog),
+      dog.special ? el('button', { class: 'chip special-chip', onclick: () => modal({ title: `✨ ${SPECIALS[dog.special].name}의 스페셜 능력`, body: specialPerkList(dog.special), buttons: [{ label: '멋져!' }] }) }, '✨ 스페셜 능력') : null,
       g ? `다음 성장: ${g.next} (${[g.level < g.needLevel ? `Lv ${g.needLevel}까지` : null, g.days < g.needDays ? `함께한 날 ${g.days}/${g.needDays}일` : null].filter(Boolean).join(' · ') || '곧 자라요!'})`
         : '늠름한 강아지로 다 자랐어요! 레벨은 앞으로도 계속 올라요.'),
     away ? el('div', { class: 'school-board' }, `${dog.name}(은)는 학교에서 공부 중이에요`, el('div', { class: 'big', id: 'school-left' }, ''), '돌아오면 알림장을 받을 수 있어요!',
@@ -2464,6 +2467,9 @@ function toggleSound() {
 }
 
 document.addEventListener('pointerdown', () => unlock(), { capture: true });
+// 아이폰은 손을 뗄 때(touchend)만 소리를 다시 켜 주는 경우가 있어요
+document.addEventListener('touchend', () => unlock(), { capture: true, passive: true });
+document.addEventListener('keydown', () => unlock(), { capture: true });
 document.addEventListener('click', (e) => {
   if (e.target.closest('.btn, .tab, .option, .pin-key, .phrase, .item, .card[onclick], .segmented button')) sfx.click();
 }, { capture: true });

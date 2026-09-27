@@ -24,21 +24,56 @@ export function setMuted(v) {
 }
 
 // 브라우저는 사용자가 한 번 누른 뒤에만 소리를 낼 수 있어요.
+// 아이폰은 앱을 나갔다 오면 소리 장치가 'interrupted'가 되거나, 'running'인데도 조용해지는 일이 있어요.
+// 그래서 나갔다 돌아오면(stale) 다음 터치 때 소리 장치를 새로 만들어요.
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let stale = false;
+
+function build() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return false;
+  ctx = new AC();
+  master = ctx.createGain();
+  master.gain.value = muted ? 0 : 1;
+  master.connect(ctx.destination);
+  sfxBus = ctx.createGain(); sfxBus.gain.value = 0.35; sfxBus.connect(master);
+  bgmBus = ctx.createGain(); bgmBus.gain.value = 0.12; bgmBus.connect(master);
+  noiseBuf = null;
+  ensureNoise();
+  return true;
+}
+
+function rebuild() {
+  stopBgm(false);
+  try { ctx.close(); } catch { /* 이미 닫혔어요 */ }
+  ctx = null;
+  build();
+}
+
 export function unlock() {
-  if (!ctx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    ctx = new AC();
-    master = ctx.createGain();
-    master.gain.value = muted ? 0 : 1;
-    master.connect(ctx.destination);
-    sfxBus = ctx.createGain(); sfxBus.gain.value = 0.35; sfxBus.connect(master);
-    bgmBus = ctx.createGain(); bgmBus.gain.value = 0.12; bgmBus.connect(master);
-    ensureNoise();
-  }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx && (ctx.state === 'closed' || (stale && (IOS || ctx.state !== 'running')))) rebuild();
+  stale = false;
+  if (!ctx && !build()) return;
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
   if (wantBgm && !bgm) playBgm(wantBgm);
 }
+
+// 화면을 떠나면 잠시 멈추고, 돌아오면 다시 켜요 (아이폰은 첫 터치 때 새로 만들어요)
+function onHide() {
+  if (!ctx) return;
+  stale = true;
+  stopBgm(false);
+  ctx.suspend?.().catch(() => {});
+}
+function onShow() {
+  if (!ctx || IOS) return;
+  ctx.resume().then(() => {
+    if (ctx?.state === 'running') { stale = false; if (wantBgm && !bgm) playBgm(wantBgm); }
+  }).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => (document.hidden ? onHide() : onShow()));
+window.addEventListener('pagehide', onHide);
+window.addEventListener('pageshow', (e) => { if (e.persisted) { stale = true; onShow(); } });
 
 const ready = () => ctx && ctx.state === 'running' && !muted;
 

@@ -311,7 +311,7 @@ export function runnerMapPreview(map, w = 200) {
 }
 
 // ---------- 패턴 ----------
-function makeChunk(x, t, rnd) {
+function makeChunk(x, t, rnd, stars = 1) {
   const items = [];
   const obs = [];
   const bone = (bx, by, kind = 'bone') => items.push({ x: bx, y: by, kind });
@@ -340,7 +340,7 @@ function makeChunk(x, t, rnd) {
     for (let i = 0; i < 4; i++) bone(x + 58 + i * 10, GROUND - 12);
     len = 120;
   }
-  if (rnd() < 0.25) items.push({ x: x + len / 2, y: GROUND - 70, kind: 'star' });
+  if (rnd() < 0.25 * stars) items.push({ x: x + len / 2, y: GROUND - 70, kind: 'star' });
   return { items, obs, len };
 }
 
@@ -374,7 +374,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
     const needRotate = () => touch && portrait.matches && !allowPortrait;
 
     const canvas = el('canvas', { width: W, height: H, class: 'pixel runner-canvas' });
-    const hud = { score: el('span', {}, '0개'), hp: el('i', {}) };
+    const hud = { score: el('span', {}, '0개'), hp: el('i', {}), shield: el('span', { class: 'score', hidden: true }, '🛡️ 방패') };
     const jumpBtn = el('button', { class: 'run-btn jump', type: 'button', 'aria-label': '점프' }, '점프');
     const slideBtn = el('button', { class: 'run-btn slide', type: 'button', 'aria-label': '슬라이드' }, '슬라이드');
     const quitBtn = el('button', { class: 'run-quit', type: 'button' }, '그만하기');
@@ -388,6 +388,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       el('div', { class: 'run-hud' },
         el('span', { class: 'hp' }, '체력', el('span', { class: 'bar hp-bar' }, hud.hp)),
         el('span', { class: 'score' }, '간식 ', hud.score),
+        hud.shield,
         quitBtn),
       jumpBtn, slideBtn, rotateHint);
     document.body.append(root);
@@ -399,6 +400,12 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
 
     // 튼튼 재능이 자라면 체력이 더 많아요
     const maxHp = 100 + (dog.effects?.runnerHp ?? 0);
+    // 스페셜 친구 능력: 간식 자석(뭉치) · 튼튼한 몸(뽀식이) · 별 두 배(키리쿠) · 방패(건) · 3단 점프(피츄)
+    const fx = {
+      magnet: !!dog.effects?.runnerMagnet, tough: !!dog.effects?.runnerTough,
+      stars: dog.effects?.runnerStars ?? 1, jumps: dog.effects?.runnerJumps ?? 2,
+    };
+    let shield = dog.effects?.runnerShield ?? 0;
     const s = {
       t: 0, dist: 0, speed: 95, hp: maxHp, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
       hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 9, countdown: 3, over: false, overT: 0, pops: [], dust: [],
@@ -408,7 +415,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
 
     const jump = () => {
       if (s.over || s.countdown > 0 || s.paused) return;
-      if (s.jumps < 2) {
+      if (s.jumps < fx.jumps) {
         s.vy = s.jumps === 0 ? JUMP_V : DOUBLE_V;
         s.jumps += 1;
         s.sliding = false;
@@ -481,7 +488,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       // 새 구간 만들기
       s.nextChunk -= dx;
       if (s.nextChunk <= 0 && !s.over) {
-        const c = makeChunk(W + 10, s.t, rnd);
+        const c = makeChunk(W + 10, s.t, rnd, fx.stars);
         s.items.push(...c.items);
         s.obs.push(...c.obs);
         s.nextChunk = c.len + 50 + rnd() * 50;
@@ -489,6 +496,14 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       s.nextHeart -= dt;
       if (s.nextHeart <= 0 && !s.over) { s.items.push({ x: W + 20, y: GROUND - 44, kind: 'heart' }); s.nextHeart = HP.heartEvery + rnd() * 4; }
       for (const it of s.items) it.x -= dx;
+      // 뭉치: 가까운 간식이 둥실 끌려와요
+      if (fx.magnet && !s.over) {
+        for (const it of s.items) {
+          if (it.kind === 'heart') continue;
+          const mx = DOG_X - it.x; const my = GROUND - 12 + s.y - it.y;
+          if (mx * mx + my * my < 34 * 34) { it.x += mx * Math.min(1, 6 * dt); it.y += my * Math.min(1, 6 * dt); }
+        }
+      }
       for (const o of s.obs) o.x -= dx;
       s.items = s.items.filter((it) => it.x > -20 && !it.taken);
       s.obs = s.obs.filter((o) => o.x > -50);
@@ -507,8 +522,13 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
           for (const o of s.obs) {
             if (!o.hit && hit(box, OBSTACLES[o.type].box(o))) {
               o.hit = true;
-              s.hp -= HP.hit;
               s.hurtT = 1.2;
+              if (shield > 0) {
+                shield -= 1; sfx.star();
+                s.pops.push({ x: DOG_X, y: GROUND - 34, text: '방패!', age: 0 });
+                break;
+              }
+              s.hp -= fx.tough ? HP.hit / 2 : HP.hit;
               sfx.hurt();
               s.pops.push({ x: DOG_X, y: GROUND - 34, text: '아야!', age: 0 });
               if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
@@ -585,6 +605,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       }
       ctx.textAlign = 'start';
       hud.score.textContent = `${s.score}개`;
+      hud.shield.hidden = shield <= 0;
       const hpRatio = Math.max(0, s.hp) / maxHp;
       hud.hp.style.width = `${hpRatio * 100}%`;
       hud.hp.style.background = hpRatio > 0.5 ? 'var(--grass-l)' : hpRatio > 0.25 ? 'var(--butter)' : 'var(--red)';

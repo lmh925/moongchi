@@ -210,6 +210,17 @@ const ACCESSORIES = {
     map: ['ooooo', 'o...o', 'o...o', 'ooooo'] },
   sw_visor: { anchor: 'eye', dx: -3, dy: -2, colors: { o: '#4a4a6a', c: '#8fe3ff', l: '#ffffff' },
     map: ['oooooo', 'olcccc', 'occccc', 'oooooo'] },
+  // 스페셜 친구 전용 소품
+  sp_cloud_pin: { anchor: 'head', dx: -5, dy: -6, colors: { o: '#8fa3c8', w: '#ffffff', l: '#dff1ff', y: '#ffe066' },
+    map: ['...oooo....', '..owwwwo.o.', '.owwlwwwowo', 'owwwwwwwwwo', 'owlwwwwlwwo', '.oooooooooo.'] },
+  sp_heart_locket: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#4a3330', y: '#ffd23f', r: '#ff4d6d', l: '#ffb3c1' },
+    map: ['oyoyoyoyo', '..oyoyo..', '.oo.ooo..', 'orlorrro.', 'orrrrrro.', '.orrrro..', '..orro...', '...oo....'] },
+  sp_explorer_hat: { anchor: 'head', dx: -7, dy: -6, colors: { o: '#4a3330', k: '#c9a26b', d: '#a07a45', b: '#6b4a33' },
+    map: ['....ooooooo....', '...okkkkkkko...', '...okkkkkkko...', '...obbbbbbbo...', 'ooodkkkkkkkdooo', 'okkkkkkkkkkkkko', 'ooooooooooooooo'] },
+  sp_captain_cap: { anchor: 'head', dx: -6, dy: -6, colors: { o: '#1e1e28', n: '#2f4f9f', l: '#5b7fd6', y: '#ffd23f', w: '#ffffff' },
+    map: ['..ooooooooo..', '.onnnnnnnnno.', '.onnnyyynnno.', '.onnnnynnnno.', '.owwwwwwwwwo.', 'ooooooooooooo', '..........ooo'] },
+  sp_propeller_hat: { anchor: 'head', dx: -5, dy: -9, colors: { o: '#4a3330', r: '#ff5d7a', y: '#ffe066', b: '#5bc0ff', g: '#6cc070' },
+    map: ['rrrr.o.bbbb', '....ooo....', '.....o.....', '...ooooo...', '..oryrbgo..', '.orrybbggo.', 'ooooooooooo'] },
 };
 
 // 정면 모습일 때 모양이 달라지는 액세서리 (안경은 두 눈에 씌워요)

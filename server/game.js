@@ -3,11 +3,11 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
-  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps,
+  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor,
 } from '../shared/rules.js';
 import { tx } from './db.js';
 
@@ -233,6 +233,34 @@ export class Game {
     return { type: 'specialLost', key: from };
   }
 
+  // 스페셜 친구 시작 선물: 강아지 한 마리당 한 번 (경험치 + 코인 + 전용 소품)
+  specialGifts(userId) {
+    const rows = this.db.prepare('SELECT id FROM dogs WHERE user_id = ? AND special IS NOT NULL AND special_gift = 0').all(userId);
+    if (!rows.length) return [];
+    return tx(this.db, () => {
+      const events = [];
+      for (const { id } of rows) {
+        const dog = this.loadDogById(id);
+        const sp = SPECIALS[dog?.special];
+        if (!sp) continue;
+        this.db.prepare('UPDATE dogs SET special_gift = 1 WHERE id = ?').run(id);
+        dog.exp += SPECIAL_PERKS.startExp;
+        const grew = this.checkGrowth(dog, this.now());
+        this.saveDog(dog);
+        this.addCoins(userId, SPECIAL_PERKS.startCoins);
+        const user = this.getUser(userId);
+        let item = null;
+        if (sp.item && !user.owned.includes(sp.item)) {
+          this.db.prepare('UPDATE users SET owned = ? WHERE id = ?').run(JSON.stringify([...user.owned, sp.item]), userId);
+          item = sp.item;
+        }
+        const active = this.loadDog(userId)?.id === id; // 레벨업 연출은 대표 강아지만
+        events.push({ type: 'specialGift', key: dog.special, dogName: dog.name, exp: SPECIAL_PERKS.startExp, coins: SPECIAL_PERKS.startCoins, item }, ...(active ? grew : []));
+      }
+      return events;
+    });
+  }
+
   renameDog(userId, name) {
     return tx(this.db, () => {
       const dog = this.loadDog(userId);
@@ -344,7 +372,7 @@ export class Game {
       if (!dog) return [];
       const now = this.now();
       const out = this.addTalents(dog, talents, now);
-      if (exp > 0) { dog.exp += Math.floor(exp); out.push(...this.checkGrowth(dog, now)); }
+      if (exp > 0) { dog.exp += expFor(dog, Math.floor(exp)); out.push(...this.checkGrowth(dog, now)); }
       this.saveDog(dog);
       return out;
     });
@@ -437,7 +465,7 @@ export class Game {
     const total = dog.school.endsAt - dog.school.startedAt;
     const ratio = early ? Math.max(0, Math.min(1, (at - dog.school.startedAt) / total)) : 1;
     const coins = Math.floor(course.coins * ratio);
-    const exp = Math.floor(course.exp * ratio);
+    const exp = expFor(dog, Math.floor(course.exp * ratio));
     const next = { ...dog, tricks: [...dog.tricks], school: null, updatedAt: at };
     next.exp += exp;
     const gains = Object.fromEntries(Object.entries(TALENT_GAINS.school[dog.school.course] ?? {}).map(([k, v]) => [k, Math.floor(v * ratio)]));
@@ -563,7 +591,7 @@ export class Game {
       const dog = { ...fresh };
       dog.fullness = Math.min(RULES.statMax, dog.fullness + t.fullness);
       dog.affection = Math.min(RULES.statMax, dog.affection + t.affection + (fav ? TREAT_RULES.favBonus : 0));
-      dog.exp += TREAT_RULES.exp;
+      dog.exp += expFor(dog, TREAT_RULES.exp);
       this.schedulePoop(dog);
       events.push(...this.addTalents(dog, { kind: 1 }), ...this.checkGrowth(dog, this.now()));
       this.saveDog(dog);
@@ -728,7 +756,7 @@ export class Game {
       const hits = Math.max(0, Math.min(ok, TRAINING.targetRounds, Math.floor(Number(targetHits) || 0)));
       const dog = this.loadDog(userId);
       const coins = ok * TRAINING.coinsPerCorrect;
-      const exp = ok * TRAINING.expPerCorrect;
+      const exp = expFor(dog, ok * TRAINING.expPerCorrect);
       dog.exp += exp;
       dog.affection = Math.min(RULES.statMax, dog.affection + Math.min(8, ok));
       const need = talentEffects(dog.talents, dog.special).learnHits;
@@ -814,7 +842,7 @@ export class Game {
       let exp = 0;
       if (dog && !dog.school && safeScore > 0) {
         dog.affection = Math.min(RULES.statMax, dog.affection + 5);
-        exp = Math.min(15, 4 + Math.floor(coins / 2));
+        exp = expFor(dog, Math.min(15, 4 + Math.floor(coins / 2)));
         dog.exp += exp;
         const talent = game.type === 'run' ? 'strong' : 'curious';
         events = [...this.addTalents(dog, { [talent]: Math.min(5, 1 + Math.floor(coins / 3)) }), ...this.checkGrowth(dog, this.now())];

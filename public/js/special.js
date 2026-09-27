@@ -1,6 +1,6 @@
 // 스페셜 캐릭터 이스터에그: "어? 이 이름은…!" 변신 연출
-import { SPECIALS, SPECIAL_TRICKS, BREEDS } from '../shared/data.js';
-import { dogSprite, DOG_W, DOG_H } from './sprites.js';
+import { SPECIALS, SPECIAL_TRICKS, BREEDS, SPECIAL_PERKS, ITEMS } from '../shared/data.js';
+import { dogSprite, accessoryURL, DOG_W, DOG_H } from './sprites.js';
 import { el } from './ui.js';
 import { sfx } from './audio.js';
 
@@ -18,7 +18,7 @@ export function playSpecialReveal(dog, ev) {
       el('div', { class: 'special-label' }, `✨ ${sp.label}`),
       el('h3', {}, sp.name),
       el('p', { class: 'help' }, BREEDS[sp.breed].desc),
-      el('p', {}, '특별한 능력: ', el('b', {}, sp.perk)),
+      specialPerkList(ev.key),
       el('p', {}, '전용 개인기: ', el('b', {}, SPECIAL_TRICKS[sp.trick].name), ` - ${SPECIAL_TRICKS[sp.trick].desc}`),
       el('p', { class: 'hint' }, `칭호 "${sp.title}"도 받았어요! 강아지 카드에서 달 수 있어요.`));
     const btn = el('button', { class: 'btn primary', hidden: true, onclick: () => { stop = true; wrap.remove(); resolve(); } }, '와아! 반가워!');
@@ -82,4 +82,29 @@ export function playSpecialReveal(dog, ev) {
 export function specialMark(dog) {
   if (!dog?.special) return null;
   return el('span', { class: `special-chip ${dog.original ? 'original' : ''}` }, dog.original ? '👑 원조' : '✨ 스페셜');
+}
+
+// 스페셜 친구 혜택 목록 (변신 연출·선물 상자·강아지 카드에서 같이 써요)
+export function specialPerkList(key) {
+  const sp = SPECIALS[key];
+  if (!sp) return null;
+  return el('ul', { class: 'special-perks' },
+    el('li', {}, `⭐ 모든 경험치 +${Math.round((SPECIAL_PERKS.expBoost - 1) * 100)}%`),
+    el('li', {}, `💫 ${sp.perk}`),
+    ...(sp.games ?? []).map((g) => el('li', {}, `🎮 ${g}`)),
+    el('li', {}, `🎀 전용 소품: ${ITEMS[sp.item]?.name ?? ''}`),
+    el('li', {}, `🎵 전용 개인기: ${SPECIAL_TRICKS[sp.trick].name}`));
+}
+
+// 시작 선물 상자 내용
+export function specialGiftBody(ev) {
+  const sp = SPECIALS[ev.key];
+  return el('div', { class: 'center special-gift' },
+    el('p', {}, `${ev.dogName}(이)는 전설의 ${sp.name}! 스페셜 친구 선물이 도착했어요.`),
+    el('div', { class: 'gift-row' },
+      el('span', { class: 'chip' }, `경험치 +${ev.exp}`),
+      el('span', { class: 'chip' }, `뼈다귀 코인 +${ev.coins}`)),
+    ev.item ? el('div', { class: 'gift-item' }, el('img', { class: 'pixel', src: accessoryURL(ev.item, 5), alt: '' }), el('b', {}, ITEMS[ev.item].name), el('small', {}, '꾸미기에서 입혀 보세요!')) : null,
+    el('div', { class: 'section-title' }, '스페셜 친구 혜택'),
+    specialPerkList(ev.key));
 }

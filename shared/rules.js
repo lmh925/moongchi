@@ -1,6 +1,6 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
-  RUNNER,
+  RUNNER, SPECIAL_PERKS,
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
   LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP,
 } from './data.js';
@@ -88,7 +88,16 @@ export function talentStages(talents = {}) {
 export function talentEffects(talents = {}, special = null) {
   const st = talentStages(talents);
   return {
-    runnerHp: (st.strong >= 5 ? 25 : 0) + (st.strong >= 10 ? 25 : 0) + (special === 'gun' ? 15 : 0),
+    runnerHp: (st.strong >= 5 ? 25 : 0) + (st.strong >= 10 ? 25 : 0) + (special === 'gun' ? 30 : 0),
+    // 스페셜 친구 놀이 능력
+    runnerMagnet: special === 'mungchi',
+    runnerTough: special === 'bbosik',
+    runnerStars: special === 'kiriku' ? 2 : 1,
+    runnerShield: special === 'gun' ? 1 : 0,
+    runnerJumps: special === 'pichu' ? 3 : 2,
+    catchReach: special === 'mungchi' ? 6 : special === 'bbosik' ? 4 : 0,
+    catchSpeed: special === 'pichu' ? 1.3 : 1,
+    expBoost: special ? SPECIAL_PERKS.expBoost : 1,
     learnHits: st.smart >= 5 ? TRAINING.learnHits - 1 : TRAINING.learnHits,
     bondBonus: st.kind >= 5 ? 1 : 0,
     charmProps: st.charm,
@@ -185,6 +194,7 @@ export function applyAction(dog, action) {
   if (fav && exp > 0) exp += 2;
   // 뽀식이(빅말티)는 쓰다듬으면 애정도가 조금 더
   if (action === 'pet' && dog.special === 'bbosik') next.affection = clamp(next.affection + 3, 0, RULES.statMax);
+  if (dog.special && exp > 0) exp = specialExp(exp);
   next.exp = dog.exp + exp;
   return { dog: next, exp, coins, reaction: fav ? 'love' : 'happy' };
 }
@@ -237,3 +247,9 @@ export function runnerMaps(runner = {}) {
   const { level } = runnerLevel(runner.xp ?? 0);
   return Object.entries(RUNNER.maps).filter(([, m]) => level >= m.level || (runner.best ?? 0) >= m.best).map(([id]) => id);
 }
+
+// 스페셜 친구는 경험치를 20% 더 받아요 (적어도 1 더)
+export function specialExp(exp) {
+  return exp > 0 ? Math.max(exp + 1, Math.round(exp * SPECIAL_PERKS.expBoost)) : exp;
+}
+export const expFor = (dog, exp) => (dog?.special ? specialExp(exp) : exp);

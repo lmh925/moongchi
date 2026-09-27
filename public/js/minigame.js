@@ -70,11 +70,11 @@ export function playMinigame(dog) {
         spawn = Math.max(0.35, 0.9 - t * 0.02);
       }
       const dx = player.tx - player.x;
-      if (Math.abs(dx) > 1) { player.x += Math.sign(dx) * Math.min(Math.abs(dx), 110 * dt); player.facing = dx > 0 ? 1 : -1; }
+      if (Math.abs(dx) > 1) { player.x += Math.sign(dx) * Math.min(Math.abs(dx), 110 * (dog.effects?.catchSpeed ?? 1) * dt); player.facing = dx > 0 ? 1 : -1; }
       for (const tr of treats) tr.y += tr.vy * dt;
       for (let i = treats.length - 1; i >= 0; i--) {
         const tr = treats[i];
-        if (tr.y > GROUND - 30 && tr.y < GROUND - 8 && Math.abs(tr.x - player.x) < 16) {
+        if (tr.y > GROUND - 30 && tr.y < GROUND - 8 && Math.abs(tr.x - player.x) < 16 + (dog.effects?.catchReach ?? 0)) {
           score += tr.value;
           if (tr.value > 1) sfx.star(); else sfx.catch();
           pops.push({ x: tr.x, y: tr.y, age: 0, text: `+${tr.value}` });

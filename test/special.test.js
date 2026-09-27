@@ -6,7 +6,7 @@ import { Auth } from '../server/auth.js';
 import { Friends } from '../server/friends.js';
 import { Progress } from '../server/progress.js';
 import { specialForName, talentEffects, applyAction } from '../shared/rules.js';
-import { RENAME_PRICE, TREASURE, SPECIALS } from '../shared/data.js';
+import { RENAME_PRICE, TREASURE, SPECIALS, SPECIAL_PERKS, ITEMS } from '../shared/data.js';
 
 function setup() {
   let now = Date.UTC(2026, 8, 26, 3);
@@ -80,7 +80,11 @@ test('원조 코드: 스페셜마다 한 계정만, 틀린 코드는 안 돼요'
 
 test('스페셜 효과: 키리쿠 힌트, 건 체력, 뽀식이 쓰다듬기', () => {
   assert.ok(talentEffects({}, 'kiriku').warmRadius > TREASURE.warmRadius);
-  assert.equal(talentEffects({}, 'gun').runnerHp, 15);
+  assert.equal(talentEffects({}, 'gun').runnerHp, 30);
+  assert.equal(talentEffects({}, 'gun').runnerShield, 1);
+  assert.equal(talentEffects({}, 'pichu').runnerJumps, 3);
+  assert.equal(talentEffects({}, 'mungchi').runnerMagnet, true);
+  assert.equal(talentEffects({}, null).runnerJumps, 2);
   const base = { personality: 'smart', fullness: 80, cleanliness: 80, affection: 40, fluff: 0, exp: 0, stage: 0 };
   const normal = applyAction(base, 'pet').dog.affection;
   const big = applyAction({ ...base, special: 'bbosik' }, 'pet').dog.affection;
@@ -99,4 +103,31 @@ test('요크 삼형제가 모두 모이면 배지', () => {
   assert.equal(all.all, true);
   assert.ok(game.progress.view(k.userId).badges.includes('trio'));
   assert.equal(Object.values(SPECIALS).filter((s) => s.trio).length, 3);
+});
+
+test('스페셜 친구 혜택: 시작 선물(경험치·코인·전용 소품)은 한 마리당 한 번, 경험치 +20%', () => {
+  const { game, auth } = setup();
+  const m = make(game, auth, '뭉치주인', '뭉치', 'bichon');
+  const coins0 = game.getUser(m.userId).coins;
+  const ev = game.specialGifts(m.userId);
+  const gift = ev.find((e) => e.type === 'specialGift');
+  assert.deepEqual([gift.key, gift.item], ['mungchi', 'sp_cloud_pin']);
+  assert.ok(ev.some((e) => e.type === 'levelUp'), '시작 선물로 레벨이 올라요');
+  assert.equal(game.loadDog(m.userId).exp, SPECIAL_PERKS.startExp);
+  assert.ok(game.getUser(m.userId).owned.includes('sp_cloud_pin'));
+  assert.ok(game.getUser(m.userId).coins >= coins0 + SPECIAL_PERKS.startCoins);
+  assert.equal(game.specialGifts(m.userId).length, 0, '두 번 받지 않아요');
+  // 이름을 바꿨다가 다시 뭉치로 해도 선물은 한 번뿐
+  game.addCoins(m.userId, 100);
+  game.renameDog(m.userId, '구름');
+  game.renameDog(m.userId, '뭉치');
+  assert.equal(game.specialGifts(m.userId).length, 0);
+  // 경험치 +20%
+  const n = make(game, auth, '보통주인', '초코');
+  const e1 = game.grant(n.userId, { exp: 10 }) && game.loadDog(n.userId).exp;
+  const e0 = game.loadDog(m.userId).exp;
+  game.grant(m.userId, { exp: 10 });
+  assert.equal(e1, 10);
+  assert.equal(game.loadDog(m.userId).exp - e0, 12);
+  assert.equal(ITEMS.sp_cloud_pin.gacha, false);
 });
