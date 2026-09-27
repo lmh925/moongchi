@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -17,6 +17,7 @@ import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './pho
 import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
 import { openDogCardMaker } from './dogcard.js';
+import { villageCard, openVillageMap, placeOpenBody, openYard, openTasteBook, tasteToast, setDoneBody } from './village-ui.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
@@ -510,14 +511,15 @@ function openFoodBowl() {
       el('div', { class: 'section-title' }, '가지고 있는 간식'),
       owned.length ? el('div', { class: 'treat-grid' }, owned.map(([id, t]) => el('button', {
         class: `treat ${likes(t) ? 'fav' : ''}`, disabled: !!dog.school, onclick: () => giveTreat(id),
-      }, treatIcon(t), el('b', {}, t.name), el('small', {}, `${user.treats[id]}개${likes(t) ? ' · 좋아해요!' : ''}`))))
+      }, treatIcon(t), el('b', {}, t.name), el('small', {}, `${user.treats[id]}개 · ${dog.tastes?.[id] !== undefined ? TASTES.faces[dog.tastes[id]] : '❔'}`))))
         : el('p', { class: 'help' }, '아직 간식이 없어요. 아래 간식 가게에서 사 보세요!'),
       el('div', { class: 'section-title' }, `간식 가게 (코인 ${user.coins})`),
       el('div', { class: 'treat-grid' }, Object.entries(TREATS).map(([id, t]) => el('button', { class: `treat shop ${likes(t) ? 'fav' : ''}`, onclick: () => buyTreat(id) },
         treatIcon(t), el('b', {}, t.name),
         el('small', {}, `포만감 +${t.fullness} · 애정 +${t.affection}`),
         el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), t.price)))),
-      el('p', { class: 'hint' }, `${dog.name}(이)가 좋아하는 간식에는 하트가 붙어요. 좋아하는 간식을 주면 애정도가 더 올라요!`));
+      el('p', { class: 'hint' }, `강아지마다 좋아하는 간식이 달라요. 줘 봐야 알 수 있어요! (❔ = 아직 몰라요)`),
+      el('button', { class: 'btn small', onclick: openTastes }, '🔍 취향 수첩 보기'));
   };
   const box = modal({ title: '밥 그릇', className: 'trade-modal', body: render(), buttons: [{ label: '닫기', kind: 'secondary' }] });
   state.foodBox = { box, render };
@@ -549,7 +551,10 @@ async function giveTreat(id) {
     scene.care(myId(), 'feed');
     sfx.eat();
     if (res.result.fav) { setTimeout(sfx.love, 300); scene.burst(scene.entities.get(myId()), 'heart', 4); }
-    scene.bubble(myId(), 'text', res.result.fav ? `${TREATS[id].name} 최고야!` : '냠냠 맛있다!');
+    const rating = res.result.rating;
+    const say = rating === 3 ? `😍 ${TREATS[id].name} 최고야!!` : rating === 2 ? '😊 냠냠 맛있다!' : rating === 1 ? '😐 음… 먹을 만해' : '😖 퉤! 이건 별로…';
+    scene.bubble(myId(), 'text', say);
+    if (rating === 3) { setTimeout(sfx.love, 300); scene.burst(scene.entities.get(myId()), 'heart', 5); }
     await handleEvents(res.events);
     if (state.tab === 'home') renderPanel();
   } catch (err) { toast(err.message, 'bad'); }
@@ -983,6 +988,9 @@ async function handleEvents(events = []) {
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
+    if (ev.type === 'taste') { const t = tasteToast(ev); if (t) toast(t, 'good'); }
+    if (ev.type === 'placeOpen') { sfx.levelUp(); await waitModal({ title: '🗺️ 새로운 곳!', className: 'celebrate', body: placeOpenBody(ev), buttons: [{ label: '가 보자!', onClick: () => setTimeout(() => visitPlace(ev.id), 200) }] }); }
+    if (ev.type === 'setDone') { sfx.levelUp(); await waitModal({ title: '가구 세트 완성!', className: 'celebrate', body: setDoneBody(ev), buttons: [{ label: '멋지다!' }] }); }
     if (ev.type === 'askDone') {
       sfx.love();
       state.scene?.effectAt?.(myId(), 'heart', 4);
@@ -1227,6 +1235,43 @@ function statRow(key, label, icon, color) {
     el('span', { class: 'num', id: `num-${key}` }, ''));
 }
 
+// ---------- 🗺️ 멍뭉 마을 ----------
+function openMap() { sfx.tap(); openVillageMap(state.me, { onOpen: openPlace, onPlace: visitPlace }); }
+
+async function openPlace(id) {
+  try {
+    const res = await post('/place/open', { id });
+    applyMe(res);
+    await handleEvents(res.events);
+    renderPanel();
+  } catch (err) { toast(err.message, 'bad'); }
+}
+
+function visitPlace(id) {
+  unlock(); sfx.tap();
+  if (id === 'yard') {
+    openYard(publicDog(state.me.dog), {
+      digsLeft: state.me.village?.digsLeft ?? 0,
+      dig: async () => {
+        try {
+          const res = await post('/yard/dig');
+          applyMe(res);
+          handleEvents(res.events);
+          return res;
+        } catch (err) { toast(err.message, 'bad'); return null; }
+      },
+    });
+    return;
+  }
+  const handlers = { cafe: () => openCafeScreen?.(), spa: () => openSpaScreen?.(), camp: () => openCampScreen?.() };
+  (handlers[id] ?? (() => toast('곧 만나요!')))();
+}
+
+function openTastes() {
+  const { dog, user } = state.me;
+  openTasteBook(dog, state.me.village ?? {}, user.room, user.owned);
+}
+
 function homePanel() {
   const dog = state.me.dog;
   const p = PERSONALITIES[dog.personality];
@@ -1256,6 +1301,7 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
+    villageCard(state.me, { onMap: openMap, onPlace: visitPlace }),
     questCard(state.me.progress),
     dogsRow(),
     partyButton(),
@@ -2866,3 +2912,8 @@ async function boot() {
 }
 
 boot();
+
+// 3·4단계에서 채워요 (카페·온천·캠핑장)
+let openCafeScreen = null;
+let openSpaScreen = null;
+let openCampScreen = null;

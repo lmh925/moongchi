@@ -19,6 +19,7 @@ import { Trades } from './trades.js';
 import { Babies } from './babies.js';
 import { Leaderboard } from './leaderboard.js';
 import { Asks } from './asks.js';
+import { Village } from './village.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -46,6 +47,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const leaderboard = new Leaderboard(db, { game, friends, safety, progress });
   const asks = new Asks(db, { game, friends });
   game.asks = asks;
+  const village = new Village(db, { game, asks });
+  game.village = village;
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -160,6 +163,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       slots: game.dogSlots(userId),
       trainingLeft: Math.max(0, TRAINING.dailyLimit - game.trainingsToday(userId)),
       asks: asks.view(userId),
+      village: village.view(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -225,7 +229,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   }));
   api.post('/dog/treat', authed, wrap((req) => {
     const res = game.giveTreat(req.userId, String(req.body?.id ?? ''));
-    return { ...me(req.userId, { events: res.events }), result: { fav: res.fav } };
+    return { ...me(req.userId, { events: res.events }), result: { fav: res.fav, rating: res.rating } };
   }));
   api.post('/shop/treat', authed, wrap((req) => {
     game.buyTreat(req.userId, String(req.body?.id ?? ''));
@@ -306,6 +310,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/equip', authed, wrap((req) => {
     const slot = req.body?.slot;
     const res = game.equip(req.userId, slot, req.body?.itemId ?? null);
+    if (!['head', 'neck', 'face'].includes(slot)) res.events = [...(res.events ?? []), ...village.checkSets(req.userId, game.getUser(req.userId).room)];
     if (['head', 'neck', 'face'].includes(slot)) { hub.dogChanged(req.userId); plaza.dogChanged(req.userId); } else hub.roomDecorChanged(req.userId);
     return me(req.userId, { events: res.events ?? [] });
   }));
@@ -316,6 +321,16 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
     res.lb = leaderboard.submit(req.userId, res.type, res.safeScore);
     return { ...me(req.userId, { events: res.events }), result: res };
+  }));
+
+  // ---------- 🗺️ 멍뭉 마을 ----------
+  api.post('/place/open', authed, wrap((req) => {
+    const ev = village.open(req.userId, String(req.body?.id ?? ''));
+    return me(req.userId, { events: [ev] });
+  }));
+  api.post('/yard/dig', authed, limiter(30, 60_000), wrap((req) => {
+    const res = village.dig(req.userId);
+    return { ...me(req.userId, { events: res.events }), found: res.found };
   }));
 
   // ---------- 💭 말풍선 소원 ----------

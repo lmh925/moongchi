@@ -935,3 +935,40 @@ export const ASK_RULES = {
   hearts: 2, coins: 5, rainbowHearts: 5,
   luckyChance: 0.06, // 돌봄 대성공 ×2
 };
+
+// ---------- 🗺️ 멍뭉 마을: 💗를 모으면 새로운 곳이 열려요 (모은 💗 합계 기준, 써서 없어지지 않아요) ----------
+export const PLACES = {
+  yard: { name: '마당', emoji: '🌳', hearts: 20, desc: '땅을 파면 가끔 보물이 나와요! 하루 3번.' },
+  cafe: { name: '멍뭉 카페', emoji: '☕', hearts: 50, desc: '동물 손님들이 찾아오는 작은 카페를 운영해요.' },
+  spa: { name: '멍뭉 온천', emoji: '♨️', hearts: 90, desc: '따끈한 온천에서 쉬면 청결·애정이 쑥! 하루 한 번.' },
+  camp: { name: '캠핑장', emoji: '🏕️', hearts: 140, desc: '밤하늘 아래에서 잠든 강아지의 꿈을 살짝 엿봐요.' },
+};
+export const YARD = {
+  digsPerDay: 3,
+  rewards: [
+    { kind: 'coins', min: 5, max: 15, weight: 55, text: '반짝이는 뼈다귀 코인' },
+    { kind: 'treat', weight: 25, text: '묻어 둔 간식' },
+    { kind: 'item', weight: 12, text: '반짝이는 소품' },
+    { kind: 'hearts', n: 1, weight: 8, text: '네잎클로버 💗' },
+  ],
+};
+
+// ---------- 🔍 취향 수첩: 간식마다 강아지 반응이 달라요 (해 봐야 알아요) ----------
+export const TASTES = {
+  faces: ['😖', '😐', '😊', '😍'],
+  names: ['별로…', '그냥 그래', '맛있어!', '최애 간식!'],
+  loveAffection: 8, // 😍 추가 애정
+  loveHeartsPerDay: 2, // 😍로 받는 💗 (하루에)
+};
+
+// 가구 세트: 방 4칸(벽지·러그·침대·장난감)을 한 테마로 맞추면 완성!
+export const ROOM_SETS = {
+  cozy: { name: '포근한 우리 집', items: ['wall_wood', 'rug_check', 'bed_basket', 'toy_bone'] },
+  camping: { name: '캠핑 세트', items: ['wall_forest', 'rug_grass', 'bed_tent', 'toy_cactus'] },
+  princess: { name: '공주님 세트', items: ['wall_pink', 'rug_round', 'bed_castle', 'toy_bear'] },
+  night: { name: '별밤 세트', items: ['wall_night', 'rug_star', 'bed_cloud', 'toy_rocket'] },
+  sky: { name: '하늘 나라 세트', items: ['wall_sky', 'rug_rainbow', 'bed_cloud', 'toy_duck'] },
+  mint: { name: '민트 놀이방', items: ['wall_mint', 'rug_round', 'bed_house', 'toy_ball'] },
+  candy: { name: '사탕 가게 세트', items: ['wall_candy', 'rug_rainbow', 'bed_house', 'toy_bear'] },
+};
+export const SET_REWARD = { hearts: 3, coins: 20 };

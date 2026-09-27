@@ -3,13 +3,14 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
   specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor, trainLevel, recommendedCourse, examFor,
 } from '../shared/rules.js';
 import { tx } from './db.js';
+import { tasteOf } from './village.js';
 
 export class GameError extends Error {
   constructor(message, status = 400) {
@@ -50,6 +51,7 @@ function rowToDog(row) {
     parents: row.parents ? JSON.parse(row.parents) : null,
     kids: row.kids ?? 0,
     train: { xp: {}, certs: {}, perfect: {}, ...JSON.parse(row.train ?? '{}') },
+    tastes: JSON.parse(row.tastes ?? '{}'),
   };
 }
 
@@ -599,11 +601,16 @@ export class Game {
       dog.fullness = Math.min(RULES.statMax, dog.fullness + t.fullness);
       dog.affection = Math.min(RULES.statMax, dog.affection + t.affection + (fav ? TREAT_RULES.favBonus : 0));
       dog.exp += expFor(dog, TREAT_RULES.exp);
+      // 🔍 강아지마다 좋아하는 간식이 달라요 (최애면 애정 보너스)
+      const rating = tasteOf(dog.id, treatId);
+      if (rating === 3) dog.affection = Math.min(RULES.statMax, dog.affection + TASTES.loveAffection);
       this.schedulePoop(dog);
       events.push(...this.addTalents(dog, { kind: 1 }), ...this.checkGrowth(dog, this.now()));
       this.saveDog(dog);
       events.push(...this.track(userId, 'feed'), ...this.track(userId, 'treat', 1, { treat: treatId }));
-      return { dog, fav, events };
+      const taste = this.village ? this.village.taste(userId, dog, treatId) : null;
+      if (taste) events.unshift(taste);
+      return { dog, fav, rating, events };
     });
   }
 

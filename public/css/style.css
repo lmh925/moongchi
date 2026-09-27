@@ -1233,3 +1233,41 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
   .hearts, .coins { padding: 1px 6px; font-size: 13px; }
   .top-right .icon-btn { width: 30px; height: 28px; }
 }
+
+/* 🗺️ 멍뭉 마을 */
+.village-card { border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; margin: 10px 0; background: linear-gradient(135deg, #eaffe6, #fff7e6); }
+.village-card.ready { border-color: #ffb000; animation: askGlow 1.2s infinite alternate; }
+.village-head { display: flex; justify-content: space-between; align-items: center; }
+.village-next { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 6px 0; flex-wrap: wrap; }
+.village-next .bar { flex: 1; min-width: 80px; height: 10px; border: 2px solid var(--ink); border-radius: 6px; overflow: hidden; background: #fff; }
+.village-next .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff9fbd, #ff6f91); }
+.village-places { display: flex; gap: 6px; flex-wrap: wrap; }
+.place-list { display: grid; gap: 8px; }
+.place-card { display: flex; align-items: center; gap: 8px; padding: 8px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; }
+.place-card.locked { background: #f1ece4; }
+.place-card.can { background: #fff6d8; border-color: #ffb000; }
+.place-emoji { font-size: 30px; width: 40px; text-align: center; }
+.place-info { flex: 1; display: flex; flex-direction: column; }
+.place-info small { font-size: 12px; color: var(--ink-soft); }
+.place-info .cost { color: var(--pink-d); font-weight: 700; }
+.place-big { font-size: 56px; }
+/* 🌳 마당 */
+.yard-stage { border: 3px solid var(--ink); border-radius: 10px; overflow: hidden; }
+.yard-spots { position: absolute; inset: 0; pointer-events: none; }
+.yard-spot { position: absolute; width: 44px; height: 26px; margin: -13px 0 0 -22px; border: 0; border-radius: 50% 50% 40% 40%; background: radial-gradient(ellipse at 50% 40%, #b0743c, #8a5429 70%); box-shadow: 0 0 0 3px var(--ink); pointer-events: auto; cursor: pointer; animation: wiggle 2.2s infinite; }
+.yard-spot.dug { background: radial-gradient(ellipse, #5a3a20, #3a2410 70%); animation: none; }
+.yard-info { margin: 8px 0 0; font-weight: 700; }
+.found-card { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 8px auto 0; padding: 8px 12px; max-width: 240px; border: 3px solid #ffb000; border-radius: 12px; background: #fff6d8; animation: pop .3s ease-out; }
+.found-card img { height: 36px; width: auto; }
+/* 🔍 취향 수첩 */
+.taste-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.taste-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; border: 2px solid var(--line); border-radius: 10px; background: #fff; font-size: 12px; text-align: center; }
+.taste-cell .face { font-size: 24px; }
+.taste-cell.love { border-color: #ff6f91; background: #fff0f5; }
+.set-list { display: grid; gap: 6px; }
+.set-row { padding: 6px 8px; border: 2px solid var(--line); border-radius: 10px; background: #fff; }
+.set-row.done { border-color: #3fb58a; background: #effbf5; }
+.set-items { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.set-item { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: #f1ece4; color: #aaa; }
+.set-item.have { background: #fff1c2; color: var(--ink); }
+.set-item.placed { background: #cfeee0; color: var(--ink); font-weight: 700; }
