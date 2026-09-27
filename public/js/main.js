@@ -50,7 +50,9 @@ const state = {
 };
 
 // 강아지 크기와 견종에 따라 짖는 소리 높낮이가 달라요
-const barkPitch = (dog) => (dog ? 1.35 - dog.stage * 0.15 - (dog.breed === 'corgi' || dog.breed === 'shiba' ? 0.1 : 0) : 1);
+// 큰 개는 낮고 굵게, 작은 개는 높고 앙칼지게 멍!
+const BARK_TONE = { corgi: -0.1, shiba: -0.1, jindo: -0.15, jindo_hwang: -0.15, husky: -0.2, samoyed: -0.1, dalmatian: -0.15, border_collie: -0.12, beagle: -0.05, chihuahua: 0.2, pug: 0.05 };
+const barkPitch = (dog) => (dog ? 1.35 - dog.stage * 0.15 + (BARK_TONE[dog.breed] ?? 0) : 1);
 
 const myId = () => state.me?.user.id;
 // 자동 테스트용 (주소에 ?debug 가 있을 때만)
@@ -79,7 +81,9 @@ function drawTitle() {
   const c = $('#title-canvas');
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  const dogs = [['bichon', 1, 34], ['corgi', 2, 96], ['poodle', 0, 158]];
+  // 들어올 때마다 다른 견종 친구들이 반겨 줘요
+  const pool = Object.keys(BREEDS).filter((k) => !BREEDS[k].special).sort(() => Math.random() - 0.5);
+  const dogs = [[pool[0], 1, 34], [pool[1], 2, 96], [pool[2], 0, 158]];
   let t = 0;
   const frame = () => {
     if (!$('#screen-title').classList.contains('active')) return;

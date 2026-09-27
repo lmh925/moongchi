@@ -126,10 +126,13 @@ export function breedOf(id) {
   const [, colorId, shapeId] = id.split(':');
   const color = BREEDS[colorId]; const shape = BREEDS[shapeId];
   if (!color || !shape) return null;
-  const { geo: _g, fluffBase: _f, topknot: _t, special: _s, ...shapeParams } = shape;
+  // 무늬와 털색은 털색 부모에게서, 몸 모양은 모양 부모에게서 받아요
+  const COLOR_KEYS = ['fur', 'furShade', 'furLight', 'accent', 'tanHead', 'pattern', 'eyeColor', 'earColor', 'maskColor', 'spotColor', 'saddleColor', 'socks', 'tailTip'];
+  const { geo: _g, fluffBase: _f, topknot: _t, special: _s, ...shape0 } = shape;
+  const shapeParams = Object.fromEntries(Object.entries(shape0).filter(([k]) => !COLOR_KEYS.includes(k)));
   const mix = {
     ...shapeParams,
-    fur: color.fur, furShade: color.furShade, furLight: color.furLight, accent: color.accent, tanHead: color.tanHead,
+    ...Object.fromEntries(COLOR_KEYS.map((k) => [k, color[k]])),
     name: `믹스견 (${color.name.replace(' 프리제', '')}×${shape.name.replace(' 프리제', '')})`,
     desc: '두 부모 강아지를 반씩 닮은, 세상에 하나뿐인 믹스 강아지예요.',
     mix: true,
@@ -201,7 +204,8 @@ export function applyAction(dog, action) {
 }
 
 // 심리테스트 답변(선택지 인덱스 배열) → { personality, breed }
-export function quizResult(answers) {
+// 견종 점수가 같으면 그중에서 골고루(무작위) 골라요 (앞쪽 견종만 나오지 않게)
+export function quizResult(answers, rng = Math.random) {
   const p = Object.fromEntries(Object.keys(PERSONALITIES).map((k) => [k, 0]));
   const b = Object.fromEntries(Object.keys(BREEDS).map((k) => [k, 0]));
   QUIZ.forEach((question, i) => {
@@ -211,7 +215,9 @@ export function quizResult(answers) {
     for (const [k, v] of Object.entries(opt.b)) b[k] += v;
   });
   const top = (scores) => Object.entries(scores).reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
-  return { personality: top(p), breed: top(b) };
+  const best = Math.max(...Object.values(b));
+  const tied = Object.keys(b).filter((k) => b[k] === best);
+  return { personality: top(p), breed: tied[Math.min(tied.length - 1, Math.floor(rng() * tied.length))] };
 }
 
 export function bondLevel(points) {
