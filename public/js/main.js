@@ -2501,7 +2501,23 @@ async function checkVersion() {
   } catch { /* 인터넷이 잠깐 끊겨도 괜찮아요 */ }
 }
 setInterval(checkVersion, 3 * 60_000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkVersion(); wakeRefresh(); } });
+
+// 앱을 켜 둔 채로 두었다가 돌아오거나 자정이 지나면 강아지 정보(함께한 날, 출석 등)를 새로 받아요
+let lastMe = Date.now();
+let lastDay = null;
+function wakeRefresh(force = false) {
+  if (!state.me?.dog || state.plaza || document.querySelector('.runner-screen')) return;
+  if (!force && Date.now() - lastMe < 60_000) return;
+  lastMe = Date.now();
+  refreshMe();
+}
+setInterval(() => {
+  if (!state.me) return;
+  const day = new Date(serverNow() + 9 * 3600_000).toISOString().slice(0, 10);
+  if (lastDay && day !== lastDay) wakeRefresh(true);
+  lastDay = day;
+}, 30_000);
 
 // ---------- 앱으로 설치 (PWA) ----------
 // 안드로이드(크롬·삼성 인터넷)는 설치 창을 바로 띄우고, 아이폰은 "홈 화면에 추가" 방법을 알려 줘요.

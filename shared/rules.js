@@ -29,8 +29,12 @@ export function applyDecay(dog, now, speed = 1) {
   return next;
 }
 
+// 함께한 날: 한국 시간 자정이 지날 때마다 하루씩 늘어요 (밤 9시에 입양해도 다음 날 아침엔 1일)
+// GAME_SPEED로 빠르게 돌릴 때(개발용)는 흐른 시간 그대로 세요.
 export function ageDays(dog, now, speed = 1) {
-  return (Math.max(0, now - dog.bornAt) / DAY) * speed;
+  if (speed !== 1) return (Math.max(0, now - dog.bornAt) / DAY) * speed;
+  const midnight = (t) => Math.floor((t + 9 * HOUR) / DAY);
+  return Math.max(0, midnight(now) - midnight(dog.bornAt));
 }
 
 // ---------- 레벨 ----------

@@ -132,3 +132,11 @@ test('레벨이 생기기 전 강아지는 지금 경험치로 레벨을 매기�
   // 옮긴 뒤에는 보상을 다시 주지 않아요
   assert.equal(game.grant(userId, { exp: 1 }).filter((e) => e.type === 'levelUp').length, 0);
 });
+
+test('함께한 날은 한국 시간 자정마다 하루씩 늘어요', async () => {
+  const { ageDays } = await import('../shared/rules.js');
+  const bornAt = Date.UTC(2026, 8, 26, 12); // 9월 26일 밤 9시 (한국)
+  assert.equal(ageDays({ bornAt }, bornAt + 2 * 3600_000), 0); // 밤 11시
+  assert.equal(ageDays({ bornAt }, Date.UTC(2026, 8, 26, 15, 1)), 1); // 다음 날 0시 1분
+  assert.equal(ageDays({ bornAt }, Date.UTC(2026, 8, 29, 1)), 3);
+});
