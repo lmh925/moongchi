@@ -569,6 +569,7 @@ function connectSocket() {
     scene.showNames = true;
     if (atHome()) { sfx.notify(); toast(`${m.nickname}(이)가 놀러 왔어요!`, 'good'); }
     if (state.tab === 'home') renderPanel();
+    updateChatDock();
   });
   socket.on('room:exit', ({ userId }) => {
     if (!state.room) return;
@@ -580,11 +581,13 @@ function connectSocket() {
     } else state.scene.remove(userId);
     if (m && atHome()) toast(`${m.nickname}(이)가 집으로 돌아갔어요.`);
     if (state.tab === 'home') renderPanel();
+    updateChatDock();
   });
   socket.on('room:move', ({ userId, x, y }) => state.scene.moveTo(userId, x, y));
   socket.on('room:bubble', ({ userId, kind, value }) => {
     sfx.pop();
     state.scene.bubble(userId, kind, value);
+    logChat(userId, kind, value);
     if (kind === 'sticker' && (value === 'heart' || value === 'sparkle' || value === 'note')) state.scene.effectAt(userId, value, 2);
   });
   socket.on('room:pet', ({ from, to }) => {
@@ -636,8 +639,7 @@ function connectSocket() {
   socket.on('room:decor', ({ decor }) => { state.scene.setDecor(decor); if (state.room) state.room.decor = decor; });
   socket.on('room:chat-allowed', ({ allowed }) => {
     state.chatAllowed = allowed;
-    const row = $('#chat-row');
-    if (row) row.hidden = !allowed;
+    updateChatDock();
   });
   socket.on('room:kicked', ({ reason }) => toast(reason, 'bad'));
   socket.on('party:start', ({ endsAt, players }) => startPartyView({ endsAt, scores: Object.fromEntries(players.map((p) => [p, 0])), treats: [] }));
@@ -703,6 +705,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   }
   const room = res.room;
   state.room = room;
+  updateChatDock();
   state.bonds = res.bonds ?? {};
   stopPartyView();
   state.roomOwnerId = ownerId;
@@ -1087,6 +1090,7 @@ function showReport(r, fresh = false) {
 
 // ---------- 패널 ----------
 function renderPanel() {
+  updateChatDock();
   const panel = $('#panel');
   const render = {
     home: () => (atHome() ? homePanel() : visitPanel()),
@@ -1143,8 +1147,7 @@ function homePanel() {
     questCard(state.me.progress),
     dogsRow(),
     partyButton(),
-    bondList(),
-    chatBar());
+    bondList());
 }
 
 // ---------- 마이룸 미니게임: 네컷 포토부스 & 합동 줄넘기 ----------
@@ -1359,12 +1362,16 @@ function visitPanel() {
       actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school),
       actionBtn('집으로', 'paw', () => enterRoom(myId()), false)),
     partyButton(),
-    bondList(),
-    chatBar());
+    bondList());
 }
 
-function chatBar() {
-  const input = el('input', { class: 'chat-input', maxlength: 20, placeholder: '친구에게 한마디 (20자)', 'aria-label': '채팅' });
+// ---------- 채팅 창: 장면 바로 아래에 붙어 있어서 말풍선을 보면서 쓸 수 있어요 ----------
+// 친구가 우리 집(또는 친구 집)에 같이 있을 때와 놀이터에서만 보여요. 지나간 말은 위쪽 기록에 남아요.
+const chatDock = { mode: null, node: null };
+function initChatDock() {
+  if (chatDock.node) return;
+  const log = el('div', { class: 'chat-log', 'aria-live': 'polite' });
+  const input = el('input', { class: 'chat-input', maxlength: 20, placeholder: '친구에게 한마디 (20자)', 'aria-label': '채팅', enterkeyhint: 'send' });
   const send = async () => {
     const text = input.value.trim();
     if (!text) return;
@@ -1373,18 +1380,52 @@ function chatBar() {
     else toast(res.reason, 'bad');
   };
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
-  const alone = (state.room?.members.length ?? 0) <= 1;
-  return el('div', { class: 'chatbar' },
+  // 글자를 쓸 때 장면(말풍선)과 채팅 창이 같이 보이게 올려 줘요
+  input.addEventListener('focus', () => setTimeout(() => document.querySelector('.stage-wrap')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 250));
+  const sendBtn = el('button', { class: 'btn small primary', onclick: send }, '보내기');
+  const note = el('span', { class: 'chat-note' });
+  const tray = el('div', { class: 'chat-tray', hidden: true },
     el('div', { class: 'stickers' }, Object.entries(STICKERS).map(([id, name]) => el('button', {
-      class: 'sticker', title: name, 'aria-label': name, onclick: () => state.socket?.emit('room:sticker', { id }),
+      class: 'sticker', title: name, 'aria-label': name, onclick: () => state.socket?.emit(`${chatDock.mode}:sticker`, { id }),
     }, el('img', { class: 'pixel', src: iconURL(id, 3), alt: '' })))),
     el('div', { class: 'phrases' }, PHRASES.map((text, index) => el('button', {
-      class: 'phrase', onclick: () => state.socket?.emit('room:phrase', { index }),
-    }, text))),
-    el('div', { class: 'chat-row', id: 'chat-row', hidden: !state.chatAllowed || alone }, input, el('button', { class: 'btn small primary', onclick: send }, '보내기')),
-    el('p', { class: 'hint' }, alone
-      ? '친구가 놀러 오면 스티커와 말풍선으로 이야기할 수 있어요.'
-      : state.chatAllowed ? '고운 말만 써요! 전화번호·주소 같은 비밀 정보는 보낼 수 없어요.' : '방 안의 모두와 친구가 되면 글자도 쓸 수 있어요.'));
+      class: 'phrase', onclick: () => state.socket?.emit(`${chatDock.mode}:phrase`, { index }),
+    }, text))));
+  const trayBtn = el('button', { class: 'btn small tray-btn', type: 'button', 'aria-label': '스티커와 말', onclick: () => { tray.hidden = !tray.hidden; trayBtn.classList.toggle('on', !tray.hidden); } }, '😊');
+  const node = el('div', { class: 'chat-dock', hidden: true },
+    log,
+    el('div', { class: 'chat-dock-row' }, trayBtn, input, note, sendBtn),
+    tray);
+  document.querySelector('.stage-wrap').after(node);
+  Object.assign(chatDock, { node, log, input, sendBtn, note, tray, trayBtn });
+}
+
+function updateChatDock() {
+  initChatDock();
+  const mode = state.plaza ? 'plaza' : (state.room?.members.length ?? 0) > 1 ? 'room' : null;
+  const d = chatDock;
+  if (mode !== d.mode) { d.log.replaceChildren(); d.tray.hidden = mode !== 'plaza'; d.trayBtn.classList.toggle('on', mode === 'plaza'); }
+  d.mode = mode;
+  d.node.hidden = !mode;
+  const canType = mode === 'room' && state.chatAllowed;
+  d.input.hidden = !canType; d.sendBtn.hidden = !canType; d.note.hidden = canType;
+  d.note.textContent = mode === 'plaza' ? '놀이터는 스티커와 말로만 이야기해요' : '모두와 친구가 되면 글자도 쓸 수 있어요';
+  d.log.hidden = !d.log.children.length;
+}
+
+function logChat(userId, kind, value) {
+  if (!chatDock.node || !chatDock.mode) return;
+  const mine = userId === myId();
+  const name = mine ? '나' : state.plaza
+    ? state.plaza.view.entities.get(userId)?.nickname
+    : state.room?.members.find((m) => m.userId === userId)?.nickname;
+  const line = el('div', { class: `chat-line ${mine ? 'mine' : ''}` },
+    el('b', {}, name ?? '친구'),
+    kind === 'sticker' ? el('img', { class: 'pixel', src: iconURL(value, 2), alt: STICKERS[value] ?? '' }) : el('span', {}, value));
+  chatDock.log.append(line);
+  while (chatDock.log.children.length > 30) chatDock.log.firstChild.remove();
+  chatDock.log.hidden = false;
+  chatDock.log.scrollTop = chatDock.log.scrollHeight;
 }
 
 function schoolPanel() {
@@ -1815,6 +1856,7 @@ function bindPlazaSocket(socket) {
   socket.on('plaza:bubble', ({ userId, kind, value }) => {
     if (!state.plaza) return;
     state.plaza.view.bubble(userId, kind, value);
+    logChat(userId, kind, value);
     sfx.pop();
   });
   socket.on('plaza:dog', ({ userId, dog }) => { state.plaza?.view.setDog(userId, dog); });
@@ -1993,6 +2035,7 @@ function mountPlaza(res) {
   });
   for (const m of res.members) if (m.userId !== myId()) view.upsert({ ...m, friend: friends.has(m.userId) });
   state.plaza = { view, channel: res.channel, count: res.members.length, tag: res.tag, waiting: {}, friends, treasures: res.treasures ?? 0, hint: null, soccer: res.soccer, show: res.show };
+  updateChatDock();
   view.setShow(res.show);
   view.soccer = res.soccer;
   if (res.soccer) view.setBall(res.soccer.ball.x, res.soccer.ball.y, res.soccer.ball.vx, res.soccer.ball.vy);
@@ -2016,6 +2059,7 @@ function leavePlaza(backHome = true) {
   state.socket?.emit('coop:cancel');
   state.plaza.view.destroy();
   state.plaza = null;
+  updateChatDock();
   state.coopWaiting = null;
   document.querySelector('.stage').classList.remove('plaza-mode');
   state.scene.paused = false;
@@ -2250,13 +2294,6 @@ function plazaPanel() {
         onclick: () => state.socket.emit('plaza:emote', { kind: k }),
       }, has ? em.name : `Lv ${em.level}`);
     })),
-    el('div', { class: 'chatbar' },
-      el('div', { class: 'stickers' }, Object.entries(STICKERS).map(([id, name]) => el('button', {
-        class: 'sticker', title: name, 'aria-label': name, onclick: () => state.socket.emit('plaza:sticker', { id }),
-      }, el('img', { class: 'pixel', src: iconURL(id, 3), alt: '' })))),
-      el('div', { class: 'phrases' }, PHRASES.map((text, index) => el('button', {
-        class: 'phrase', onclick: () => state.socket.emit('plaza:phrase', { index }),
-      }, text)))),
     el('p', { class: 'hint' }, '놀이터는 누구나 오는 곳이라 글자 채팅은 없어요. 모르는 친구에게 이름·학교·전화번호를 알려 주지 마세요. 불편한 친구는 강아지를 눌러 차단하거나 신고할 수 있어요.'));
 }
 
