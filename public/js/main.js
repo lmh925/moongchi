@@ -230,6 +230,7 @@ async function afterLogin() {
 let answers = [];
 function startQuiz() {
   answers = [];
+  chosen = null;
   document.querySelectorAll('.adopt-cancel').forEach((b) => { b.hidden = !state.adopting; });
   show('quiz');
   showQuestion(0);
@@ -307,6 +308,11 @@ function showQuestion(i) {
 let chosen = null;
 function showResult() {
   chosen = quizResult(answers);
+  renderResult(false);
+}
+
+function renderResult(picked) {
+  $('#result-kicker').textContent = picked ? '내가 고른 강아지예요!' : '두근두근… 운명의 강아지를 만났어요!';
   const b = BREEDS[chosen.breed];
   const p = PERSONALITIES[chosen.personality];
   $('#result-img').src = dogPortrait(chosen.breed, 0);
@@ -316,6 +322,40 @@ function showResult() {
   $('#result-error').textContent = '';
   show('result');
 }
+
+// 🐾 직접 고르기: 견종과 성격을 마음대로 (퀴즈 결과가 마음에 안 들 때)
+function openBreedPicker() {
+  const normal = Object.entries(BREEDS).filter(([, b]) => !b.special);
+  let breed = chosen?.breed ?? normal[0][0];
+  let personality = chosen?.personality ?? 'sweet';
+  const body = el('div', { class: 'breed-picker' });
+  const render = () => {
+    const b = BREEDS[breed]; const p = PERSONALITIES[personality];
+    body.replaceChildren(
+      el('div', { class: 'picker-preview' },
+        el('img', { class: 'pixel', src: dogPortrait(breed, 0, { eyes: 'happy', mouth: 'tongue' }), alt: '' }),
+        el('div', {}, el('b', {}, b.name), el('small', {}, b.desc))),
+      el('div', { class: 'section-title' }, '견종'),
+      el('div', { class: 'breed-grid' }, normal.map(([id, nb]) => el('button', {
+        type: 'button', class: `breed-cell ${id === breed ? 'on' : ''}`, 'aria-pressed': String(id === breed),
+        onclick: () => { breed = id; sfx.tap(); render(); },
+      }, el('img', { class: 'pixel', src: dogPortrait(id, 0), alt: '' }), el('small', {}, nb.name)))),
+      el('div', { class: 'section-title' }, '성격'),
+      el('div', { class: 'personality-row' }, Object.entries(PERSONALITIES).map(([id, pp]) => el('button', {
+        type: 'button', class: `chip ${id === personality ? 'on' : ''}`, 'aria-pressed': String(id === personality),
+        onclick: () => { personality = id; sfx.tap(); render(); },
+      }, `${pp.emoji} ${pp.name}`))),
+      el('p', { class: 'hint' }, p.desc));
+  };
+  render();
+  modal({
+    title: '🐾 우리 강아지 고르기', className: 'picker-modal', body,
+    buttons: [{ label: '취소', kind: 'secondary' }, { label: '이 친구로 할래요!', onClick: () => { chosen = { breed, personality }; renderResult(true); show('result'); } }],
+  });
+}
+$('#quiz-skip').addEventListener('click', () => { if (!chosen) chosen = quizResult(answers); openBreedPicker(); });
+$('#result-retry').addEventListener('click', () => { sfx.tap(); startQuiz(); });
+$('#result-pick').addEventListener('click', () => { sfx.tap(); openBreedPicker(); });
 
 $('#result-submit').addEventListener('click', async () => {
   const name = $('#result-name').value.trim();

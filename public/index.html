@@ -64,6 +64,7 @@
         <div id="quiz-progress" class="paws"></div>
         <h2 id="quiz-q"></h2>
         <div id="quiz-options" class="options"></div>
+        <button id="quiz-skip" class="btn ghost" type="button">🐾 퀴즈 없이 바로 고를래요</button>
         <button class="btn ghost adopt-cancel" type="button" hidden>입양 그만두기</button>
       </div>
     </section>
@@ -71,11 +72,15 @@
     <!-- 운명의 강아지 -->
     <section id="screen-result" class="screen">
       <div class="paper result">
-        <p class="kicker">두근두근… 운명의 강아지를 만났어요!</p>
+        <p id="result-kicker" class="kicker">두근두근… 운명의 강아지를 만났어요!</p>
         <img id="result-img" class="pixel result-dog" alt="">
         <h2 id="result-breed"></h2>
         <p id="result-personality" class="badge"></p>
         <p id="result-desc" class="help"></p>
+        <div class="result-redo">
+          <button id="result-retry" class="btn secondary small" type="button">🔄 퀴즈 다시 하기</button>
+          <button id="result-pick" class="btn secondary small" type="button">🐾 직접 고르기</button>
+        </div>
         <label class="field">
           <span>이름을 지어 주세요</span>
           <input id="result-name" maxlength="8" placeholder="예: 뭉치">

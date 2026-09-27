@@ -23,3 +23,15 @@ test('심리테스트로 모든 보통 견종을 만날 수 있어요', () => {
   rec([]);
   assert.deepEqual(normal.filter((k) => !reach.has(k)), []);
 });
+
+test('스페셜 모습은 직접 골라서 입양할 수 없어요 (이름으로만 만나요)', async () => {
+  const { openDb } = await import('../server/db.js');
+  const { Game } = await import('../server/game.js');
+  const { Auth } = await import('../server/auth.js');
+  const db = openDb(':memory:');
+  const game = new Game(db, {});
+  const { userId } = new Auth(db, {}).signup('고르기', '1234');
+  assert.throws(() => game.createDog(userId, { name: '콩', breed: 'mini_bichon', personality: 'sweet' }), /올바르지/);
+  game.createDog(userId, { name: '하늘', breed: 'husky', personality: 'smart' });
+  assert.equal(game.loadDog(userId).breed, 'husky');
+});

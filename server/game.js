@@ -183,7 +183,8 @@ export class Game {
   }
 
   createDog(userId, { name, breed, personality }) {
-    if (!BREEDS[breed] || !PERSONALITIES[personality]) throw new GameError('강아지 정보가 올바르지 않아요.');
+    // 스페셜 모습은 이름으로만 만날 수 있어요 (직접 고를 수 없어요)
+    if (!BREEDS[breed] || BREEDS[breed].special || !PERSONALITIES[personality]) throw new GameError('강아지 정보가 올바르지 않아요.');
     const slots = this.dogSlots(userId);
     if (slots.used >= slots.max) {
       throw new GameError(slots.nextLevel ? `강아지가 Lv ${slots.nextLevel}이 되면 새 친구를 입양할 수 있어요.` : '더 이상 입양할 수 없어요.');
