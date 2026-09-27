@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -883,19 +883,49 @@ export class Game {
   }
 
   // ---------- 미니게임 (간식 받아먹기) ----------
-  startMinigame(userId, type = 'catch') {
+  startMinigame(userId, type = 'catch', { boosters = [] } = {}) {
     if (!RULES.minigame.types[type]) throw new GameError('그런 놀이는 없어요.');
     const user = this.getUser(userId);
     const today = kstDate(this.now());
     const plays = user.minigameDate === today ? user.minigamePlays : 0;
     if (plays >= RULES.minigame.dailyPlays) throw new GameError('오늘은 충분히 놀았어요! 내일 또 놀아요.');
+    // 멍뭉런 출발 아이템 (코인으로 사서 이번 판에만 써요)
+    const picked = type === 'run' ? [...new Set((Array.isArray(boosters) ? boosters : []).map(String))].filter((b) => RUN_BOOSTERS[b]) : [];
+    const cost = picked.reduce((a, b) => a + RUN_BOOSTERS[b].price, 0);
+    if (cost > user.coins) throw new GameError('뼈다귀 코인이 부족해요.');
+    if (cost) this.addCoins(userId, -cost);
     const id = crypto.randomBytes(12).toString('hex');
     this.db.prepare('INSERT INTO minigames (id, user_id, started_at, type) VALUES (?, ?, ?, ?)').run(id, userId, this.now(), type);
     this.db.prepare('UPDATE users SET minigame_date = ?, minigame_plays = ? WHERE id = ?').run(today, plays + 1, userId);
-    return { gameId: id, playsLeft: RULES.minigame.dailyPlays - plays - 1 };
+    return { gameId: id, playsLeft: RULES.minigame.dailyPlays - plays - 1, boosters: picked, cost };
   }
 
-  finishMinigame(userId, gameId, score) {
+  // 🎁 멍뭉런 보물 상자: 달린 거리만큼 (서버가 거리를 한 번 더 확인해요)
+  runChests(userId, distM, elapsedMs) {
+    const safe = Math.max(0, Math.min(Math.floor(Number(distM) || 0), Math.floor((elapsedMs / 1000) * RUN_CHESTS.maxSpeedM)));
+    const n = Math.min(RUN_CHESTS.max, Math.floor(safe / RUN_CHESTS.everyM));
+    const total = RUN_CHESTS.rewards.reduce((a, r) => a + r.weight, 0);
+    const chests = [];
+    const user = this.getUser(userId);
+    for (let i = 0; i < n; i++) {
+      let roll = this.rng() * total;
+      let r = RUN_CHESTS.rewards[0];
+      for (const x of RUN_CHESTS.rewards) { roll -= x.weight; if (roll < 0) { r = x; break; } }
+      if (r.kind === 'coins') { const c = r.min + Math.floor(this.rng() * (r.max - r.min + 1)); this.addCoins(userId, c); chests.push({ kind: 'coins', coins: c }); }
+      if (r.kind === 'treat') {
+        const ids = Object.keys(TREATS).filter((t) => t !== 'cake');
+        const t = ids[Math.floor(this.rng() * ids.length)];
+        user.treats[t] = (user.treats[t] ?? 0) + 1;
+        this.db.prepare('UPDATE users SET treats = ? WHERE id = ?').run(JSON.stringify(user.treats), userId);
+        chests.push({ kind: 'treat', treat: t });
+      }
+      if (r.kind === 'boost') { this.addBoost(userId, r.boost, 1); chests.push({ kind: 'boost', boost: r.boost }); }
+      if (r.kind === 'hearts') { this.asks?.addHearts(userId, r.n); chests.push({ kind: 'hearts', hearts: r.n }); }
+    }
+    return { dist: safe, chests };
+  }
+
+  finishMinigame(userId, gameId, score, { dist = 0 } = {}) {
     return tx(this.db, () => {
       const game = this.db.prepare('SELECT * FROM minigames WHERE id = ? AND user_id = ?').get(String(gameId), userId);
       if (!game || game.finished) throw new GameError('이미 끝난 놀이예요.');
@@ -918,18 +948,23 @@ export class Game {
         events = [...this.addTalents(dog, { [talent]: Math.min(5, 1 + Math.floor(coins / 3)) }), ...this.checkGrowth(dog, this.now())];
         this.saveDog(dog);
       }
-      if (game.type === 'run') events.push(...this.addRunnerXp(userId, safeScore));
+      let run = null;
+      if (game.type === 'run') {
+        run = this.runChests(userId, dist, elapsed);
+        events.push(...this.addRunnerXp(userId, safeScore, run.dist));
+      }
       events.push(...this.track(userId, game.type === 'run' ? 'run' : 'catch'));
-      return { coins, exp, events, type: game.type, safeScore };
+      return { coins, exp, events, type: game.type, safeScore, dist: run?.dist ?? 0, chests: run?.chests ?? [] };
     });
   }
 
   // 멍뭉런 레벨: 한 판마다 + 모은 간식만큼 런 경험치. 레벨이 오르거나 최고 기록을 넘으면 새 맵이 열려요
-  addRunnerXp(userId, score) {
+  addRunnerXp(userId, score, dist = 0) {
     const r = this.getUser(userId).runner;
     const before = { level: runnerLevel(r.xp).level, maps: runnerMaps(r) };
     r.xp += RUNNER.xpPerRun + Math.min(RUNNER.xpScoreCap, score);
     r.best = Math.max(r.best, score);
+    r.bestDist = Math.max(r.bestDist ?? 0, dist);
     r.plays += 1;
     this.db.prepare('UPDATE users SET runner = ? WHERE id = ?').run(JSON.stringify(r), userId);
     const events = [];

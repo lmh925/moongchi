@@ -326,9 +326,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId, { events: res.events ?? [] });
   }));
 
-  api.post('/minigame/start', authed, wrap((req) => game.startMinigame(req.userId, req.body?.type ?? 'catch')));
+  api.post('/minigame/start', authed, wrap((req) => {
+    const res = game.startMinigame(req.userId, req.body?.type ?? 'catch', { boosters: req.body?.boosters });
+    return { ...res, coinsLeft: game.getUser(req.userId).coins };
+  }));
   api.post('/minigame/finish', authed, wrap((req) => {
-    const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score);
+    const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score, { dist: req.body?.dist });
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
     res.lb = leaderboard.submit(req.userId, res.type, res.safeScore);
     return { ...me(req.userId, { events: res.events }), result: res };

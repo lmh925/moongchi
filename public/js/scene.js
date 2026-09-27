@@ -753,7 +753,11 @@ export class Scene {
       e.tag.style.display = this.showNames || e.bubble ? 'block' : 'none';
       e.tag.style.transform = `translate(${x * sx}px, ${(y + 4) * sx}px) translate(-50%, 0)`;
       if (e.bubble) e.bubble.node.style.transform = `translate(${x * sx}px, ${headY * sx}px) translate(-50%, -100%)`;
-      if (e.ask) e.ask.node.style.transform = `translate(${(x + 12) * sx}px, ${(headY - 2 + Math.sin(performance.now() / 330) * 1.5) * sx}px) translate(-10%, -100%)`;
+      if (e.ask) {
+        // 오른쪽 끝에 있으면 말풍선을 왼쪽에 띄워서 잘리지 않게
+        const left = x > SCENE_W - 44;
+        e.ask.node.style.transform = `translate(${(x + (left ? -12 : 12)) * sx}px, ${(headY - 2 + Math.sin(performance.now() / 330) * 1.5) * sx}px) translate(${left ? '-90%' : '-10%'}, -100%)`;
+      }
     }
     for (const e of this.entities.values()) {
       if (!e.dog || e.dog.atSchool) e.tag.style.display = 'none';

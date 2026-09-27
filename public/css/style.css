@@ -38,7 +38,9 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, /* 한글은 낱말 중간에서 줄이 바뀌지 않게 (띄어쓰기에서만 줄바꿈). 아주 긴 낱말만 어쩔 수 없이 나눠요 */
+html { word-break: keep-all; overflow-wrap: break-word; }
+body { margin: 0; height: 100%; }
 body {
   font-family: 'Galmuri11', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   color: var(--ink);
@@ -1341,3 +1343,40 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .news-line.slide { animation: newsIn .4s ease-out; }
 @keyframes newsIn { from { transform: translateY(12px); opacity: 0; } }
 .news-list p { border-bottom: 1px dashed var(--line); padding: 4px 0; margin: 0; }
+
+/* 줄바꿈 점검에서 찾은 곳 */
+.btn.small { white-space: nowrap; }
+.chat-row .btn { flex: none; white-space: nowrap; }
+.school-time { width: 66px; }
+.school-time b { white-space: nowrap; font-size: 13px; }
+.menu-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+.menu-item b { font-size: 12px; }
+.book-reward { font-size: 11px; }
+.book-reward .title { font-size: 11px; }
+.chip { white-space: nowrap; }
+
+/* 🏃 멍뭉런 개편: 피버 · 최고 기록 · 출발 준비 · 결과 */
+.fever-bar { display: inline-block; width: min(18vw, 100px); height: 10px; }
+.fever-bar > i { background: linear-gradient(90deg, #ffb000, #ff5d7a); }
+.fever-bar.on > i { background: linear-gradient(90deg, #ff6f91, #ffe066, #6cc070, #5b8cff); animation: askGlow .4s infinite alternate; }
+.run-hud .hp.fever { font-size: 11px; }
+.run-hud .best { font-size: 11px; background: rgba(255, 250, 240, .9); border: 2px solid var(--ink); border-radius: 8px; padding: 0 6px; }
+.run-hud .best:empty { display: none; }
+.run-best { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px; border: 3px solid #ffb000; border-radius: 12px; background: #fff6d8; font-size: 15px; }
+.booster-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.booster { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; font: inherit; font-size: 12px; cursor: pointer; text-align: center; }
+.booster .big { font-size: 24px; }
+.booster small { font-size: 10px; color: var(--ink-soft); }
+.booster .price { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }
+.booster .price img { width: 14px; height: 12px; }
+.booster.on { background: var(--butter); transform: translateY(2px); }
+.booster.on::after { content: '✔'; position: absolute; top: 2px; right: 6px; color: var(--pink-d); font-weight: 800; }
+.run-go { width: 100%; font-size: 20px; margin-top: 6px; }
+.run-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0; }
+.run-stats > div { display: flex; flex-direction: column; padding: 6px 2px; border: 2px solid var(--line); border-radius: 10px; background: #fff; }
+.run-stats b { font-size: 18px; }
+.run-stats small { font-size: 11px; color: var(--ink-soft); }
+.chest-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.chest { display: flex; flex-direction: column; align-items: center; padding: 6px 8px; border: 3px solid #ffb000; border-radius: 12px; background: #fff6d8; animation: pop .4s ease-out both; }
+.chest .big { font-size: 30px; }
+.chest small { font-size: 11px; font-weight: 700; }

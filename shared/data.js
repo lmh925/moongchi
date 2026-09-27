@@ -1046,3 +1046,22 @@ export const FUN_NEWS = [
   '온천에서 나온 강아지들이 뽀송뽀송하다는 소식 ♨️',
   '밤하늘에 강아지 모양 별자리가 떴대요 🌌',
 ];
+
+// ---------- 🏃 멍뭉런: 출발 전 아이템 · 끝나고 보물 상자 ----------
+export const RUN_BOOSTERS = {
+  hp: { name: '튼튼 체력', emoji: '💪', desc: '체력 +40으로 출발', price: 15 },
+  magnet: { name: '간식 자석', emoji: '🧲', desc: '처음 20초 동안 간식을 끌어당겨요', price: 20 },
+  dash: { name: '부스트 출발', emoji: '🚀', desc: '처음 4초는 무적으로 슝!', price: 15 },
+  fever: { name: '피버 준비', emoji: '🔥', desc: '피버 게이지를 반 채우고 출발', price: 20 },
+};
+export const RUN_CHESTS = {
+  everyM: 500, // 이만큼 달릴 때마다 보물 상자 하나
+  max: 3,
+  maxSpeedM: 26, // 1초에 이만큼보다 멀리는 못 달려요 (거리 확인용)
+  rewards: [
+    { kind: 'coins', min: 8, max: 20, weight: 60 },
+    { kind: 'treat', weight: 25 },
+    { kind: 'boost', boost: 'bus', weight: 10 },
+    { kind: 'hearts', n: 1, weight: 5 },
+  ],
+};

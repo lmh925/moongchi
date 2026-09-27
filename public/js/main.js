@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -2578,7 +2578,7 @@ function playPanel() {
 // ---------- 멍뭉런 레벨 · 맵 ----------
 function runnerInfo() {
   const r = state.me.user.runner ?? { xp: 0, best: 0 };
-  return { ...runnerLevel(r.xp), best: r.best ?? 0, maps: runnerMaps(r) };
+  return { ...runnerLevel(r.xp), best: r.best ?? 0, bestDist: r.bestDist ?? 0, maps: runnerMaps(r) };
 }
 const mapNeed = (m) => `런 Lv ${m.level} 또는 최고 기록 ${m.best}개`;
 
@@ -2588,36 +2588,75 @@ function runnerCard(dog, left) {
   return el('div', { class: 'card runner-card' },
     el('div', { class: 'title' }, '멍뭉 런', el('span', { class: 'chip' }, `런 Lv ${info.level}`), el('button', {
       class: 'btn small green', disabled: left <= 0 || !!dog.school,
-      onclick: () => (info.maps.length >= 2 ? openRunnerMaps() : startGame('run', { map: 'meadow' })),
+      onclick: openRunnerReady,
     }, '놀기!')),
     el('div', { class: 'meta' }, `${dog.name}(이)가 신나게 달려요! 점프(두 번까지)와 슬라이드로 장애물을 피하고 간식을 모아요.`),
     el('div', { class: 'run-xp' }, el('i', { style: { width: `${Math.round((info.into / info.need) * 100)}%` } })),
-    el('div', { class: 'meta' }, `최고 기록 ${info.best}개 · 맵 ${info.maps.length}/${Object.keys(RUNNER.maps).length}`,
+    el('div', { class: 'meta' }, `최고 기록 ${info.best}개 · ${info.bestDist ?? 0}m · 맵 ${info.maps.length}/${Object.keys(RUNNER.maps).length}`,
       next ? ` · 다음 맵 "${next[1].name}": ${mapNeed(next[1])}` : ' · 모든 맵을 열었어요! 🎉'));
 }
 
-function openRunnerMaps() {
+// 출발 준비: 맵 고르기 · 출발 아이템 사기 · 최고 기록 (쿠키런처럼)
+function openRunnerReady() {
   const info = runnerInfo();
-  let last = 'meadow';
-  try { last = localStorage.getItem('mm.runMap') || 'meadow'; } catch { /* 괜찮아요 */ }
-  const { close } = modal({
-    title: '어디서 달릴까요?',
-    className: 'runner-maps',
-    body: el('div', { class: 'map-grid' }, Object.entries(RUNNER.maps).map(([id, m]) => {
-      const open = info.maps.includes(id);
-      return el('button', {
-        type: 'button', class: `map-card ${open ? '' : 'locked'} ${open && id === last ? 'last' : ''}`, disabled: !open,
+  let map = 'meadow';
+  try { map = localStorage.getItem('mm.runMap') || 'meadow'; } catch { /* 괜찮아요 */ }
+  if (!info.maps.includes(map)) map = 'meadow';
+  const picked = new Set();
+  const body = el('div', { class: 'run-ready' });
+  const render = () => {
+    const coins = state.me.user.coins;
+    const cost = [...picked].reduce((a, b) => a + RUN_BOOSTERS[b].price, 0);
+    body.replaceChildren(...[
+      el('div', { class: 'run-best' },
+        el('span', {}, '🏆 최고 기록'), el('b', {}, `${info.best}개`), el('b', {}, `${info.bestDist}m`), el('span', { class: 'chip' }, `런 Lv ${info.level}`)),
+      info.maps.length >= 2 ? el('div', {},
+        el('div', { class: 'section-title' }, '맵 고르기'),
+        el('div', { class: 'map-grid' }, Object.entries(RUNNER.maps).map(([id, m]) => {
+          const open = info.maps.includes(id);
+          return el('button', {
+            type: 'button', class: `map-card ${open ? '' : 'locked'} ${map === id ? 'last' : ''}`, disabled: !open,
+            onclick: () => { map = id; try { localStorage.setItem('mm.runMap', id); } catch { /* 괜찮아요 */ } sfx.tap(); render(); },
+          }, el('img', { class: 'pixel', src: runnerMapPreview(id), alt: '' }), el('b', {}, open ? m.name : `🔒 ${m.name}`), el('small', {}, open ? m.desc : mapNeed(m)));
+        }))) : null,
+      el('div', { class: 'section-title' }, `출발 아이템 (코인 ${coins})`),
+      el('div', { class: 'booster-grid' }, Object.entries(RUN_BOOSTERS).map(([id, bo]) => el('button', {
+        type: 'button', class: `booster ${picked.has(id) ? 'on' : ''}`,
         onclick: () => {
-          try { localStorage.setItem('mm.runMap', id); } catch { /* 괜찮아요 */ }
-          close();
-          startGame('run', { map: id });
+          if (picked.has(id)) picked.delete(id);
+          else if (cost + bo.price > coins) { toast('뼈다귀 코인이 부족해요.'); return; } else picked.add(id);
+          sfx.tap(); render();
         },
-      },
-      el('img', { class: 'pixel', src: runnerMapPreview(id), alt: '' }),
-      el('b', {}, open ? m.name : `🔒 ${m.name}`),
-      el('small', {}, open ? m.desc : mapNeed(m)));
-    })),
-    buttons: [{ label: '다음에', kind: 'secondary' }],
+      }, el('span', { class: 'big' }, bo.emoji), el('b', {}, bo.name), el('small', {}, bo.desc),
+      el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), bo.price)))),
+      el('p', { class: 'hint' }, '🕳️ 구멍은 점프로 넘고, 🐦 새는 슬라이드로 피해요. 간식을 모으면 🔥 피버 타임! 멀리 갈수록 빨라지고, 500m마다 🎁 보물 상자를 받아요.'),
+      el('button', { class: 'btn primary run-go', onclick: () => { closeReady(); startGame('run', { map, boosters: [...picked] }); } },
+        cost ? `출발! (코인 ${cost})` : '출발!')].filter(Boolean));
+  };
+  render();
+  const { close: closeReady } = modal({ title: '🏃 멍뭉런 출발 준비', className: 'runner-maps', body, buttons: [{ label: '다음에', kind: 'secondary' }] });
+}
+
+// 멍뭉런 결과: 기록 · 보상 · 보물 상자
+function showRunResult(r, run, prevBest) {
+  const chestLabel = (c) => (c.kind === 'coins' ? `🦴 코인 ${c.coins}` : c.kind === 'treat' ? `🍪 ${TREATS[c.treat]?.name}` : c.kind === 'boost' ? `🚌 ${SCHOOL_BOOSTS[c.boost]?.name}` : `💗 ${c.hearts}`);
+  const newBest = run.score > prevBest.best && prevBest.best > 0;
+  sfx.levelUp();
+  return waitModal({
+    title: newBest ? '🎉 새 최고 기록!' : '🏁 멍뭉런 결과',
+    className: 'celebrate run-result',
+    body: el('div', { class: 'center' },
+      el('div', { class: 'run-stats' },
+        el('div', {}, el('b', {}, `${run.score}`), el('small', {}, '간식')),
+        el('div', {}, el('b', {}, `${r.dist ?? run.dist}m`), el('small', {}, '거리')),
+        el('div', {}, el('b', {}, `+${r.coins}`), el('small', {}, '코인')),
+        el('div', {}, el('b', {}, `+${r.exp}`), el('small', {}, '경험치'))),
+      el('p', { class: 'meta' }, `최고 기록 ${Math.max(prevBest.best, run.score)}개 · ${Math.max(prevBest.bestDist, r.dist ?? 0)}m`),
+      r.chests?.length ? el('div', {},
+        el('div', { class: 'section-title' }, `🎁 보물 상자 ${r.chests.length}개!`),
+        el('div', { class: 'chest-row' }, r.chests.map((c, i) => el('div', { class: 'chest', style: { animationDelay: `${i * 0.25}s` } }, el('span', { class: 'big' }, '🎁'), el('small', {}, chestLabel(c))))))
+        : el('p', { class: 'hint' }, '500m를 달리면 보물 상자를 받아요!')),
+    buttons: [{ label: '좋아요!' }],
   });
 }
 
@@ -2633,17 +2672,26 @@ function showRunMap(ev) {
   });
 }
 
-async function startGame(type, { map = 'meadow' } = {}) {
+async function startGame(type, { map = 'meadow', boosters = [] } = {}) {
   // 멍뭉 런은 가로 전체 화면으로 (버튼을 누른 바로 그 순간에 요청해야 브라우저가 허락해요)
   if (type === 'run') enterLandscape();
   try {
     unlock();
-    const { gameId } = await post('/minigame/start', { type });
-    const score = type === 'run' ? await playRunner(state.me.dog, { map }) : await playMinigame(state.me.dog);
-    const res = await post('/minigame/finish', { gameId, score });
+    const prevBest = runnerInfo();
+    const start = await post('/minigame/start', { type, boosters });
+    if (start.cost) { state.me.user.coins = start.coinsLeft; $('#top-coins').textContent = start.coinsLeft; }
+    let score; let run = null;
+    if (type === 'run') {
+      run = await playRunner(state.me.dog, { map, best: prevBest.best, bestDist: prevBest.bestDist, boosters: start.boosters ?? [] });
+      score = run.score;
+    } else score = await playMinigame(state.me.dog);
+    const res = await post('/minigame/finish', { gameId: start.gameId, score, dist: run?.dist ?? 0 });
     applyMe(res);
-    if (res.result.coins) sfx.coin();
-    toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}${res.result.exp ? ` · 경험치 +${res.result.exp}` : ''}`, 'good');
+    if (run) await showRunResult(res.result, run, prevBest);
+    else {
+      if (res.result.coins) sfx.coin();
+      toast(`간식 ${score}개! 뼈다귀 코인 +${res.result.coins}${res.result.exp ? ` · 경험치 +${res.result.exp}` : ''}`, 'good');
+    }
     lbToast(res.result.lb);
     renderPanel();
     await handleEvents(res.events);

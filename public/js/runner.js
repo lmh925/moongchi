@@ -310,38 +310,80 @@ export function runnerMapPreview(map, w = 200) {
   return c.toDataURL();
 }
 
-// ---------- 패턴 ----------
-function makeChunk(x, t, rnd, stars = 1) {
-  const items = [];
-  const obs = [];
+// ---------- 맵별 간식(젤리) · 새 장애물 ----------
+// 맵마다 먹는 간식 모양이 달라요: 들판 뼈다귀 · 바닷가 조개 · 눈꽃 마을 눈송이 · 사탕 나라 사탕
+const JELLY = {
+  meadow: null, // 기본 뼈다귀 코인 그림
+  beach: ['..ooooo..', '.oppwppo.', 'oppwpwppo', 'opwpppwpo', 'oppppppo.', '.ooooooo.'],
+  snow: ['...o...', '.o.w.o.', '..www..', 'owwlwwo', '..www..', '.o.w.o.', '...o...'],
+  candy: ['o..ooo..o', 'oooyryooo', 'o.oryro.o', '...ooo...'],
+};
+const JELLY_COLORS = { o: OUT, p: '#ff9fb8', w: '#ffffff', l: '#9fd8ff', y: '#ffe066', r: '#ff5d7a' };
+const jellyCache = {};
+function jellyCanvas(map) {
+  if (!JELLY[map]) return iconCanvas('coin');
+  if (jellyCache[map]) return jellyCache[map];
+  const rows = JELLY[map];
+  const c = document.createElement('canvas');
+  c.width = Math.max(...rows.map((r) => r.length)); c.height = rows.length;
+  const ctx = c.getContext('2d');
+  rows.forEach((row, y) => [...row].forEach((ch, x) => { if (JELLY_COLORS[ch]) { ctx.fillStyle = JELLY_COLORS[ch]; ctx.fillRect(x, y, 1, 1); } }));
+  jellyCache[map] = c;
+  return c;
+}
+// 날아오는 새: 슬라이드로 밑을 지나가요
+function drawBird(ctx, x, y, t) {
+  const flap = Math.floor(t * 8) % 2;
+  rect(ctx, x, y + 2, 12, 6, OUT); rect(ctx, x + 1, y + 3, 10, 4, '#5b8cff');
+  rect(ctx, x - 2, y + 3, 3, 2, '#ffb000'); rect(ctx, x + 2, y + 3, 1, 1, '#ffffff');
+  if (flap) { rect(ctx, x + 4, y - 3, 6, 5, OUT); rect(ctx, x + 5, y - 2, 4, 3, '#8fb0ff'); } else { rect(ctx, x + 4, y + 7, 6, 4, OUT); rect(ctx, x + 5, y + 7, 4, 3, '#8fb0ff'); }
+}
+OBSTACLES.bird = { w: 12, h: 10, draw: (ctx, o, t) => drawBird(ctx, o.x, GROUND - 34, t), box: (o) => ({ x: o.x, y: GROUND - 33, w: 12, h: 9 }) };
+const PLAT = { meadow: ['#6cc070', '#b0743c'], beach: ['#f7dc9b', '#c98a4b'], snow: ['#ffffff', '#8fc4f0'], candy: ['#ff8fc8', '#a86b3a'] };
+
+// ---------- 패턴 (구간이 올라갈수록 어려운 모양이 섞여요) ----------
+function makeChunk(x, stage, rnd, stars = 1, fever = false) {
+  const items = []; const obs = []; const pits = []; const plats = [];
   const bone = (bx, by, kind = 'bone') => items.push({ x: bx, y: by, kind });
-  const pick = rnd();
-  const hard = Math.min(1, t / 40);
-  let len;
-  if (pick < 0.22) {
-    for (let i = 0; i < 7; i++) bone(x + i * 14, GROUND - 12);
-    len = 7 * 14;
-  } else if (pick < 0.45) {
-    obs.push({ type: 'hydrant', x: x + 42 });
-    for (let i = 0; i < 7; i++) bone(x + 12 + i * 12, GROUND - 14 - Math.sin((i / 6) * Math.PI) * 38);
-    len = 110;
-  } else if (pick < 0.62) {
-    obs.push({ type: 'laundry', x: x + 30 });
-    for (let i = 0; i < 6; i++) bone(x + 20 + i * 11, GROUND - 7);
-    len = 110;
-  } else if (pick < 0.62 + 0.18 * (0.4 + hard)) {
-    obs.push({ type: 'tower', x: x + 50, c: Math.floor(rnd() * 3) });
-    for (let i = 0; i < 8; i++) bone(x + 14 + i * 12, GROUND - 16 - Math.sin((i / 7) * Math.PI) * 62);
-    len = 130;
-  } else {
-    obs.push({ type: 'box', x: x + 20, c: Math.floor(rnd() * 3) });
-    obs.push({ type: 'box', x: x + 20 + 70 - hard * 16, c: Math.floor(rnd() * 3) });
+  if (fever) { // 피버: 간식이 세 줄로 쏟아져요
+    for (let i = 0; i < 10; i++) for (const h of [12, 40, 68]) bone(x + i * 12, GROUND - h);
+    return { items, obs, pits, plats, len: 120 };
+  }
+  const hard = Math.min(1, (stage - 1) / 5);
+  const pool = [['line', 3], ['hydrant', 3], ['laundry', 2], ['tower', 1 + hard * 2], ['boxes', 2], ['plat', 2]];
+  if (stage >= 2) pool.push(['pit', 2 + hard * 2]);
+  if (stage >= 3) pool.push(['bird', 1.5 + hard * 2], ['platPit', 1 + hard]);
+  const total = pool.reduce((a, [, w]) => a + w, 0);
+  let r = rnd() * total; let kind = pool[0][0];
+  for (const [k, w] of pool) { r -= w; if (r < 0) { kind = k; break; } }
+  let len = 110;
+  if (kind === 'line') { for (let i = 0; i < 7; i++) bone(x + i * 14, GROUND - 12); len = 98; }
+  if (kind === 'hydrant') { obs.push({ type: 'hydrant', x: x + 42 }); for (let i = 0; i < 7; i++) bone(x + 12 + i * 12, GROUND - 14 - Math.sin((i / 6) * Math.PI) * 38); }
+  if (kind === 'laundry') { obs.push({ type: 'laundry', x: x + 30 }); for (let i = 0; i < 6; i++) bone(x + 20 + i * 11, GROUND - 7); }
+  if (kind === 'tower') { obs.push({ type: 'tower', x: x + 50, c: Math.floor(rnd() * 3) }); for (let i = 0; i < 8; i++) bone(x + 14 + i * 12, GROUND - 16 - Math.sin((i / 7) * Math.PI) * 62); len = 130; }
+  if (kind === 'boxes') {
+    obs.push({ type: 'box', x: x + 20, c: Math.floor(rnd() * 3) }, { type: 'box', x: x + 90 - hard * 16, c: Math.floor(rnd() * 3) });
     for (let i = 0; i < 4; i++) bone(x + 8 + i * 10, GROUND - 26 - i * 4);
-    for (let i = 0; i < 4; i++) bone(x + 58 + i * 10, GROUND - 12);
     len = 120;
   }
-  if (rnd() < 0.25 * stars) items.push({ x: x + len / 2, y: GROUND - 70, kind: 'star' });
-  return { items, obs, len };
+  // 🕳️ 구멍: 빠지면 체력이 줄어요 (점프로 넘어요)
+  if (kind === 'pit') {
+    const w = Math.min(46, 26 + stage * 3);
+    pits.push({ x: x + 40, w });
+    for (let i = 0; i < 6; i++) bone(x + 30 + i * ((w + 20) / 5), GROUND - 16 - Math.sin((i / 5) * Math.PI) * 36);
+    len = 90 + w;
+  }
+  // 🧱 2층 발판: 위로 올라가면 간식이 더 많아요
+  if (kind === 'plat' || kind === 'platPit') {
+    const h = 36 + Math.floor(rnd() * 10);
+    plats.push({ x: x + 24, w: 84, h });
+    for (let i = 0; i < 6; i++) bone(x + 32 + i * 13, GROUND - h - 10);
+    if (kind === 'platPit') { pits.push({ x: x + 40, w: 52 }); len = 130; } else { obs.push({ type: 'hydrant', x: x + 60 }); len = 120; }
+  }
+  // 🐦 새: 슬라이드로 밑을 지나가요
+  if (kind === 'bird') { obs.push({ type: 'bird', x: x + 50, vx: 30 + hard * 20 }); for (let i = 0; i < 6; i++) bone(x + 30 + i * 11, GROUND - 7); }
+  if (rnd() < 0.25 * stars) items.push({ x: x + len / 2, y: GROUND - 74, kind: 'star' });
+  return { items, obs, pits, plats, len };
 }
 
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -360,8 +402,15 @@ export function exitLandscape() {
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
 
-export function playRunner(dog, { map = 'meadow' } = {}) {
+const STAGE_M = 300; // 이만큼 달릴 때마다 다음 구간 (더 빨라져요)
+const FEVER = { perBone: 3, perStar: 12, secs: 6 };
+
+// opts: { map, best, bestDist, boosters: ['hp','magnet','dash','fever'] }
+// 결과: { score, dist(m), newBest }
+export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, boosters = [] } = {}) {
   T = THEMES[map] ?? THEMES.meadow;
+  const plat = PLAT[map] ?? PLAT.meadow;
+  const jelly = jellyCanvas(map);
   return new Promise((resolve) => {
     const touch = matchMedia('(pointer: coarse)').matches;
     const portrait = matchMedia('(orientation: portrait)');
@@ -374,7 +423,11 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
     const needRotate = () => touch && portrait.matches && !allowPortrait;
 
     const canvas = el('canvas', { width: W, height: H, class: 'pixel runner-canvas' });
-    const hud = { score: el('span', {}, '0개'), hp: el('i', {}), shield: el('span', { class: 'score', hidden: true }, '🛡️ 방패') };
+    const hud = {
+      score: el('span', {}, '0개'), hp: el('i', {}), fever: el('i', {}), dist: el('span', {}, '0m'),
+      best: el('span', { class: 'best' }, best ? `최고 ${best}개` : ''),
+      shield: el('span', { class: 'score', hidden: true }, '🛡️ 방패'),
+    };
     const jumpBtn = el('button', { class: 'run-btn jump', type: 'button', 'aria-label': '점프' }, '점프');
     const slideBtn = el('button', { class: 'run-btn slide', type: 'button', 'aria-label': '슬라이드' }, '슬라이드');
     const quitBtn = el('button', { class: 'run-quit', type: 'button' }, '그만하기');
@@ -387,19 +440,20 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       canvas,
       el('div', { class: 'run-hud' },
         el('span', { class: 'hp' }, '체력', el('span', { class: 'bar hp-bar' }, hud.hp)),
-        el('span', { class: 'score' }, '간식 ', hud.score),
-        hud.shield,
+        el('span', { class: 'hp fever' }, '피버', el('span', { class: 'bar fever-bar' }, hud.fever)),
+        el('span', { class: 'score' }, '간식 ', hud.score, ' · ', hud.dist),
+        hud.best, hud.shield,
         quitBtn),
       jumpBtn, slideBtn, rotateHint);
     document.body.append(root);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     const layers = makeLayers(W);
-    let seed = 7;
+    let seed = (Date.now() % 100000) + 7;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed & 0xffff) / 0x10000; };
 
-    // 튼튼 재능이 자라면 체력이 더 많아요
-    const maxHp = 100 + (dog.effects?.runnerHp ?? 0);
+    // 튼튼 재능 · 출발 아이템(튼튼 체력)으로 체력이 늘어요
+    const maxHp = 100 + (dog.effects?.runnerHp ?? 0) + (boosters.includes('hp') ? 40 : 0);
     // 스페셜 친구 능력: 간식 자석(뭉치) · 튼튼한 몸(뽀식이) · 별 두 배(키리쿠) · 방패(건) · 3단 점프(피츄)
     const fx = {
       magnet: !!dog.effects?.runnerMagnet, tough: !!dog.effects?.runnerTough,
@@ -408,10 +462,11 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
     let shield = dog.effects?.runnerShield ?? 0;
     const s = {
       t: 0, dist: 0, speed: 95, hp: maxHp, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
-      hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 9, countdown: 3, over: false, overT: 0, pops: [], dust: [],
-      paused: false,
+      hurtT: 0, items: [], obs: [], pits: [], plats: [], onPlat: null, falling: false,
+      nextChunk: 30, nextHeart: 9, countdown: 3, over: false, overT: 0, pops: [], dust: [], paused: false,
+      stage: 1, banner: null, fever: boosters.includes('fever') ? 50 : 0, feverT: 0,
+      dashT: boosters.includes('dash') ? 4 : 0, magnetT: boosters.includes('magnet') ? 20 : 0, newBest: false,
     };
-    s.nextChunk = 30;
 
     const jump = () => {
       if (s.over || s.countdown > 0 || s.paused) return;
@@ -419,6 +474,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
         s.vy = s.jumps === 0 ? JUMP_V : DOUBLE_V;
         s.jumps += 1;
         s.sliding = false;
+        s.onPlat = null;
         sfx.jump();
       }
     };
@@ -457,7 +513,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       playBgm('home');
       exitLandscape();
       root.remove();
-      resolve(s.score);
+      resolve({ score: s.score, dist: Math.floor(s.dist / 10), newBest: s.newBest });
     };
     playBgm('play');
 
@@ -465,48 +521,93 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
       const h = s.sliding ? 12 : 24;
       return { x: DOG_X - 10, y: GROUND - h + s.y, w: 20, h };
     };
+    const pop = (text, y = GROUND - 34, x = DOG_X) => s.pops.push({ x, y, text, age: 0 });
+    const hurt = (amount, text) => {
+      s.hurtT = 1.2;
+      if (shield > 0) { shield -= 1; sfx.star(); pop('방패!'); return; }
+      s.hp -= fx.tough ? amount / 2 : amount;
+      sfx.hurt(); pop(text);
+      if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
+    };
+    const overPit = () => s.pits.some((p) => !p.bridged && DOG_X > p.x + 3 && DOG_X < p.x + p.w - 3);
+    const invincible = () => s.feverT > 0 || s.dashT > 0;
 
     const update = (dt) => {
       s.t += dt;
       if (s.countdown > 0) { s.countdown -= dt; return; }
       if (s.over) { s.overT += dt; s.speed = Math.max(0, s.speed - 200 * dt); }
       else {
-        s.speed = Math.min(175, 95 + s.t * 1.8);
+        // 구간: 달릴수록 빨라지고 어려워져요 (무한의 계단처럼)
+        const stage = 1 + Math.floor(s.dist / 10 / STAGE_M);
+        if (stage > s.stage) { s.stage = stage; s.banner = { text: `구간 ${stage}! 더 빨라져요`, age: 0 }; sfx.levelUp(); }
+        const base = Math.min(230, 95 + (s.stage - 1) * 14 + ((s.dist / 10) % STAGE_M) * 0.02);
+        s.speed = base * (s.feverT > 0 ? 1.25 : 1) * (s.dashT > 0 ? 1.6 : 1);
         s.hp -= HP.drain(s.t) * dt;
         if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
       }
+      if (s.feverT > 0) { s.feverT -= dt; s.fever = Math.max(0, (s.feverT / FEVER.secs) * 100); if (s.feverT <= 0) s.fever = 0; }
+      if (s.dashT > 0) s.dashT -= dt;
+      if (s.magnetT > 0) s.magnetT -= dt;
       const dx = s.speed * dt;
       s.dist += dx;
-      // 물리
+      // 물리: 2층 발판 → 땅 (구멍이면 빠져요)
+      const prevY = s.y;
       s.vy += GRAVITY * dt;
       s.y += s.vy * dt;
-      if (s.y >= 0) {
-        if (s.jumps > 0) { sfx.land(); for (let i = 0; i < 3; i++) s.dust.push({ x: DOG_X - 6 + i * 4, y: GROUND - 2, age: 0 }); }
-        s.y = 0; s.vy = 0; s.jumps = 0;
-        if (s.slideHeld && !s.sliding) s.sliding = true;
+      if (s.onPlat) {
+        const p = s.onPlat;
+        if (DOG_X < p.x - 4 || DOG_X > p.x + p.w + 4) { s.onPlat = null; s.jumps = Math.max(s.jumps, 1); } else { s.y = -p.h; s.vy = 0; }
+      }
+      if (!s.onPlat && s.vy >= 0) {
+        for (const p of s.plats) {
+          if (DOG_X >= p.x - 4 && DOG_X <= p.x + p.w + 4 && prevY <= -p.h + 1 && s.y >= -p.h) {
+            s.y = -p.h; s.vy = 0; s.onPlat = p;
+            if (s.jumps > 0) sfx.land();
+            s.jumps = 0; break;
+          }
+        }
+      }
+      if (!s.onPlat && s.y >= 0) {
+        if (overPit() && !s.over) {
+          if (!s.falling) { s.falling = true; s.jumps = Math.max(s.jumps, 1); }
+          if (s.y > 34) { // 쏙 빠졌어요 → 구름 다리를 놓고 위에서 다시 출발
+            for (const p of s.pits) if (DOG_X > p.x - 10 && DOG_X < p.x + p.w + 10) p.bridged = true;
+            s.y = -46; s.vy = 0; s.falling = false; s.jumps = 1;
+            if (invincible()) pop('퐁!'); else hurt(25, '앗, 퐁당!');
+            s.hurtT = 1.5;
+          }
+        } else {
+          if (s.jumps > 0 || s.falling) { sfx.land(); for (let i = 0; i < 3; i++) s.dust.push({ x: DOG_X - 6 + i * 4, y: GROUND - 2, age: 0 }); }
+          s.y = 0; s.vy = 0; s.jumps = 0; s.falling = false;
+          if (s.slideHeld && !s.sliding) s.sliding = true;
+        }
       }
       // 새 구간 만들기
       s.nextChunk -= dx;
       if (s.nextChunk <= 0 && !s.over) {
-        const c = makeChunk(W + 10, s.t, rnd, fx.stars);
-        s.items.push(...c.items);
-        s.obs.push(...c.obs);
-        s.nextChunk = c.len + 50 + rnd() * 50;
+        const c = makeChunk(W + 10, s.stage, rnd, fx.stars, s.feverT > 0);
+        s.items.push(...c.items); s.obs.push(...c.obs); s.pits.push(...c.pits); s.plats.push(...c.plats);
+        s.nextChunk = c.len + Math.max(30, 60 - s.stage * 4) + rnd() * 40;
       }
       s.nextHeart -= dt;
       if (s.nextHeart <= 0 && !s.over) { s.items.push({ x: W + 20, y: GROUND - 44, kind: 'heart' }); s.nextHeart = HP.heartEvery + rnd() * 4; }
       for (const it of s.items) it.x -= dx;
-      // 뭉치: 가까운 간식이 둥실 끌려와요
-      if (fx.magnet && !s.over) {
+      for (const o of s.obs) o.x -= dx + (o.vx ?? 0) * dt;
+      for (const p of s.pits) p.x -= dx;
+      for (const p of s.plats) p.x -= dx;
+      // 자석: 뭉치 · 간식 자석 아이템 · 피버
+      if ((fx.magnet || s.magnetT > 0 || s.feverT > 0) && !s.over) {
+        const r = s.feverT > 0 ? 60 : 36;
         for (const it of s.items) {
           if (it.kind === 'heart') continue;
           const mx = DOG_X - it.x; const my = GROUND - 12 + s.y - it.y;
-          if (mx * mx + my * my < 34 * 34) { it.x += mx * Math.min(1, 6 * dt); it.y += my * Math.min(1, 6 * dt); }
+          if (mx * mx + my * my < r * r) { it.x += mx * Math.min(1, 6 * dt); it.y += my * Math.min(1, 6 * dt); }
         }
       }
-      for (const o of s.obs) o.x -= dx;
       s.items = s.items.filter((it) => it.x > -20 && !it.taken);
       s.obs = s.obs.filter((o) => o.x > -50);
+      s.pits = s.pits.filter((p) => p.x + p.w > -20);
+      s.plats = s.plats.filter((p) => p.x + p.w > -20);
       if (s.hurtT > 0) s.hurtT -= dt;
       if (!s.over) {
         const box = dogBox();
@@ -514,54 +615,63 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
           const ib = { x: it.x - 5, y: it.y - 5, w: 10, h: 10 };
           if (!hit(box, ib)) continue;
           it.taken = true;
-          if (it.kind === 'bone') { s.score += 1; sfx.catch(); }
-          if (it.kind === 'star') { s.score += 10; sfx.star(); s.pops.push({ x: it.x, y: it.y, text: '+10', age: 0 }); }
-          if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + HP.heart); sfx.love(); s.pops.push({ x: it.x, y: it.y, text: '체력 UP', age: 0 }); }
+          const mult = s.feverT > 0 ? 2 : 1;
+          if (it.kind === 'bone') { s.score += mult; sfx.catch(); if (!s.feverT) s.fever = Math.min(100, s.fever + FEVER.perBone); }
+          if (it.kind === 'star') { s.score += 10 * mult; sfx.star(); pop(`+${10 * mult}`, it.y, it.x); if (!s.feverT) s.fever = Math.min(100, s.fever + FEVER.perStar); }
+          if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + HP.heart); sfx.love(); pop('체력 UP', it.y, it.x); }
         }
-        if (s.hurtT <= 0) {
+        // 🔥 피버 타임!
+        if (s.fever >= 100 && s.feverT <= 0) { s.feverT = FEVER.secs; s.banner = { text: '🔥 피버 타임! 🔥', age: 0, fever: true }; sfx.levelUp(); }
+        if (!s.newBest && best > 0 && s.score > best) { s.newBest = true; s.banner = { text: '🎉 최고 기록 경신!', age: 0 }; sfx.star(); }
+        if (s.hurtT <= 0 && !invincible()) {
           for (const o of s.obs) {
             if (!o.hit && hit(box, OBSTACLES[o.type].box(o))) {
               o.hit = true;
-              s.hurtT = 1.2;
-              if (shield > 0) {
-                shield -= 1; sfx.star();
-                s.pops.push({ x: DOG_X, y: GROUND - 34, text: '방패!', age: 0 });
-                break;
-              }
-              s.hp -= fx.tough ? HP.hit / 2 : HP.hit;
-              sfx.hurt();
-              s.pops.push({ x: DOG_X, y: GROUND - 34, text: '아야!', age: 0 });
-              if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
+              hurt(HP.hit, '아야!');
               break;
             }
           }
         }
       }
-      if (!s.over && s.jumps === 0 && Math.floor(s.t * 8) !== Math.floor((s.t - dt) * 8)) s.dust.push({ x: DOG_X - 10, y: GROUND - 2, age: 0 });
+      if (!s.over && s.jumps === 0 && Math.floor(s.t * 8) !== Math.floor((s.t - dt) * 8)) s.dust.push({ x: DOG_X - 10, y: GROUND - 2 + s.y, age: 0 });
       for (const p of s.pops) { p.age += dt; p.y -= 18 * dt; }
       s.pops = s.pops.filter((p) => p.age < 0.9);
       for (const d of s.dust) { d.age += dt; d.x -= dx * 0.6; d.y -= 6 * dt; }
       s.dust = s.dust.filter((d) => d.age < 0.4);
+      if (s.banner) { s.banner.age += dt; if (s.banner.age > 1.8) s.banner = null; }
     };
 
     const draw = () => {
       drawScenery(ctx, W, layers, s.dist, s.t);
+      // 🕳️ 구멍 (구름 다리가 놓이면 건널 수 있어요)
+      for (const p of s.pits) {
+        if (p.bridged) { for (let x = p.x; x < p.x + p.w; x += 6) { ellipse(ctx, x + 3, GROUND + 1, 5, 3, '#ffffff'); } continue; }
+        rect(ctx, p.x, GROUND, p.w, H - GROUND, '#2a1d18');
+        rect(ctx, p.x, GROUND, p.w, 3, '#140c0a');
+        rect(ctx, p.x - 1, GROUND, 2, H - GROUND, OUT); rect(ctx, p.x + p.w - 1, GROUND, 2, H - GROUND, OUT);
+      }
+      // 🧱 2층 발판
+      for (const p of s.plats) {
+        const top = GROUND - p.h;
+        rect(ctx, p.x - 1, top - 1, p.w + 2, 10, OUT);
+        rect(ctx, p.x, top, p.w, 8, plat[1]); rect(ctx, p.x, top, p.w, 3, plat[0]);
+        for (let x = p.x + 6; x < p.x + p.w - 4; x += 12) rect(ctx, x, top + 4, 2, 2, OUT);
+      }
       // 장애물 (그림자 → 본체), 간식
-      for (const o of s.obs) obstacleShadow(ctx, o.x, OBSTACLES[o.type].w);
-      for (const o of s.obs) OBSTACLES[o.type].draw(ctx, o);
+      for (const o of s.obs) if (o.type !== 'bird') obstacleShadow(ctx, o.x, OBSTACLES[o.type].w);
+      for (const o of s.obs) OBSTACLES[o.type].draw(ctx, o, s.t);
       // 곧 나타날 장애물 미리 알림: 오른쪽 끝에 빨간 "!"
       for (const o of s.obs) {
         if (o.x <= W || o.x > W + 70) continue;
         if (Math.floor(s.t * 6) % 2) continue;
         const def = OBSTACLES[o.type];
-        const my = o.type === 'laundry' ? GROUND - 30 : GROUND - def.h / 2 - 2;
+        const my = o.type === 'laundry' ? GROUND - 30 : o.type === 'bird' ? GROUND - 28 : GROUND - def.h / 2 - 2;
         ellipse(ctx, W - 7, my, 6, 6, OUT); ellipse(ctx, W - 7, my, 5, 5, '#e84a5f');
         rect(ctx, W - 8, my - 3, 2, 4, '#ffffff'); rect(ctx, W - 8, my + 2, 2, 1, '#ffffff');
       }
       for (const it of s.items) {
         const bob = Math.round(Math.sin(s.t * 6 + it.x * 0.1));
-        const icon = it.kind === 'bone' ? 'coin' : it.kind;
-        const ic = iconCanvas(icon);
+        const ic = it.kind === 'bone' ? jelly : iconCanvas(it.kind);
         ctx.drawImage(ic, Math.round(it.x - ic.width / 2), Math.round(it.y - ic.height / 2) + bob);
       }
       for (const d of s.dust) {
@@ -569,18 +679,23 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
         rect(ctx, d.x, d.y, 3, 2, '#f0dcc0');
         ctx.globalAlpha = 1;
       }
-      // 강아지
+      // 강아지 (피버·부스트 때는 무지개 잔상)
+      if (s.feverT > 0 || s.dashT > 0) {
+        ['#ff6f91', '#ffe066', '#6cc070', '#5b8cff'].forEach((c, i) => { ctx.globalAlpha = 0.35; rect(ctx, DOG_X - 22 - i * 5, GROUND - 22 + s.y + i * 2, 12, 4, c); });
+        ctx.globalAlpha = 1;
+      }
       const blink = s.hurtT > 0 && Math.floor(s.t * 12) % 2 === 0;
       if (!blink) {
         let pose; let opts;
         if (s.over) { pose = 'lie'; opts = { eyes: 'closed' }; }
         else if (s.sliding) { pose = 'lie'; opts = { eyes: 'happy', mouth: 'tongue' }; }
-        else if (s.jumps > 0) { pose = 'walk1'; opts = { eyes: 'happy', mouth: 'open', tail: 1 }; }
+        else if (s.jumps > 0 || s.falling) { pose = 'walk1'; opts = { eyes: s.falling ? 'sad' : 'happy', mouth: 'open', tail: 1 }; }
         else { pose = Math.floor(s.t * 10) % 2 ? 'walk1' : 'walk2'; opts = { eyes: s.hurtT > 0 ? 'sad' : 'open', mouth: 'tongue', tail: Math.floor(s.t * 8) % 2 }; }
         const spr = dogSprite(dog.breed, dog.stage, pose, { ...opts, equip: dog.equip });
         const bounce = s.jumps === 0 && !s.sliding && !s.over ? -(Math.floor(s.t * 10) % 2) : 0;
         ctx.drawImage(spr.canvas, DOG_X - DOG_W / 2 + 2, Math.round(GROUND - 41 + s.y) + bounce);
       }
+      if (s.feverT > 0) { ctx.fillStyle = `hsla(${(s.t * 200) % 360}, 90%, 70%, 0.12)`; ctx.fillRect(0, 0, W, H); }
       ctx.font = 'bold 11px Galmuri11';
       ctx.textAlign = 'center';
       for (const p of s.pops) {
@@ -588,27 +703,43 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.fillText(p.text, p.x + ox, p.y + oy);
         ctx.fillStyle = OUT; ctx.fillText(p.text, p.x, p.y);
       }
+      if (s.banner) {
+        const a = Math.min(1, (1.8 - s.banner.age) * 3);
+        ctx.globalAlpha = a;
+        ctx.font = 'bold 15px Galmuri11';
+        const bw = ctx.measureText(s.banner.text).width + 24;
+        ctx.fillStyle = s.banner.fever ? '#ff5d7a' : '#fffaf0'; ctx.fillRect(W / 2 - bw / 2, 26, bw, 24);
+        ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - bw / 2, 26, bw, 24);
+        ctx.fillStyle = s.banner.fever ? '#fff' : OUT; ctx.fillText(s.banner.text, W / 2, 43);
+        ctx.globalAlpha = 1;
+      }
       if (s.countdown > 0) {
         ctx.font = 'bold 24px Galmuri11';
         ctx.fillStyle = '#fff'; ctx.fillText(String(Math.ceil(s.countdown)), W / 2 + 2, 62);
         ctx.fillStyle = '#e8708f'; ctx.fillText(String(Math.ceil(s.countdown)), W / 2, 60);
+        if (boosters.length) { ctx.font = 'bold 10px Galmuri11'; ctx.fillStyle = OUT; ctx.fillText(`출발 아이템: ${boosters.map((b) => ({ hp: '💪', magnet: '🧲', dash: '🚀', fever: '🔥' }[b])).join(' ')}`, W / 2, 80); }
       }
       if (s.over) {
-        ctx.fillStyle = 'rgba(255, 250, 240, 0.9)';
-        ctx.fillRect(W / 2 - 70, 28, 140, 58);
-        ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 70, 28, 140, 58);
+        ctx.fillStyle = 'rgba(255, 250, 240, 0.92)';
+        ctx.fillRect(W / 2 - 80, 22, 160, 72);
+        ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 80, 22, 160, 72);
         ctx.fillStyle = OUT;
-        ctx.font = 'bold 11px Galmuri11'; ctx.fillText('헥헥… 다 뛰었어요!', W / 2, 45);
+        ctx.font = 'bold 11px Galmuri11'; ctx.fillText(s.newBest ? '🎉 새 최고 기록!' : '헥헥… 다 뛰었어요!', W / 2, 39);
         ctx.font = '9px Galmuri11';
-        ctx.fillText(`간식 ${s.score}개 · ${Math.floor(s.dist / 10)}m`, W / 2, 61);
-        if (s.overT > 1) ctx.fillText('화면을 누르면 끝나요', W / 2, 77);
+        ctx.fillText(`간식 ${s.score}개 · ${Math.floor(s.dist / 10)}m · 구간 ${s.stage}`, W / 2, 55);
+        ctx.fillText(`최고 기록 ${Math.max(best, s.score)}개 · ${Math.max(bestDist, Math.floor(s.dist / 10))}m`, W / 2, 69);
+        if (s.overT > 1) ctx.fillText('화면을 누르면 끝나요', W / 2, 85);
       }
       ctx.textAlign = 'start';
       hud.score.textContent = `${s.score}개`;
+      hud.dist.textContent = `${Math.floor(s.dist / 10)}m`;
       hud.shield.hidden = shield <= 0;
+      if (s.newBest) hud.best.textContent = '🎉 최고 기록!';
       const hpRatio = Math.max(0, s.hp) / maxHp;
       hud.hp.style.width = `${hpRatio * 100}%`;
       hud.hp.style.background = hpRatio > 0.5 ? 'var(--grass-l)' : hpRatio > 0.25 ? 'var(--butter)' : 'var(--red)';
+      hud.fever.style.width = `${s.fever}%`;
+      hud.fever.parentElement.classList.toggle('on', s.feverT > 0);
     };
 
     let last = performance.now();
@@ -627,7 +758,7 @@ export function playRunner(dog, { map = 'meadow' } = {}) {
         update(dt);
       }
       draw();
-      if (s.over && s.overT > 4) { finish(); return; }
+      if (s.over && s.overT > 5) { finish(); return; }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);

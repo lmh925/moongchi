@@ -89,7 +89,7 @@ export function openDogCard(dog, { mine = false, ownerName = null, onTitle = nul
         el('div', { class: 'dog-card-name' }, dog.name, el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`)),
         titleChip(dog),
         dog.special ? el('span', { class: `special-chip ${dog.original ? 'original' : ''}` }, dog.original ? `👑 원조 ${SPECIALS[dog.special].name}` : `✨ ${SPECIALS[dog.special].label}`) : null,
-        el('p', { class: 'help' }, `${breedOf(dog.breed)?.name ?? ''} · ${p ? `${p.emoji} ${p.name}` : ''} · ${STAGES[dog.stage].name}`),
+        el('p', { class: 'help' }, `${breedOf(dog.breed)?.name ?? ''} · ${p ? `${p.emoji}\u00a0${p.name}` : ''} · ${STAGES[dog.stage].name}`),
         ownerName ? el('p', { class: 'help' }, `${ownerName}의 강아지`) : null,
         dog.parents ? el('p', { class: 'help family' }, `👪 ${dog.parents.map((p) => `${p.name}(${p.owner})`).join(' & ')}의 아기`) : null),
       radarCanvas(stages)),
