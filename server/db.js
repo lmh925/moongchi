@@ -134,6 +134,7 @@ export function openDb(file) {
   ensure('users', 'kibble', 'INTEGER NOT NULL DEFAULT 6');
   ensure('users', 'kibble_at', 'INTEGER');
   ensure('users', 'treats', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'runner', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'poop', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'parents', 'TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS scores (

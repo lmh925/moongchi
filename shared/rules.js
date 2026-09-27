@@ -1,5 +1,6 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
+  RUNNER,
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
   LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP,
 } from './data.js';
@@ -221,4 +222,18 @@ export function schoolDurationMs(courseId, speed = 1) {
 // 한국 시간 기준 날짜 문자열 (출석 보상, 하루 제한용)
 export function kstDate(now) {
   return new Date(now + 9 * HOUR).toISOString().slice(0, 10);
+}
+
+// ---------- 멍뭉런 레벨 ----------
+export function runnerLevel(xp = 0) {
+  const L = RUNNER.levels;
+  let level = 1;
+  const at = (n) => (n <= L.length ? L[n - 1] : L[L.length - 1] + (n - L.length) * 1600);
+  while (xp >= at(level + 1)) level += 1;
+  return { level, into: xp - at(level), need: at(level + 1) - at(level) };
+}
+
+export function runnerMaps(runner = {}) {
+  const { level } = runnerLevel(runner.xp ?? 0);
+  return Object.entries(RUNNER.maps).filter(([, m]) => level >= m.level || (runner.best ?? 0) >= m.best).map(([id]) => id);
 }

@@ -3,11 +3,11 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
-  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier,
+  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps,
 } from '../shared/rules.js';
 import { tx } from './db.js';
 
@@ -72,6 +72,7 @@ function rowToUser(row) {
     kibble: row.kibble ?? FOOD.kibbleMax,
     kibbleAt: row.kibble_at ?? null,
     treats: JSON.parse(row.treats ?? '{}'),
+    runner: { xp: 0, best: 0, plays: 0, ...JSON.parse(row.runner ?? '{}') },
   };
 }
 
@@ -819,9 +820,25 @@ export class Game {
         events = [...this.addTalents(dog, { [talent]: Math.min(5, 1 + Math.floor(coins / 3)) }), ...this.checkGrowth(dog, this.now())];
         this.saveDog(dog);
       }
+      if (game.type === 'run') events.push(...this.addRunnerXp(userId, safeScore));
       events.push(...this.track(userId, game.type === 'run' ? 'run' : 'catch'));
       return { coins, exp, events, type: game.type, safeScore };
     });
+  }
+
+  // 멍뭉런 레벨: 한 판마다 + 모은 간식만큼 런 경험치. 레벨이 오르거나 최고 기록을 넘으면 새 맵이 열려요
+  addRunnerXp(userId, score) {
+    const r = this.getUser(userId).runner;
+    const before = { level: runnerLevel(r.xp).level, maps: runnerMaps(r) };
+    r.xp += RUNNER.xpPerRun + Math.min(RUNNER.xpScoreCap, score);
+    r.best = Math.max(r.best, score);
+    r.plays += 1;
+    this.db.prepare('UPDATE users SET runner = ? WHERE id = ?').run(JSON.stringify(r), userId);
+    const events = [];
+    const level = runnerLevel(r.xp).level;
+    if (level > before.level) events.push({ type: 'runLevel', level });
+    for (const map of runnerMaps(r)) if (!before.maps.includes(map)) events.push({ type: 'runMap', map, name: RUNNER.maps[map].name });
+    return events;
   }
 
   // ---------- 화면용 정리 ----------

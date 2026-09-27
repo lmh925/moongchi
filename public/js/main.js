@@ -1,15 +1,15 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
-import { applyDecay, quizResult, breedOf } from '../shared/rules.js';
+import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
 import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.js';
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
 import { Scene, renderRoom } from './scene.js';
 import { playMinigame } from './minigame.js';
-import { playRunner, enterLandscape, exitLandscape } from './runner.js';
+import { playRunner, enterLandscape, exitLandscape, runnerMapPreview } from './runner.js';
 import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
@@ -883,6 +883,8 @@ async function handleEvents(events = []) {
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
+    if (ev.type === 'runLevel') { sfx.star(); toast(`🏃 멍뭉런 레벨 UP! 런 Lv ${ev.level}`, 'good'); }
+    if (ev.type === 'runMap') await showRunMap(ev);
   }
 }
 
@@ -2337,17 +2339,75 @@ function playPanel() {
     el('h3', {}, '혼자 놀기'),
     el('p', { class: 'sub' }, dog.school ? '강아지가 학교에서 돌아오면 놀 수 있어요.' : `오늘 남은 횟수: ${left}번 · 한 판에 코인 최대 ${RULES.minigame.maxCoins}개 · 애정도 UP`),
     el('div', { class: 'cards' },
-      card('run', '멍뭉 런', `${dog.name}(이)가 들판을 신나게 달려요! 점프(두 번까지)와 슬라이드로 장애물을 피하고 간식을 모아요.`),
+      runnerCard(dog, left),
       card('catch', '간식 받아먹기', `하늘에서 떨어지는 간식을 ${dog.name}(이)가 받아먹어요! 화면을 누르거나 끌어서 움직여요.`)));
 }
 
-async function startGame(type) {
+// ---------- 멍뭉런 레벨 · 맵 ----------
+function runnerInfo() {
+  const r = state.me.user.runner ?? { xp: 0, best: 0 };
+  return { ...runnerLevel(r.xp), best: r.best ?? 0, maps: runnerMaps(r) };
+}
+const mapNeed = (m) => `런 Lv ${m.level} 또는 최고 기록 ${m.best}개`;
+
+function runnerCard(dog, left) {
+  const info = runnerInfo();
+  const next = Object.entries(RUNNER.maps).find(([id]) => !info.maps.includes(id));
+  return el('div', { class: 'card runner-card' },
+    el('div', { class: 'title' }, '멍뭉 런', el('span', { class: 'chip' }, `런 Lv ${info.level}`), el('button', {
+      class: 'btn small green', disabled: left <= 0 || !!dog.school,
+      onclick: () => (info.maps.length >= 2 ? openRunnerMaps() : startGame('run', { map: 'meadow' })),
+    }, '놀기!')),
+    el('div', { class: 'meta' }, `${dog.name}(이)가 신나게 달려요! 점프(두 번까지)와 슬라이드로 장애물을 피하고 간식을 모아요.`),
+    el('div', { class: 'run-xp' }, el('i', { style: { width: `${Math.round((info.into / info.need) * 100)}%` } })),
+    el('div', { class: 'meta' }, `최고 기록 ${info.best}개 · 맵 ${info.maps.length}/${Object.keys(RUNNER.maps).length}`,
+      next ? ` · 다음 맵 "${next[1].name}": ${mapNeed(next[1])}` : ' · 모든 맵을 열었어요! 🎉'));
+}
+
+function openRunnerMaps() {
+  const info = runnerInfo();
+  let last = 'meadow';
+  try { last = localStorage.getItem('mm.runMap') || 'meadow'; } catch { /* 괜찮아요 */ }
+  const { close } = modal({
+    title: '어디서 달릴까요?',
+    className: 'runner-maps',
+    body: el('div', { class: 'map-grid' }, Object.entries(RUNNER.maps).map(([id, m]) => {
+      const open = info.maps.includes(id);
+      return el('button', {
+        type: 'button', class: `map-card ${open ? '' : 'locked'} ${open && id === last ? 'last' : ''}`, disabled: !open,
+        onclick: () => {
+          try { localStorage.setItem('mm.runMap', id); } catch { /* 괜찮아요 */ }
+          close();
+          startGame('run', { map: id });
+        },
+      },
+      el('img', { class: 'pixel', src: runnerMapPreview(id), alt: '' }),
+      el('b', {}, open ? m.name : `🔒 ${m.name}`),
+      el('small', {}, open ? m.desc : mapNeed(m)));
+    })),
+    buttons: [{ label: '다음에', kind: 'secondary' }],
+  });
+}
+
+function showRunMap(ev) {
+  sfx.levelUp();
+  const m = RUNNER.maps[ev.map];
+  return waitModal({
+    title: '새 맵이 열렸어요!',
+    className: 'celebrate runner-maps',
+    body: el('div', { class: 'center' },
+      el('img', { class: 'pixel map-reveal', src: runnerMapPreview(ev.map), alt: '' }),
+      el('h3', {}, m.name), el('p', {}, m.desc), el('p', { class: 'help' }, '멍뭉런 "놀기!"를 누르면 맵을 고를 수 있어요.')),
+  });
+}
+
+async function startGame(type, { map = 'meadow' } = {}) {
   // 멍뭉 런은 가로 전체 화면으로 (버튼을 누른 바로 그 순간에 요청해야 브라우저가 허락해요)
   if (type === 'run') enterLandscape();
   try {
     unlock();
     const { gameId } = await post('/minigame/start', { type });
-    const score = type === 'run' ? await playRunner(state.me.dog) : await playMinigame(state.me.dog);
+    const score = type === 'run' ? await playRunner(state.me.dog, { map }) : await playMinigame(state.me.dog);
     const res = await post('/minigame/finish', { gameId, score });
     applyMe(res);
     if (res.result.coins) sfx.coin();

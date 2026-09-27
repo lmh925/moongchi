@@ -821,3 +821,17 @@ export const LEADERBOARD = {
   ropeMaxCombo: 500,
   ropeSecondsPerCombo: 0.9, // 줄넘기 콤보 1개에 최소 걸리는 시간 (가짜 기록 막기)
 };
+
+// ---------- 멍뭉런 레벨 · 맵 ----------
+// 많이 하거나(런 레벨) 잘하면(최고 기록) 새 맵이 열려요. 맵은 모습만 다르고 점수 규칙은 같아요.
+export const RUNNER = {
+  xpPerRun: 20, // 한 판 할 때마다
+  xpScoreCap: 300, // 모은 간식만큼 (한 판에 이만큼까지)
+  levels: [0, 150, 400, 750, 1200, 1800, 2500, 3300, 4200, 5200, 6300, 7500, 8800, 10200, 11700], // 그 뒤로는 1600씩
+  maps: {
+    meadow: { name: '초록 들판', desc: '꽃이 핀 들판을 달려요.', level: 1, best: 0 },
+    beach: { name: '햇살 바닷가', desc: '파도 소리 들리는 모래사장! 모래성을 넘어요.', level: 3, best: 100 },
+    snow: { name: '눈꽃 마을', desc: '눈이 펑펑! 눈사람을 피해 달려요.', level: 6, best: 200 },
+    candy: { name: '사탕 나라', desc: '달콤한 사탕 숲! 컵케이크를 뛰어넘어요.', level: 10, best: 350 },
+  },
+};

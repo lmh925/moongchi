@@ -1,6 +1,6 @@
 // 미니게임: 멍뭉 런 (쿠키런 스타일 가로 달리기)
 // 강아지가 자동으로 달려요. 점프(2단 점프)와 슬라이드로 장애물을 피하고 간식을 모아요.
-// 체력은 시간이 지나면 조금씩 줄어들고, 하트를 먹으면 다시 차요.
+// 체력은 시간이 지나면 조금씩 줄어들고, 하트를 먹으면 다시 차요. 맵은 모습만 다르고 규칙은 같아요.
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
 import { sfx, playBgm } from './audio.js';
@@ -13,6 +13,8 @@ let DOG_X = 52; // 넓은 가로 화면에서는 점프 버튼에 가리지 않�
 const GRAVITY = 760;
 const JUMP_V = -270;
 const DOUBLE_V = -235;
+// 체력: 처음엔 천천히 줄고, 오래 달릴수록 조금씩 빨라져요 (아무것도 안 부딪혀도 1분 넘게 달려요)
+const HP = { drain: (t) => 1.3 + Math.min(1.2, t / 100), hit: 14, heart: 35, heartEvery: 9 };
 const OUT = '#4a3330';
 
 function rect(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
@@ -33,41 +35,164 @@ function layer(w, h, draw) {
   draw(c.getContext('2d'));
   return c;
 }
+const tri = (ctx, cx, top, h, c) => { for (let i = 0; i < h; i++) rect(ctx, cx - Math.floor(i / 2), top + i, Math.floor(i / 2) * 2 + 1, 1, c); };
 
-const LAYERS = {
-  hills: () => layer(W, 60, (ctx) => {
-    for (const [x, r, c] of [[20, 34, '#4f9e44'], [90, 44, '#3f8f3a'], [160, 30, '#4f9e44'], [220, 40, '#3f8f3a']]) {
-      ellipse(ctx, x, 60, r, r * 0.9, OUT); ellipse(ctx, x, 61, r - 1, r * 0.9 - 1, c);
-      ellipse(ctx, x - r * 0.3, 60 - r * 0.6, r * 0.25, r * 0.12, '#6cc070');
-    }
-  }),
-  trees: () => layer(W, 60, (ctx) => {
-    for (const x of [30, 110, 190]) {
-      rect(ctx, x - 2, 34, 5, 26, '#7a4b2a'); rect(ctx, x - 2, 34, 1, 26, '#94603a');
-      ellipse(ctx, x, 28, 14, 12, OUT); ellipse(ctx, x, 28, 13, 11, '#2f7a33'); ellipse(ctx, x - 4, 23, 6, 4, '#4f9e44');
-    }
-    for (const x of [70, 150, 230]) {
-      ellipse(ctx, x, 54, 12, 7, OUT); ellipse(ctx, x, 54, 11, 6, '#3f8f3a'); ellipse(ctx, x - 3, 51, 4, 2, '#6cc070');
-      rect(ctx, x + 3, 50, 2, 2, '#ff9fb8'); rect(ctx, x - 6, 53, 2, 2, '#ffe066');
-    }
-  }),
-  fence: () => layer(W, 24, (ctx) => {
+// 맵마다 하늘·먼 풍경·가까운 풍경·땅·장애물 모습이 달라요 (규칙은 같아요)
+const THEMES = {
+  // 초록 들판
+  meadow: {
+    sky: ['#a9dcff', '#b8e3ff', '#c8eaff', '#d8f1ff'],
+    haze: 'rgba(216,241,255,0.45)',
+    sun: (ctx, w) => { ellipse(ctx, w - 26, 22, 8, 8, '#fff3b0'); ellipse(ctx, w - 26, 22, 6, 6, '#ffe066'); },
+    far: (w) => layer(w, 60, (ctx) => {
+      for (const [x, r, c] of [[20, 34, '#4f9e44'], [90, 44, '#3f8f3a'], [160, 30, '#4f9e44'], [220, 40, '#3f8f3a']]) {
+        ellipse(ctx, x, 60, r, r * 0.9, OUT); ellipse(ctx, x, 61, r - 1, r * 0.9 - 1, c);
+        ellipse(ctx, x - r * 0.3, 60 - r * 0.6, r * 0.25, r * 0.12, '#6cc070');
+      }
+    }),
+    mid: (w) => layer(w, 60, (ctx) => {
+      for (const x of [30, 110, 190]) {
+        rect(ctx, x - 2, 34, 5, 26, '#7a4b2a'); rect(ctx, x - 2, 34, 1, 26, '#94603a');
+        ellipse(ctx, x, 28, 14, 12, OUT); ellipse(ctx, x, 28, 13, 11, '#2f7a33'); ellipse(ctx, x - 4, 23, 6, 4, '#4f9e44');
+      }
+      for (const x of [70, 150, 230]) {
+        ellipse(ctx, x, 54, 12, 7, OUT); ellipse(ctx, x, 54, 11, 6, '#3f8f3a'); ellipse(ctx, x - 3, 51, 4, 2, '#6cc070');
+        rect(ctx, x + 3, 50, 2, 2, '#ff9fb8'); rect(ctx, x - 6, 53, 2, 2, '#ffe066');
+      }
+    }),
     // 배경 울타리는 연하고 흐리게 (장애물이 잘 보이도록)
-    const line = '#c9b8a4';
-    rect(ctx, 0, 8, W, 3, '#e8dccb'); rect(ctx, 0, 15, W, 3, '#e8dccb');
-    for (let x = 4; x < W; x += 16) {
-      rect(ctx, x - 1, 1, 7, 23, line); rect(ctx, x, 2, 5, 22, '#f6efe4'); rect(ctx, x, 2, 1, 22, '#fffaf2');
-      rect(ctx, x + 1, 0, 3, 2, line);
-    }
-  }),
-  ground: () => layer(W, H - GROUND, (ctx) => {
-    rect(ctx, 0, 0, W, 5, '#57a84b');
-    for (let x = 0; x < W; x += 4) rect(ctx, x, 0, 2, 2 + ((x / 4) % 2), '#6cc070');
-    rect(ctx, 0, 5, W, H - GROUND - 5, '#c98a4b');
-    rect(ctx, 0, 5, W, 1, '#8a5429');
-    for (let i = 0; i < 40; i++) rect(ctx, (i * 37) % W, 9 + ((i * 11) % (H - GROUND - 11)), 3, 2, i % 2 ? '#b0743c' : '#dca36a');
-  }),
+    near: (w) => layer(w, 24, (ctx) => {
+      const line = '#c9b8a4';
+      rect(ctx, 0, 8, w, 3, '#e8dccb'); rect(ctx, 0, 15, w, 3, '#e8dccb');
+      for (let x = 4; x < w; x += 16) {
+        rect(ctx, x - 1, 1, 7, 23, line); rect(ctx, x, 2, 5, 22, '#f6efe4'); rect(ctx, x, 2, 1, 22, '#fffaf2');
+        rect(ctx, x + 1, 0, 3, 2, line);
+      }
+    }),
+    ground: (w) => layer(w, H - GROUND, (ctx) => {
+      rect(ctx, 0, 0, w, 5, '#57a84b');
+      for (let x = 0; x < w; x += 4) rect(ctx, x, 0, 2, 2 + ((x / 4) % 2), '#6cc070');
+      rect(ctx, 0, 5, w, H - GROUND - 5, '#c98a4b');
+      rect(ctx, 0, 5, w, 1, '#8a5429');
+      for (let i = 0; i < 40; i++) rect(ctx, (i * 37) % w, 9 + ((i * 11) % (H - GROUND - 11)), 3, 2, i % 2 ? '#b0743c' : '#dca36a');
+    }),
+    low: drawHydrant,
+    blocks: [['#4f7dff', '#8fb0ff', '#2f58d6'], ['#ff4f86', '#ff9dbb', '#d62f63'], ['#8a4fff', '#b99bff', '#6a2fdc']],
+    wash: { line: OUT, sock: '#2f6fff', shirt: '#ff8a1c', towel: '#e8408a', stripe: '#ffffff', peg: '#ffe066' },
+  },
+  // 햇살 바닷가
+  beach: {
+    sky: ['#7fd0ff', '#95d9ff', '#aee3ff', '#c6ecff'],
+    haze: 'rgba(198,236,255,0.35)',
+    sun: (ctx, w) => { ellipse(ctx, w - 30, 20, 11, 11, '#fff3b0'); ellipse(ctx, w - 30, 20, 8, 8, '#ffd23f'); },
+    far: (w) => layer(w, 60, (ctx) => {
+      ellipse(ctx, 60, 30, 26, 8, '#6cc070'); rect(ctx, 30, 30, 60, 4, '#6cc070'); // 먼 섬
+      rect(ctx, 0, 30, w, 30, '#3fa9f5');
+      for (let y = 34; y < 60; y += 6) for (let x = (y * 7) % 18; x < w; x += 18) rect(ctx, x, y, 6, 1, '#8fd4ff');
+      rect(ctx, 0, 30, w, 2, '#bfe9ff');
+    }),
+    mid: (w) => layer(w, 60, (ctx) => {
+      for (const x of [40, 170]) { // 야자수
+        for (let i = 0; i < 30; i++) rect(ctx, x + Math.round(Math.sin(i / 10) * 3), 30 + i, 4, 1, i % 4 ? '#b07a45' : '#8a5a2b');
+        for (const [dx, dy] of [[-10, -2], [10, -2], [-6, -6], [6, -6], [0, -8]]) { ellipse(ctx, x + 2 + dx, 30 + dy, 9, 3, OUT); ellipse(ctx, x + 2 + dx, 30 + dy, 8, 2, '#2f9e5a'); }
+        ellipse(ctx, x + 1, 32, 2, 2, '#7a4b2a'); ellipse(ctx, x + 4, 33, 2, 2, '#7a4b2a');
+      }
+      // 파라솔
+      const x = 105;
+      rect(ctx, x, 36, 2, 24, '#ffffff');
+      for (let i = 0; i < 8; i++) rect(ctx, x - 14 + i * 2, 36 - Math.min(i, 7 - i), 30 - i * 4 < 0 ? 0 : 30 - i * 4, 1, i % 2 ? '#ff5d7a' : '#ffffff');
+    }),
+    near: (w) => layer(w, 24, (ctx) => {
+      rect(ctx, 0, 10, w, 2, '#e3c38a');
+      for (let x = 6; x < w; x += 24) { rect(ctx, x, 6, 4, 18, '#e8d2a8'); rect(ctx, x, 6, 4, 1, '#f7ead0'); }
+    }),
+    ground: (w) => layer(w, H - GROUND, (ctx) => {
+      rect(ctx, 0, 0, w, H - GROUND, '#f2cf86');
+      rect(ctx, 0, 0, w, 3, '#fbe3a8');
+      for (let i = 0; i < 40; i++) rect(ctx, (i * 31) % w, 5 + ((i * 7) % (H - GROUND - 6)), 2, 1, i % 3 ? '#d9b06a' : '#ffffff');
+      for (let x = 20; x < w; x += 70) { rect(ctx, x, 10, 3, 2, '#ff9fb8'); rect(ctx, x + 1, 9, 1, 1, '#ffc2d6'); }
+    }),
+    low: drawSandcastle,
+    blocks: [['#ff6f3c', '#ffa27f', '#d6481a'], ['#1fb5a8', '#6fe0d6', '#0f8a80'], ['#4f7dff', '#8fb0ff', '#2f58d6']],
+    wash: { line: OUT, sock: '#ff4f86', shirt: '#1fb5a8', towel: '#ffb000', stripe: '#ffffff', peg: '#ff6f3c' },
+  },
+  // 눈꽃 마을
+  snow: {
+    sky: ['#9fb4e0', '#b2c4e8', '#c6d4f0', '#d9e3f6'],
+    haze: 'rgba(217,227,246,0.4)',
+    sun: () => {},
+    flakes: true,
+    far: (w) => layer(w, 60, (ctx) => {
+      for (const [x, r] of [[20, 34], [90, 44], [160, 30], [220, 40]]) {
+        ellipse(ctx, x, 60, r, r * 0.9, '#8fa3c8'); ellipse(ctx, x, 61, r - 1, r * 0.9 - 1, '#eef4ff');
+        ellipse(ctx, x + r * 0.3, 60 - r * 0.2, r * 0.4, r * 0.5, '#d3e0f5');
+      }
+    }),
+    mid: (w) => layer(w, 60, (ctx) => {
+      for (const x of [25, 95, 150, 215]) {
+        rect(ctx, x - 1, 50, 3, 10, '#6b4a33');
+        tri(ctx, x, 14, 38, OUT); tri(ctx, x, 16, 35, '#2d6b4a');
+        tri(ctx, x, 16, 9, '#ffffff'); rect(ctx, x - 8, 34, 6, 2, '#ffffff'); rect(ctx, x + 3, 42, 7, 2, '#ffffff');
+      }
+    }),
+    near: (w) => layer(w, 24, (ctx) => {
+      rect(ctx, 0, 9, w, 3, '#d9c7b4'); rect(ctx, 0, 16, w, 3, '#d9c7b4');
+      for (let x = 4; x < w; x += 16) { rect(ctx, x, 3, 5, 21, '#e8dccb'); rect(ctx, x - 1, 1, 7, 3, '#ffffff'); }
+    }),
+    ground: (w) => layer(w, H - GROUND, (ctx) => {
+      rect(ctx, 0, 0, w, H - GROUND, '#d6e4f7');
+      rect(ctx, 0, 0, w, 5, '#ffffff');
+      for (let x = 0; x < w; x += 6) rect(ctx, x, 5, 3, 1 + (x % 12 ? 0 : 1), '#ffffff');
+      for (let i = 0; i < 40; i++) rect(ctx, (i * 29) % w, 9 + ((i * 13) % (H - GROUND - 10)), 2, 1, i % 2 ? '#b8cce9' : '#ffffff');
+    }),
+    low: drawSnowman,
+    blocks: [['#e84a5f', '#ff8f9f', '#b8283c'], ['#2f9e5a', '#6cd08a', '#1d7440'], ['#7b5cff', '#a893ff', '#5a3bdc']],
+    wash: { line: OUT, sock: '#e84a5f', shirt: '#2f9e5a', towel: '#7b5cff', stripe: '#ffffff', peg: '#ffd23f' },
+  },
+  // 사탕 나라
+  candy: {
+    sky: ['#ffc4e6', '#ffd2ec', '#ffe0f2', '#ffedf8'],
+    haze: 'rgba(255,237,248,0.35)',
+    sun: (ctx, w) => {
+      ['#ff5d7a', '#ffb000', '#ffe066', '#6cc070', '#5bc0ff'].forEach((c, i) => {
+        for (let a = 0; a <= 20; a++) { const t = Math.PI * (a / 20); rect(ctx, 30 - Math.cos(t) * (22 - i * 2), 40 - Math.sin(t) * (22 - i * 2), 2, 2, c); }
+      });
+      ellipse(ctx, w - 26, 22, 8, 8, '#fff3b0'); ellipse(ctx, w - 26, 22, 6, 6, '#ffb3d9');
+    },
+    far: (w) => layer(w, 60, (ctx) => {
+      for (const [x, r] of [[20, 34], [90, 44], [160, 30], [220, 40]]) {
+        ellipse(ctx, x, 60, r, r * 0.9, '#c2508a'); ellipse(ctx, x, 61, r - 1, r * 0.9 - 1, '#ff9fd0');
+        ellipse(ctx, x, 60 - r * 0.75, r * 0.5, r * 0.18, '#ffffff');
+        for (let i = -2; i <= 2; i++) rect(ctx, x + i * r * 0.2, 60 - r * 0.7, 2, 3 + ((i + 3) % 3) * 2, '#ffffff');
+      }
+    }),
+    mid: (w) => layer(w, 60, (ctx) => {
+      [[30, '#ff5d7a'], [100, '#5bc0ff'], [170, '#ffb000'], [230, '#8a4fff']].forEach(([x, c]) => {
+        rect(ctx, x - 1, 30, 3, 30, '#ffffff'); rect(ctx, x - 1, 30, 1, 30, '#f0d0e0');
+        ellipse(ctx, x, 24, 11, 11, OUT); ellipse(ctx, x, 24, 10, 10, c);
+        ellipse(ctx, x, 24, 6, 6, '#ffffff'); ellipse(ctx, x, 24, 4, 4, c); ellipse(ctx, x, 24, 1.5, 1.5, '#ffffff');
+      });
+    }),
+    near: (w) => layer(w, 24, (ctx) => {
+      for (let x = 4; x < w; x += 18) {
+        rect(ctx, x, 4, 4, 20, '#fff4f8');
+        for (let y = 5; y < 24; y += 5) rect(ctx, x, y, 4, 2, '#ffb3c6');
+        rect(ctx, x + 1, 1, 4, 3, '#fff4f8'); rect(ctx, x + 4, 3, 2, 3, '#ffb3c6');
+      }
+    }),
+    ground: (w) => layer(w, H - GROUND, (ctx) => {
+      rect(ctx, 0, 0, w, H - GROUND, '#8a5429');
+      rect(ctx, 0, 0, w, 5, '#ff8fc8');
+      for (let x = 0; x < w; x += 7) rect(ctx, x, 5, 4, 2 + (x % 14 ? 0 : 2), '#ff8fc8');
+      ['#ffe066', '#5bc0ff', '#ffffff', '#6cc070'].forEach((c, k) => { for (let x = k * 5; x < w; x += 19) rect(ctx, x, 1 + (k % 3), 2, 1, c); });
+      for (let i = 0; i < 30; i++) rect(ctx, (i * 37) % w, 10 + ((i * 11) % (H - GROUND - 12)), 3, 2, '#a86b3a');
+    }),
+    low: drawCupcake,
+    blocks: [['#4fc3ff', '#a0e2ff', '#1f93d6'], ['#8a4fff', '#b99bff', '#6a2fdc'], ['#29c46a', '#7fe0a4', '#1a9450']],
+    wash: { line: '#c2508a', sock: '#ff5d5d', shirt: '#29c46a', towel: '#4fc3ff', stripe: '#ffffff', peg: '#ffe066' },
+  },
 };
+let T = THEMES.meadow;
 
 // ---------- 장애물 그리기 ----------
 function drawHydrant(ctx, x, y) {
@@ -76,12 +201,37 @@ function drawHydrant(ctx, x, y) {
   rect(ctx, x + 3, y, 8, 3, '#e84a5f'); rect(ctx, x - 1, y + 7, 16, 4, OUT); rect(ctx, x, y + 8, 14, 2, '#c2334a');
   rect(ctx, x + 6, y + 11, 2, 2, '#ffe066');
 }
-// 장난감 블록: 배경(하늘·풀·흙)과 겹치지 않는 선명한 색 + 두꺼운 테두리
-const BLOCKS = [['#4f7dff', '#8fb0ff', '#2f58d6'], ['#ff4f86', '#ff9dbb', '#d62f63'], ['#8a4fff', '#b99bff', '#6a2fdc']];
+// 모래성 (진한 주황 + 빨간 깃발)
+function drawSandcastle(ctx, x, y) {
+  rect(ctx, x - 2, y + 3, 18, 16, OUT);
+  rect(ctx, x, y + 5, 14, 12, '#e0892f'); rect(ctx, x, y + 5, 14, 2, '#f5a94f');
+  for (const cx of [x - 1, x + 5, x + 11]) { rect(ctx, cx, y, 5, 6, OUT); rect(ctx, cx + 1, y + 1, 3, 4, '#e0892f'); }
+  rect(ctx, x + 5, y + 11, 4, 6, '#8a4a1c');
+  rect(ctx, x + 7, y - 8, 1, 8, OUT); rect(ctx, x + 8, y - 8, 5, 3, '#e84a5f');
+}
+// 눈사람 (진한 테두리 + 빨간 목도리)
+function drawSnowman(ctx, x, y) {
+  ellipse(ctx, x + 7, y + 12, 8, 6, OUT); ellipse(ctx, x + 7, y + 12, 7, 5, '#ffffff');
+  ellipse(ctx, x + 7, y + 4, 6, 5, OUT); ellipse(ctx, x + 7, y + 4, 5, 4, '#ffffff');
+  rect(ctx, x + 2, y + 7, 11, 2, '#e84a5f'); rect(ctx, x + 10, y + 8, 2, 4, '#e84a5f');
+  rect(ctx, x + 5, y + 3, 1, 1, OUT); rect(ctx, x + 9, y + 3, 1, 1, OUT); rect(ctx, x + 7, y + 5, 3, 1, '#ff8a1c');
+  rect(ctx, x + 3, y - 3, 9, 3, OUT); rect(ctx, x + 5, y - 7, 5, 5, OUT); rect(ctx, x + 6, y - 6, 3, 3, '#3a3a4a');
+  rect(ctx, x + 7, y + 12, 1, 1, OUT); rect(ctx, x + 7, y + 14, 1, 1, OUT);
+}
+// 컵케이크 (파란 컵 + 흰 크림 + 체리)
+function drawCupcake(ctx, x, y) {
+  rect(ctx, x - 1, y + 7, 16, 11, OUT);
+  rect(ctx, x + 1, y + 8, 12, 9, '#4fc3ff');
+  for (let i = 0; i < 12; i += 3) rect(ctx, x + 1 + i, y + 8, 1, 9, '#1f93d6');
+  ellipse(ctx, x + 7, y + 5, 9, 5, OUT); ellipse(ctx, x + 7, y + 5, 8, 4, '#ffffff'); ellipse(ctx, x + 7, y + 3, 5, 3, '#ffe3f0');
+  ellipse(ctx, x + 7, y - 2, 3, 3, OUT); ellipse(ctx, x + 7, y - 2, 2, 2, '#e8264a');
+  rect(ctx, x + 3, y + 4, 1, 1, '#ff5d7a'); rect(ctx, x + 10, y + 5, 1, 1, '#29c46a'); rect(ctx, x + 6, y + 6, 1, 1, '#ffb000');
+}
+// 장난감 블록: 배경(하늘·풀·흙)과 겹치지 않는 선명한 색 + 두꺼운 테두리 (맵마다 색이 달라요)
 function drawBox(ctx, x, y, h, c0 = 0) {
   let i = c0;
   for (let yy = y; yy < y + h; yy += 17) {
-    const [c, l, d] = BLOCKS[i % BLOCKS.length]; i += 1;
+    const [c, l, d] = T.blocks[i % T.blocks.length]; i += 1;
     rect(ctx, x - 2, yy - 2, 20, 20, OUT);
     rect(ctx, x, yy, 16, 16, c); rect(ctx, x, yy, 16, 3, l); rect(ctx, x, yy + 13, 16, 3, d);
     rect(ctx, x + 5, yy + 5, 6, 6, '#ffffff'); rect(ctx, x + 6, yy + 6, 4, 4, l); // 가운데 별 무늬
@@ -95,25 +245,70 @@ function obstacleShadow(ctx, x, w) {
 }
 // 빨랫줄: 굵고 진한 줄 + 선명한 빨래 (아래로 슬라이드해서 지나가요)
 function drawLaundry(ctx, x, y) {
-  rect(ctx, x - 8, y - 3, 50, 3, OUT);
-  // 양말 (진한 파랑)
-  rect(ctx, x - 2, y - 1, 10, 14, OUT); rect(ctx, x, y + 1, 6, 10, '#2f6fff'); rect(ctx, x - 2, y + 9, 12, 7, OUT); rect(ctx, x, y + 11, 8, 3, '#2f6fff');
+  const c = T.wash;
+  rect(ctx, x - 8, y - 3, 50, 3, c.line);
+  // 양말
+  rect(ctx, x - 2, y - 1, 10, 14, OUT); rect(ctx, x, y + 1, 6, 10, c.sock); rect(ctx, x - 2, y + 9, 12, 7, OUT); rect(ctx, x, y + 11, 8, 3, c.sock);
   rect(ctx, x, y + 1, 6, 2, '#ffffff');
-  // 셔츠 (주황)
-  rect(ctx, x + 10, y - 1, 16, 22, OUT); rect(ctx, x + 12, y + 1, 12, 18, '#ff8a1c'); rect(ctx, x + 7, y, 5, 8, OUT); rect(ctx, x + 24, y, 5, 8, OUT);
-  rect(ctx, x + 8, y + 1, 3, 6, '#ff8a1c'); rect(ctx, x + 25, y + 1, 3, 6, '#ff8a1c'); rect(ctx, x + 16, y + 6, 4, 4, '#ffffff');
-  // 수건 (진한 분홍 줄무늬)
-  rect(ctx, x + 30, y - 1, 9, 19, OUT); rect(ctx, x + 32, y + 1, 5, 15, '#e8408a'); rect(ctx, x + 32, y + 5, 5, 2, '#ffffff'); rect(ctx, x + 32, y + 11, 5, 2, '#ffffff');
+  // 셔츠
+  rect(ctx, x + 10, y - 1, 16, 22, OUT); rect(ctx, x + 12, y + 1, 12, 18, c.shirt); rect(ctx, x + 7, y, 5, 8, OUT); rect(ctx, x + 24, y, 5, 8, OUT);
+  rect(ctx, x + 8, y + 1, 3, 6, c.shirt); rect(ctx, x + 25, y + 1, 3, 6, c.shirt); rect(ctx, x + 16, y + 6, 4, 4, '#ffffff');
+  // 수건 (줄무늬)
+  rect(ctx, x + 30, y - 1, 9, 19, OUT); rect(ctx, x + 32, y + 1, 5, 15, c.towel); rect(ctx, x + 32, y + 5, 5, 2, c.stripe); rect(ctx, x + 32, y + 11, 5, 2, c.stripe);
   // 빨래집게
-  for (const cx of [x + 2, x + 17, x + 33]) rect(ctx, cx, y - 5, 3, 5, '#ffe066');
+  for (const cx of [x + 2, x + 17, x + 33]) rect(ctx, cx, y - 5, 3, 5, c.peg);
 }
 
 const OBSTACLES = {
-  hydrant: { w: 14, h: 17, draw: (ctx, o) => drawHydrant(ctx, o.x, GROUND - 17), box: (o) => ({ x: o.x + 1, y: GROUND - 16, w: 12, h: 16 }) },
+  hydrant: { w: 14, h: 17, draw: (ctx, o) => T.low(ctx, o.x, GROUND - 17), box: (o) => ({ x: o.x + 1, y: GROUND - 16, w: 12, h: 16 }) },
   box: { w: 16, h: 16, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 16, 16, o.c ?? 0), box: (o) => ({ x: o.x + 1, y: GROUND - 15, w: 14, h: 15 }) },
   tower: { w: 16, h: 33, draw: (ctx, o) => drawBox(ctx, o.x, GROUND - 33, 33, o.c ?? 0), box: (o) => ({ x: o.x + 1, y: GROUND - 32, w: 14, h: 32 }) },
   laundry: { w: 34, h: 20, draw: (ctx, o) => drawLaundry(ctx, o.x, GROUND - 38), box: (o) => ({ x: o.x, y: GROUND - 40, w: 34, h: 25 }) },
 };
+
+// 하늘 + 풍경 (게임 화면과 맵 고르기 미리보기에서 같이 써요)
+function drawScenery(ctx, w, layers, dist, t) {
+  T.sky.forEach((c, i) => rect(ctx, 0, i * 16, w, 16, c));
+  rect(ctx, 0, 64, w, 40, T.sky[3]);
+  T.sun(ctx, w);
+  for (const [x, y] of [[30, 16], [120, 26], [200, 12]]) {
+    const cx = ((x - dist * 0.05) % (w + 40) + w + 40) % (w + 40) - 20;
+    ellipse(ctx, cx, y, 10, 3, '#fff'); ellipse(ctx, cx + 5, y - 3, 6, 3, '#fff');
+  }
+  const tile = (img, offset, y) => {
+    const x = -Math.floor(offset % img.width);
+    ctx.drawImage(img, x, y);
+    ctx.drawImage(img, x + img.width, y);
+  };
+  tile(layers.far, dist * 0.15, 46);
+  tile(layers.mid, dist * 0.35, 58);
+  ctx.fillStyle = T.haze; ctx.fillRect(0, 40, w, GROUND - 40); // 먼 풍경은 흐릿하게
+  tile(layers.near, dist * 0.7, GROUND - 22);
+  tile(layers.ground, dist, GROUND);
+  if (T.flakes) {
+    for (let i = 0; i < 26; i++) {
+      const fx = ((i * 53 + t * 12 - dist * 0.3) % w + w) % w;
+      const fy = ((i * 29 + t * (18 + (i % 5) * 4)) % (GROUND + 4));
+      rect(ctx, fx, fy, i % 3 ? 1 : 2, i % 3 ? 1 : 2, '#ffffff');
+    }
+  }
+}
+const makeLayers = (w) => ({ far: T.far(w), mid: T.mid(w), near: T.near(w), ground: T.ground(w) });
+
+// 맵 고르기 화면용 작은 그림
+export function runnerMapPreview(map, w = 200) {
+  const before = T;
+  T = THEMES[map] ?? THEMES.meadow;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = H;
+  const ctx = c.getContext('2d');
+  drawScenery(ctx, w, makeLayers(w), 0, 0);
+  obstacleShadow(ctx, w * 0.55, 14);
+  T.low(ctx, w * 0.55, GROUND - 17);
+  drawBox(ctx, w * 0.8, GROUND - 16, 16, 1);
+  T = before;
+  return c.toDataURL();
+}
 
 // ---------- 패턴 ----------
 function makeChunk(x, t, rnd) {
@@ -165,7 +360,8 @@ export function exitLandscape() {
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
 }
 
-export function playRunner(dog) {
+export function playRunner(dog, { map = 'meadow' } = {}) {
+  T = THEMES[map] ?? THEMES.meadow;
   return new Promise((resolve) => {
     const touch = matchMedia('(pointer: coarse)').matches;
     const portrait = matchMedia('(orientation: portrait)');
@@ -197,7 +393,7 @@ export function playRunner(dog) {
     document.body.append(root);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    const layers = Object.fromEntries(Object.entries(LAYERS).map(([k, f]) => [k, f()]));
+    const layers = makeLayers(W);
     let seed = 7;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed & 0xffff) / 0x10000; };
 
@@ -205,7 +401,7 @@ export function playRunner(dog) {
     const maxHp = 100 + (dog.effects?.runnerHp ?? 0);
     const s = {
       t: 0, dist: 0, speed: 95, hp: maxHp, score: 0, y: 0, vy: 0, jumps: 0, sliding: false, slideHeld: false,
-      hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 14, countdown: 3, over: false, overT: 0, pops: [], dust: [],
+      hurtT: 0, items: [], obs: [], nextChunk: 0, nextHeart: 9, countdown: 3, over: false, overT: 0, pops: [], dust: [],
       paused: false,
     };
     s.nextChunk = 30;
@@ -269,7 +465,7 @@ export function playRunner(dog) {
       if (s.over) { s.overT += dt; s.speed = Math.max(0, s.speed - 200 * dt); }
       else {
         s.speed = Math.min(175, 95 + s.t * 1.8);
-        s.hp -= 3 * dt;
+        s.hp -= HP.drain(s.t) * dt;
         if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
       }
       const dx = s.speed * dt;
@@ -291,7 +487,7 @@ export function playRunner(dog) {
         s.nextChunk = c.len + 50 + rnd() * 50;
       }
       s.nextHeart -= dt;
-      if (s.nextHeart <= 0 && !s.over) { s.items.push({ x: W + 20, y: GROUND - 44, kind: 'heart' }); s.nextHeart = 12 + rnd() * 6; }
+      if (s.nextHeart <= 0 && !s.over) { s.items.push({ x: W + 20, y: GROUND - 44, kind: 'heart' }); s.nextHeart = HP.heartEvery + rnd() * 4; }
       for (const it of s.items) it.x -= dx;
       for (const o of s.obs) o.x -= dx;
       s.items = s.items.filter((it) => it.x > -20 && !it.taken);
@@ -305,13 +501,13 @@ export function playRunner(dog) {
           it.taken = true;
           if (it.kind === 'bone') { s.score += 1; sfx.catch(); }
           if (it.kind === 'star') { s.score += 10; sfx.star(); s.pops.push({ x: it.x, y: it.y, text: '+10', age: 0 }); }
-          if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + 25); sfx.love(); s.pops.push({ x: it.x, y: it.y, text: '체력 UP', age: 0 }); }
+          if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + HP.heart); sfx.love(); s.pops.push({ x: it.x, y: it.y, text: '체력 UP', age: 0 }); }
         }
         if (s.hurtT <= 0) {
           for (const o of s.obs) {
             if (!o.hit && hit(box, OBSTACLES[o.type].box(o))) {
               o.hit = true;
-              s.hp -= 20;
+              s.hp -= HP.hit;
               s.hurtT = 1.2;
               sfx.hurt();
               s.pops.push({ x: DOG_X, y: GROUND - 34, text: '아야!', age: 0 });
@@ -328,28 +524,8 @@ export function playRunner(dog) {
       s.dust = s.dust.filter((d) => d.age < 0.4);
     };
 
-    const tile = (img, offset, y) => {
-      const x = -Math.floor(offset % img.width);
-      ctx.drawImage(img, x, y);
-      ctx.drawImage(img, x + img.width, y);
-    };
-
     const draw = () => {
-      // 하늘
-      const sky = ['#a9dcff', '#b8e3ff', '#c8eaff', '#d8f1ff'];
-      sky.forEach((c, i) => rect(ctx, 0, i * 16, W, 16, c));
-      rect(ctx, 0, 64, W, 40, '#d8f1ff');
-      ctx.fillStyle = '#ffffff';
-      for (const [x, y] of [[30, 16], [120, 26], [200, 12]]) {
-        const cx = ((x - s.dist * 0.05) % (W + 40) + W + 40) % (W + 40) - 20;
-        ellipse(ctx, cx, y, 10, 3, '#fff'); ellipse(ctx, cx + 5, y - 3, 6, 3, '#fff');
-      }
-      ellipse(ctx, 214, 22, 8, 8, '#fff3b0'); ellipse(ctx, 214, 22, 6, 6, '#ffe066');
-      tile(layers.hills, s.dist * 0.15, 46);
-      tile(layers.trees, s.dist * 0.35, 58);
-      ctx.fillStyle = 'rgba(216,241,255,0.45)'; ctx.fillRect(0, 40, W, GROUND - 40); // 먼 풍경은 흐릿하게
-      tile(layers.fence, s.dist * 0.7, GROUND - 22);
-      tile(layers.ground, s.dist, GROUND);
+      drawScenery(ctx, W, layers, s.dist, s.t);
       // 장애물 (그림자 → 본체), 간식
       for (const o of s.obs) obstacleShadow(ctx, o.x, OBSTACLES[o.type].w);
       for (const o of s.obs) OBSTACLES[o.type].draw(ctx, o);
