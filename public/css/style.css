@@ -1199,3 +1199,37 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .school-info > small { font-size: 12px; color: var(--ink-soft); }
 .school-gifts { display: flex; gap: 6px; font-size: 11px; flex-wrap: wrap; }
 .school-gifts span { background: #fff7e6; border: 1px solid var(--line); border-radius: 8px; padding: 0 5px; }
+
+/* 💗 행복 포인트 · 숫자 팝업 · 소원 말풍선 */
+.hearts { display: flex; gap: 3px; align-items: center; background: #ffe3ef; color: var(--ink); text-shadow: none; border: 2px solid var(--ink); border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: 14px; }
+.top-right { gap: 6px; }
+.coins.bump, .hearts.bump { animation: pop .3s ease-out; }
+.num-pop { position: absolute; transform: translate(-50%, 0); font-weight: 800; font-size: 13px; white-space: nowrap; color: #fff; text-shadow: -2px 0 var(--ink), 2px 0 var(--ink), 0 -2px var(--ink), 0 2px var(--ink); pointer-events: none; animation: numUp 1.4s ease-out both; }
+.num-pop.full { color: #ffb070; } .num-pop.clean { color: #8fd4ff; } .num-pop.love { color: #ff9fbd; }
+.num-pop.exp { color: #ffe066; } .num-pop.coin { color: #fff3d0; } .num-pop.heart { color: #ff6f91; }
+.num-pop.lucky { color: #ffd23f; font-size: 18px; }
+@keyframes numUp { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.6); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 30% { transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -28px); } }
+.coin-fly { position: fixed; left: 0; top: 0; width: 20px; height: 18px; z-index: 999; pointer-events: none; }
+.ask-bubble { position: absolute; left: 0; top: 0; pointer-events: auto; display: flex; align-items: center; gap: 2px; padding: 2px 7px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; font-size: 15px; cursor: pointer; animation: pop .3s ease-out; box-shadow: 0 2px 0 var(--ink); }
+.ask-bubble b { font-size: 13px; }
+.ask-bubble.yellow { background: #fff3a8; } .ask-bubble.purple { background: #ecdcff; }
+.ask-bubble.orange { background: #ffd9b3; } .ask-bubble.blue { background: #cfe6ff; }
+.ask-bubble.rainbow { background: linear-gradient(90deg, #ffb3c6, #fff3a8, #c8f5c8, #cfe6ff, #ecdcff); animation: pop .3s ease-out, askGlow 1.2s infinite alternate; }
+@keyframes askGlow { to { box-shadow: 0 2px 0 var(--ink), 0 0 10px #ffd23f; } }
+.ask-modal .ask-dog { width: 120px; height: auto; }
+.ask-say { display: inline-block; margin: 6px 0; padding: 6px 12px; background: #fff; border: 3px solid var(--ink); border-radius: 14px; font-weight: 800; font-size: 17px; }
+.gift-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gift-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border: 3px solid var(--ink); border-radius: 12px; background: #fffaf0; font: inherit; font-size: 12px; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+.gift-card img { height: 36px; width: auto; }
+.gift-card:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+/* 윗줄이 좁을 때: 이름·칩이 줄바꿈되지 않게 */
+#top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 5.5em; }
+.who .chip { white-space: nowrap; }
+.coins, .hearts { white-space: nowrap; }
+@media (max-width: 430px) {
+  #top-stage { display: none; }
+  .topbar { padding: 6px 8px; }
+  .top-right { gap: 4px; }
+  .hearts, .coins { padding: 1px 6px; font-size: 13px; }
+  .top-right .icon-btn { width: 30px; height: 28px; }
+}

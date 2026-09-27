@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -384,6 +384,7 @@ export class Game {
   // 오늘의 약속·배지 기록 (server/progress.js). push면 소켓으로 그 친구 화면에 바로 알려요.
   track(userId, kind, n = 1, { push = false, ...extra } = {}) {
     const events = this.progress?.track(userId, kind, n, extra) ?? [];
+    events.push(...(this.asks?.onTrack(userId, kind, extra) ?? []));
     if (push && events.length) this.onGrowth?.(userId, events);
     return events;
   }
@@ -437,6 +438,11 @@ export class Game {
       }
       const res = applyAction(fresh, action);
       const dog = res.dog;
+      // 🎉 행운의 대성공: 가끔 경험치·코인이 두 배
+      if (res.reaction !== 'full' && (res.exp || res.coins) && this.rng() < ASK_RULES.luckyChance) {
+        dog.exp += res.exp; res.coins *= 2; res.exp *= 2;
+        events.push({ type: 'lucky', action });
+      }
       if (action === 'feed' && res.reaction !== 'full') this.schedulePoop(dog);
       if (res.reaction !== 'full') events.push(...this.addTalents(dog, TALENT_GAINS[action]));
       events.push(...this.checkGrowth(dog, this.now()));
@@ -596,7 +602,7 @@ export class Game {
       this.schedulePoop(dog);
       events.push(...this.addTalents(dog, { kind: 1 }), ...this.checkGrowth(dog, this.now()));
       this.saveDog(dog);
-      events.push(...this.track(userId, 'feed'));
+      events.push(...this.track(userId, 'feed'), ...this.track(userId, 'treat', 1, { treat: treatId }));
       return { dog, fav, events };
     });
   }
@@ -713,7 +719,7 @@ export class Game {
       if (itemId) dog.equip[slot] = itemId; else delete dog.equip[slot];
       const events = changed ? this.addTalents(dog, TALENT_GAINS.equip) : [];
       this.saveDog(dog);
-      if (changed) events.push(...this.track(userId, 'equip'));
+      if (changed) events.push(...this.track(userId, 'equip', 1, { item: itemId }));
       return { dog, user, events };
     }
     if (ROOM_SLOTS.includes(slot)) {
@@ -721,7 +727,7 @@ export class Game {
       const changed = user.room[slot] !== itemId;
       user.room[slot] = itemId;
       this.db.prepare('UPDATE users SET room = ? WHERE id = ?').run(JSON.stringify(user.room), userId);
-      return { dog: this.loadDog(userId), user, events: changed ? this.track(userId, 'equip') : [] };
+      return { dog: this.loadDog(userId), user, events: changed ? this.track(userId, 'equip', 1, { item: itemId }) : [] };
     }
     throw new GameError('알 수 없는 자리예요.');
   }
@@ -826,7 +832,7 @@ export class Game {
       this.saveDog(dog);
       this.db.prepare('UPDATE dogs SET train = ? WHERE id = ?').run(JSON.stringify(train), dog.id);
       this.addCoins(userId, coins);
-      events.push(...this.track(userId, 'train'));
+      events.push(...this.track(userId, 'train', 1, { course }));
       if (perfect) events.push(...this.track(userId, 'trainPerfect'));
       return {
         course, ok, rounds: C.rounds, perfect, boosted, quit: !!quit, coins, exp, talent: C.talent, talentGain, level, exam,

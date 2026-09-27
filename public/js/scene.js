@@ -345,11 +345,42 @@ export class Scene {
     return e;
   }
 
+  // 💭 소원 말풍선 (눌러서 무슨 부탁인지 봐요). ask가 null이면 지워요
+  setAsk(id, ask, onTap) {
+    const e = this.entities.get(id);
+    if (!e) return;
+    if (!ask) { e.ask?.node.remove(); e.ask = null; return; }
+    if (e.ask?.key === `${ask.id}`) return;
+    e.ask?.node.remove();
+    const node = el('button', { class: `ask-bubble ${ask.color}`, type: 'button', 'aria-label': '강아지의 소원' }, el('span', {}, ask.emoji), el('b', {}, '?'));
+    node.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); });
+    node.addEventListener('click', (ev) => { ev.stopPropagation(); onTap?.(); });
+    this.overlay.append(node);
+    e.ask = { node, key: `${ask.id}` };
+  }
+
+  // 숫자 팝업: [{ text, cls }] 를 강아지 머리 위로 톡톡 띄워요
+  popNumbers(id, items) {
+    const e = this.entities.get(id);
+    if (!e || !items.length) return;
+    const sx = this.canvas.getBoundingClientRect().width / SCENE_W || 1;
+    items.forEach((it, i) => {
+      const node = el('div', { class: `num-pop ${it.cls ?? ''}` }, it.text);
+      const x = (e.x + (i % 2 ? 10 : -10) * (i ? 1 : 0)) * sx;
+      const y = (e.y - 44 - i * 9) * sx;
+      node.style.left = `${x}px`; node.style.top = `${y}px`;
+      node.style.animationDelay = `${i * 0.12}s`;
+      this.overlay.append(node);
+      setTimeout(() => node.remove(), 1600 + i * 120);
+    });
+  }
+
   remove(id) {
     const e = this.entities.get(id);
     if (!e) return;
     e.tag.remove();
     e.bubble?.node.remove();
+    e.ask?.node.remove();
     this.entities.delete(id);
   }
 
@@ -722,6 +753,7 @@ export class Scene {
       e.tag.style.display = this.showNames || e.bubble ? 'block' : 'none';
       e.tag.style.transform = `translate(${x * sx}px, ${(y + 4) * sx}px) translate(-50%, 0)`;
       if (e.bubble) e.bubble.node.style.transform = `translate(${x * sx}px, ${headY * sx}px) translate(-50%, -100%)`;
+      if (e.ask) e.ask.node.style.transform = `translate(${(x + 12) * sx}px, ${(headY - 2 + Math.sin(performance.now() / 330) * 1.5) * sx}px) translate(-10%, -100%)`;
     }
     for (const e of this.entities.values()) {
       if (!e.dog || e.dog.atSchool) e.tag.style.display = 'none';

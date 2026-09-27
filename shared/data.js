@@ -913,3 +913,25 @@ export const RUNNER = {
     candy: { name: '사탕 나라', desc: '달콤한 사탕 숲! 컵케이크를 뛰어넘어요.', level: 10, best: 350 },
   },
 };
+
+// ---------- 💭 말풍선 소원 (친구모아처럼 강아지의 작은 부탁) ----------
+// 들어주면 💗 행복 포인트. 못 들어줘도 벌칙 없이 조용히 사라져요.
+export const ASKS = {
+  treat: { color: 'yellow', emoji: '🍪', how: '간식 가게에서 사서 간식 주기', go: 'treat' },
+  feed: { color: 'yellow', emoji: '🍖', text: '배고파요… 밥 먹고 싶어!', how: '밥 주기', go: 'home' },
+  brush: { color: 'purple', emoji: '🫧', text: '빗질해 줘! 뽀송뽀송해지고 싶어', how: '빗질하기', go: 'home' },
+  wear: { color: 'purple', emoji: '🎀', how: '꾸미기에서 입혀 주기', go: 'closet' },
+  friend: { color: 'orange', emoji: '🏠', text: '친구 집에 놀러 가고 싶어!', how: '친구 탭에서 놀러 가기', go: 'friends' },
+  plaza: { color: 'orange', emoji: '🌳', text: '놀이터에서 친구들 만나고 싶어!', how: '놀이 탭 → 놀이터', go: 'play' },
+  train: { color: 'blue', emoji: '🎓', how: '학교 탭 → 같이 훈련', go: 'school' },
+  run: { color: 'blue', emoji: '🏃', text: '멍뭉런 달리고 싶어!', how: '놀이 탭 → 멍뭉런', go: 'play' },
+  trick: { color: 'blue', emoji: '🎵', text: '개인기 보여 주고 싶어!', how: '우리집 → 개인기', go: 'home' },
+};
+export const ASK_RULES = {
+  gapMs: 12 * 60_000, // 소원을 들어준 뒤 다음 소원까지
+  lifeMs: 3 * 3600_000, // 이 시간이 지나면 조용히 사라져요
+  dailyMax: 8,
+  rainbowChance: 0.1, // 🌈 무지개 소원: 선물 3개 중 하나 고르기
+  hearts: 2, coins: 5, rainbowHearts: 5,
+  luckyChance: 0.06, // 돌봄 대성공 ×2
+};

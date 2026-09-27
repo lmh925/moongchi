@@ -350,7 +350,9 @@ $('#result-submit').addEventListener('click', async () => {
 
 // ---------- 게임 ----------
 function applyMe(me) {
+  const prev = state.me;
   state.me = me;
+  if (prev?.dog && me.dog && prev.dog.id === me.dog.id) setTimeout(() => popDiffs(prev, me), 0);
   state.speed = me.speed ?? 1;
   state.offset = (me.serverNow ?? Date.now()) - Date.now();
   rememberAccount(me);
@@ -360,6 +362,7 @@ function applyMe(me) {
   $('#top-level').textContent = `Lv ${me.dog.level}`;
   $('#top-level').className = `chip lv-badge frame-${me.dog.frame ?? 0}`;
   $('#top-coins').textContent = me.user.coins;
+  $('#top-hearts').textContent = me.asks?.hearts ?? 0;
   $('#badge-notebook').hidden = !me.unreadReports;
   $('#badge-friends').hidden = !me.pendingFriends && !me.pendingTrades;
   $('#badge-mail').hidden = !me.progress?.unreadMail;
@@ -372,6 +375,96 @@ function applyMe(me) {
   }
   syncPoops(me.dog);
   scheduleSchool();
+  updateAskBubble();
+}
+
+// ---------- ✨ 숫자 팝업: 무엇이 얼마나 올랐는지 톡톡 ----------
+function popDiffs(prev, me) {
+  if (!state.scene || state.plaza || !atHome()) return;
+  const d = (a, b) => Math.round((b ?? 0) - (a ?? 0));
+  const items = [];
+  const add = (n, text, cls) => { if (n >= 1) items.push({ text: `+${n} ${text}`, cls }); };
+  add(d(prev.dog.fullness, me.dog.fullness), '포만', 'full');
+  add(d(prev.dog.cleanliness, me.dog.cleanliness), '청결', 'clean');
+  add(d(prev.dog.affection, me.dog.affection), '애정', 'love');
+  add(d(prev.dog.exp, me.dog.exp), '⭐', 'exp');
+  const coins = d(prev.user.coins, me.user.coins);
+  add(coins, '🦴', 'coin');
+  add(d(prev.asks?.hearts, me.asks?.hearts), '💗', 'heart');
+  state.scene.popNumbers(myId(), items.slice(0, 5));
+  if (coins > 0) flyCoin();
+}
+
+// 코인이 화면 위 코인 칸으로 날아가요
+function flyCoin() {
+  const e = state.scene?.entities.get(myId());
+  const target = $('#top-coins');
+  if (!e || !target) return;
+  const r = state.scene.canvas.getBoundingClientRect();
+  const sx = r.width / 192;
+  const t = target.getBoundingClientRect();
+  const node = el('img', { class: 'pixel coin-fly', src: iconURL('coin', 2), alt: '' });
+  document.body.append(node);
+  const x0 = r.left + e.x * sx; const y0 = r.top + (e.y - 30) * sx;
+  node.animate([
+    { transform: `translate(${x0}px, ${y0}px) scale(1)`, opacity: 1 },
+    { transform: `translate(${(x0 + t.left) / 2}px, ${Math.min(y0, t.top) - 40}px) scale(1.3)`, opacity: 1, offset: 0.4 },
+    { transform: `translate(${t.left}px, ${t.top}px) scale(.6)`, opacity: 0.2 },
+  ], { duration: 800, easing: 'ease-in' }).onfinish = () => { node.remove(); target.parentElement.classList.remove('bump'); void target.offsetWidth; target.parentElement.classList.add('bump'); };
+}
+
+// ---------- 💭 말풍선 소원 ----------
+function updateAskBubble() {
+  if (!state.scene) return;
+  const cur = state.me?.asks?.cur;
+  state.scene.setAsk(myId(), cur && atHome() && !state.plaza && !state.me.dog.school ? cur : null, openAsk);
+}
+
+function openAsk() {
+  const cur = state.me?.asks?.cur;
+  if (!cur) return;
+  sfx.notify();
+  const dog = state.me.dog;
+  const go = () => {
+    if (cur.go === 'treat') { openFoodBowl(); return; }
+    if (cur.go === 'school') state.schoolTab = 'train';
+    setTab(cur.go === 'home' ? 'home' : cur.go);
+  };
+  modal({
+    title: cur.rainbow ? '🌈 무지개 소원!' : `${dog.name}의 소원`,
+    className: `ask-modal ${cur.color}`,
+    body: el('div', { class: 'center' },
+      el('img', { class: 'pixel ask-dog', src: dogPortrait(dog.breed, dog.stage, { equip: dog.equip, eyes: 'happy', mouth: 'open' }), alt: '' }),
+      el('div', { class: 'ask-say' }, `${cur.emoji} ${cur.text}`),
+      el('p', { class: 'help' }, `이렇게 해 줘요: ${cur.how}`),
+      el('p', { class: 'hint' }, cur.rainbow ? '들어주면 💗와 함께 선물 3개 중 하나를 골라요!' : '들어주면 💗 행복 포인트를 받아요. 💗를 모으면 새로운 곳이 열려요!')),
+    buttons: [{ label: '나중에', kind: 'secondary' }, { label: '해 줄게!', onClick: go }],
+  });
+}
+
+async function chooseAskGift(options) {
+  if (!options?.length) return;
+  const label = (g) => (g.kind === 'item' ? ITEMS[g.item]?.name : g.kind === 'coins' ? `뼈다귀 코인 ${g.coins}개` : SCHOOL_BOOSTS[g.boost]?.name);
+  const icon = (g) => (g.kind === 'item' ? (accessoryURL(g.item, 4) ?? iconURL('sparkle', 3)) : g.kind === 'coins' ? iconURL('coin', 4) : iconURL(SCHOOL_BOOSTS[g.boost]?.icon ?? 'hourglass', 4));
+  await new Promise((resolve) => {
+    const { close } = modal({
+      title: '🌈 선물을 하나 골라요!',
+      className: 'celebrate',
+      dismissable: false,
+      body: el('div', { class: 'gift-pick' }, options.map((g, i) => el('button', {
+        class: 'gift-card', type: 'button',
+        onclick: async () => {
+          try {
+            const res = await post('/ask/gift', { index: i });
+            applyMe(res); sfx.levelUp();
+            toast(`${label(res.chosen)}을(를) 받았어요!`, 'good');
+            close(); resolve();
+          } catch (err) { toast(err.message, 'bad'); }
+        },
+      }, el('img', { class: 'pixel', src: icon(g), alt: '' }), el('b', {}, label(g))))),
+      buttons: [],
+    });
+  });
 }
 
 // 방에 있는 똥 (우리 집에 있을 때만 보여요). 새로 생기면 "끙차!"
@@ -521,7 +614,7 @@ function enterGame(me) {
   setTab('home');
   playBgm('home');
   if (me.dailyCoins) toast(`출석 보상! 뼈다귀 코인 ${me.dailyCoins}개를 받았어요`, 'good');
-  handleEvents(me.events);
+  handleEvents(me.events).then(() => { if (state.me.asks?.gift) chooseAskGift(state.me.asks.gift); });
   handlePendingCode();
 }
 
@@ -890,6 +983,17 @@ async function handleEvents(events = []) {
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
+    if (ev.type === 'askDone') {
+      sfx.love();
+      state.scene?.effectAt?.(myId(), 'heart', 4);
+      toast(`💗 소원을 들어줬어요! "${ev.text}" · 💗+${ev.hearts} · 코인 +${ev.coins}`, 'good');
+      if (ev.gift) await chooseAskGift(ev.gift);
+    }
+    if (ev.type === 'lucky') {
+      sfx.star();
+      state.scene?.popNumbers(myId(), [{ text: '🎉 대성공! ×2', cls: 'lucky' }]);
+      state.scene?.effectAt?.(myId(), 'star', 4);
+    }
     if (ev.type === 'runLevel') { sfx.star(); toast(`🏃 멍뭉런 레벨 UP! 런 Lv ${ev.level}`, 'good'); }
     if (ev.type === 'runMap') await showRunMap(ev);
     if (ev.type === 'courseLevel') {
@@ -1098,6 +1202,7 @@ function showReport(r, fresh = false) {
 // ---------- 패널 ----------
 function renderPanel() {
   updateChatDock();
+  updateAskBubble();
   const panel = $('#panel');
   const render = {
     home: () => (atHome() ? homePanel() : visitPanel()),

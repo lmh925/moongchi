@@ -18,6 +18,7 @@ import { Progress } from './progress.js';
 import { Trades } from './trades.js';
 import { Babies } from './babies.js';
 import { Leaderboard } from './leaderboard.js';
+import { Asks } from './asks.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -43,6 +44,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const trades = new Trades(db, { game, friends, safety, progress });
   const babies = new Babies(db, { game, friends, safety, bonds, progress });
   const leaderboard = new Leaderboard(db, { game, friends, safety, progress });
+  const asks = new Asks(db, { game, friends });
+  game.asks = asks;
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -142,6 +145,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const gifts = game.specialGifts(userId);
     const { dog, events } = game.refreshDog(userId);
     events.unshift(...gifts);
+    asks.check(userId, dog);
     if (events.length) hub.dogChanged(userId);
     if (extra.visit) events.push(...progress.onMe(userId, dog), ...leaderboard.rewardLastWeek(userId));
     events.push(...babies.deliver(userId));
@@ -155,6 +159,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       food: dog ? game.kibble(userId) : null,
       slots: game.dogSlots(userId),
       trainingLeft: Math.max(0, TRAINING.dailyLimit - game.trainingsToday(userId)),
+      asks: asks.view(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -311,6 +316,13 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
     res.lb = leaderboard.submit(req.userId, res.type, res.safeScore);
     return { ...me(req.userId, { events: res.events }), result: res };
+  }));
+
+  // ---------- 💭 말풍선 소원 ----------
+  api.post('/ask/gift', authed, wrap((req) => {
+    const g = asks.chooseGift(req.userId, req.body?.index);
+    if (!g) throw new GameError('고를 선물이 없어요.');
+    return { ...me(req.userId), chosen: g };
   }));
 
   // ---------- 이번 주 랭킹 ----------
