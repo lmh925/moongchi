@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS, RUN_REVIVE,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -895,9 +895,25 @@ export class Game {
     if (cost > user.coins) throw new GameError('뼈다귀 코인이 부족해요.');
     if (cost) this.addCoins(userId, -cost);
     const id = crypto.randomBytes(12).toString('hex');
-    this.db.prepare('INSERT INTO minigames (id, user_id, started_at, type) VALUES (?, ?, ?, ?)').run(id, userId, this.now(), type);
+    this.db.prepare('INSERT INTO minigames (id, user_id, started_at, type, boosters) VALUES (?, ?, ?, ?, ?)').run(id, userId, this.now(), type, JSON.stringify(picked));
     this.db.prepare('UPDATE users SET minigame_date = ?, minigame_plays = ? WHERE id = ?').run(today, plays + 1, userId);
     return { gameId: id, playsLeft: RULES.minigame.dailyPlays - plays - 1, boosters: picked, cost };
+  }
+
+  // 🪽 이어 달리기: 천사 날개가 있으면 첫 번째는 공짜, 아니면 코인 (한 판에 두 번까지)
+  reviveRun(userId, gameId) {
+    return tx(this.db, () => {
+      const game = this.db.prepare("SELECT * FROM minigames WHERE id = ? AND user_id = ? AND type = 'run'").get(String(gameId), userId);
+      if (!game || game.finished) throw new GameError('이미 끝난 놀이예요.');
+      const n = game.revives ?? 0;
+      if (n >= RUN_REVIVE.max) throw new GameError('이번 판은 더 이어 달릴 수 없어요.');
+      const wing = n === 0 && JSON.parse(game.boosters || '[]').includes('revive');
+      const cost = wing ? 0 : RUN_REVIVE.prices[n];
+      if (cost > this.getUser(userId).coins) throw new GameError('뼈다귀 코인이 부족해요.');
+      if (cost) this.addCoins(userId, -cost);
+      this.db.prepare('UPDATE minigames SET revives = ? WHERE id = ?').run(n + 1, game.id);
+      return { revives: n + 1, cost, free: wing, coinsLeft: this.getUser(userId).coins };
+    });
   }
 
   // 🎁 멍뭉런 보물 상자: 달린 거리만큼 (서버가 거리를 한 번 더 확인해요)

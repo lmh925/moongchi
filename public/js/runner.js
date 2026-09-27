@@ -3,7 +3,7 @@
 // 체력은 시간이 지나면 조금씩 줄어들고, 하트를 먹으면 다시 차요. 맵은 모습만 다르고 규칙은 같아요.
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { el } from './ui.js';
-import { sfx, playBgm } from './audio.js';
+import { sfx, playBgm, setBgmTempo } from './audio.js';
 
 // 가로 폭은 기기 화면 비율에 맞춰 게임마다 정해요 (240~340)
 let W = 240;
@@ -338,11 +338,23 @@ function drawBird(ctx, x, y, t) {
   rect(ctx, x - 2, y + 3, 3, 2, '#ffb000'); rect(ctx, x + 2, y + 3, 1, 1, '#ffffff');
   if (flap) { rect(ctx, x + 4, y - 3, 6, 5, OUT); rect(ctx, x + 5, y - 2, 4, 3, '#8fb0ff'); } else { rect(ctx, x + 4, y + 7, 6, 4, OUT); rect(ctx, x + 5, y + 7, 4, 3, '#8fb0ff'); }
 }
-OBSTACLES.bird = { w: 12, h: 10, draw: (ctx, o, t) => drawBird(ctx, o.x, GROUND - 34, t), box: (o) => ({ x: o.x, y: GROUND - 33, w: 12, h: 9 }) };
+// 서 있으면 부딪히고, 슬라이드하면 밑으로 쏙 (점프로 넘어도 돼요)
+OBSTACLES.bird = { w: 12, h: 10, draw: (ctx, o, t) => drawBird(ctx, o.x, GROUND - 25, t), box: (o) => ({ x: o.x, y: GROUND - 23, w: 12, h: 8 }) };
 const PLAT = { meadow: ['#6cc070', '#b0743c'], beach: ['#f7dc9b', '#c98a4b'], snow: ['#ffffff', '#8fc4f0'], candy: ['#ff8fc8', '#a86b3a'] };
 
 // ---------- 패턴 (구간이 올라갈수록 어려운 모양이 섞여요) ----------
-function makeChunk(x, stage, rnd, stars = 1, fever = false) {
+// k: 빨라진 만큼 가로 간격을 늘려요. 그래야 어느 구간에서든 장애물 사이 '시간'이 똑같아서
+// 제대로 점프하면 꼭 피할 수 있어요 (착지하자마자 피할 수 없는 장애물이 오지 않게).
+function makeChunk(x, stage, rnd, stars = 1, fever = false, k = 1) {
+  const c = buildChunk(x, stage, rnd, stars, fever);
+  const sx = (v) => x + (v - x) * k;
+  for (const o of [...c.items, ...c.obs, ...c.pits]) o.x = sx(o.x);
+  for (const p of c.plats) { p.x = sx(p.x); p.w *= k; }
+  c.len *= k;
+  return c;
+}
+
+function buildChunk(x, stage, rnd, stars, fever) {
   const items = []; const obs = []; const pits = []; const plats = [];
   const bone = (bx, by, kind = 'bone') => items.push({ x: bx, y: by, kind });
   if (fever) { // 피버: 간식이 세 줄로 쏟아져요
@@ -362,13 +374,16 @@ function makeChunk(x, stage, rnd, stars = 1, fever = false) {
   if (kind === 'laundry') { obs.push({ type: 'laundry', x: x + 30 }); for (let i = 0; i < 6; i++) bone(x + 20 + i * 11, GROUND - 7); }
   if (kind === 'tower') { obs.push({ type: 'tower', x: x + 50, c: Math.floor(rnd() * 3) }); for (let i = 0; i < 8; i++) bone(x + 14 + i * 12, GROUND - 16 - Math.sin((i / 7) * Math.PI) * 62); len = 130; }
   if (kind === 'boxes') {
-    obs.push({ type: 'box', x: x + 20, c: Math.floor(rnd() * 3) }, { type: 'box', x: x + 90 - hard * 16, c: Math.floor(rnd() * 3) });
+    // 두 상자는 '한 번에 넘을 만큼 붙어 있거나' '하나 넘고 착지할 틈이 있게' 떨어져 있어요 (애매한 간격 없음)
+    const near = rnd() < 0.3 + hard * 0.3;
+    const x2 = near ? x + 40 : x + 124;
+    obs.push({ type: 'box', x: x + 20, c: Math.floor(rnd() * 3) }, { type: 'box', x: x2, c: Math.floor(rnd() * 3) });
     for (let i = 0; i < 4; i++) bone(x + 8 + i * 10, GROUND - 26 - i * 4);
-    len = 120;
+    len = x2 - x + 60;
   }
   // 🕳️ 구멍: 빠지면 체력이 줄어요 (점프로 넘어요)
   if (kind === 'pit') {
-    const w = Math.min(46, 26 + stage * 3);
+    const w = Math.min(50, 30 + stage * 3);
     pits.push({ x: x + 40, w });
     for (let i = 0; i < 6; i++) bone(x + 30 + i * ((w + 20) / 5), GROUND - 16 - Math.sin((i / 5) * Math.PI) * 36);
     len = 90 + w;
@@ -381,9 +396,33 @@ function makeChunk(x, stage, rnd, stars = 1, fever = false) {
     if (kind === 'platPit') { pits.push({ x: x + 40, w: 52 }); len = 130; } else { obs.push({ type: 'hydrant', x: x + 60 }); len = 120; }
   }
   // 🐦 새: 슬라이드로 밑을 지나가요
-  if (kind === 'bird') { obs.push({ type: 'bird', x: x + 50, vx: 30 + hard * 20 }); for (let i = 0; i < 6; i++) bone(x + 30 + i * 11, GROUND - 7); }
+  if (kind === 'bird') { obs.push({ type: 'bird', x: x + 50, vx: 30 + hard * 20 }); for (let i = 0; i < 6; i++) bone(x + 30 + i * 11, GROUND - 7); len = 120; }
   if (rnd() < 0.25 * stars) items.push({ x: x + len / 2, y: GROUND - 74, kind: 'star' });
   return { items, obs, pits, plats, len };
+}
+
+// 🕳️ 구멍: 땅이 뚝 끊기고 아래가 깜깜해요 + 앞에 조심 팻말
+function drawPit(ctx, p, [lip, dirt]) {
+  const x = Math.round(p.x); const w = Math.round(p.w);
+  // 끝없는 어둠 (위는 흙빛, 아래로 갈수록 새까맣게)
+  const shades = ['#3b2418', '#2a1810', '#1c0f09', '#120905', '#080402'];
+  shades.forEach((c, i) => rect(ctx, x, GROUND + i * 5, w, 5, c));
+  rect(ctx, x, GROUND + 25, w, H - GROUND, '#050201');
+  // 흙벽 단면 (양쪽)
+  for (const [wx, dir] of [[x - 4, 1], [x + w, -1]]) {
+    rect(ctx, wx, GROUND, 4, H - GROUND, dirt);
+    for (let yy = GROUND + 4; yy < H; yy += 6) rect(ctx, wx + (dir > 0 ? 1 : 0), yy, 3, 2, OUT);
+    rect(ctx, dir > 0 ? wx + 3 : wx, GROUND, 1, H - GROUND, OUT);
+  }
+  // 풀(모래·눈·사탕) 끝자락이 살짝 튀어나와요
+  for (const ex of [x - 6, x + w - 1]) { rect(ctx, ex, GROUND - 1, 7, 4, OUT); rect(ctx, ex + 1, GROUND - 1, 5, 2, lip); }
+  // 깜빡이는 반짝 눈 두 개 (깊어 보이게)
+  if (w > 26) { rect(ctx, x + w / 2 - 4, GROUND + 14, 2, 1, '#3a2a60'); rect(ctx, x + w / 2 + 2, GROUND + 14, 2, 1, '#3a2a60'); }
+  // 조심 팻말
+  const sx = x - 26;
+  rect(ctx, sx + 5, GROUND - 14, 2, 14, '#7a4b2a');
+  rect(ctx, sx, GROUND - 22, 12, 10, OUT); rect(ctx, sx + 1, GROUND - 21, 10, 8, '#ffd23f');
+  rect(ctx, sx + 5, GROUND - 20, 2, 4, OUT); rect(ctx, sx + 5, GROUND - 15, 2, 1, OUT);
 }
 
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -405,9 +444,13 @@ export function exitLandscape() {
 const STAGE_M = 300; // 이만큼 달릴 때마다 다음 구간 (더 빨라져요)
 const FEVER = { perBone: 3, perStar: 12, secs: 6 };
 
-// opts: { map, best, bestDist, boosters: ['hp','magnet','dash','fever'] }
-// 결과: { score, dist(m), newBest }
-export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, boosters = [] } = {}) {
+// 구간이 오를수록 음악도 빨라져요
+const tempoFor = (stage) => Math.min(1.5, 1 + (stage - 1) * 0.07);
+
+// opts: { map, best, bestDist, boosters: ['hp','magnet','dash','fever','revive'],
+//         revive: { max, price(n) → 코인(0이면 공짜), buy(n) → Promise<{ ok, message }> } }
+// 결과: { score, dist(m), newBest, revives }
+export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, boosters = [], revive = null } = {}) {
   T = THEMES[map] ?? THEMES.meadow;
   const plat = PLAT[map] ?? PLAT.meadow;
   const jelly = jellyCanvas(map);
@@ -466,6 +509,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       nextChunk: 30, nextHeart: 9, countdown: 3, over: false, overT: 0, pops: [], dust: [], paused: false,
       stage: 1, banner: null, fever: boosters.includes('fever') ? 50 : 0, feverT: 0,
       dashT: boosters.includes('dash') ? 4 : 0, magnetT: boosters.includes('magnet') ? 20 : 0, newBest: false,
+      revives: 0, reason: '', quit: false, offer: null,
     };
 
     const jump = () => {
@@ -490,10 +534,10 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
     const slideUp = () => { slideBtn.classList.remove('down'); slide(false); };
     slideBtn.addEventListener('pointerup', slideUp);
     slideBtn.addEventListener('pointercancel', slideUp);
-    canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); if (s.over && s.overT > 1) finish(); else jump(); });
+    canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); if (s.over && s.overT > 1 && s.offer !== 'open' && !canRevive()) finish(); else jump(); });
     quitBtn.addEventListener('click', () => {
       if (s.over) finish();
-      else { s.over = true; s.hp = Math.max(0, s.hp); sfx.gameOver(); }
+      else { s.quit = true; gameOver('그만 달렸어요'); }
     });
     root.addEventListener('contextmenu', (e) => e.preventDefault());
     const onKey = (e) => {
@@ -513,9 +557,59 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       playBgm('home');
       exitLandscape();
       root.remove();
-      resolve({ score: s.score, dist: Math.floor(s.dist / 10), newBest: s.newBest });
+      resolve({ score: s.score, dist: Math.floor(s.dist / 10), newBest: s.newBest, revives: s.revives });
     };
-    playBgm('play');
+    playBgm(`run_${map}`);
+
+    // 🪽 이어 달리기 창: 넘어지면 몇 초 동안 보여요 (쿠키런의 부활처럼)
+    const reviveBox = el('div', { class: 'run-revive', hidden: true });
+    root.append(reviveBox);
+    const canRevive = () => revive && !s.quit && s.revives < revive.max;
+    const showRevive = () => {
+      const price = revive.price(s.revives);
+      let left = 6;
+      const count = el('b', { class: 'count' }, String(left));
+      const msg = el('small', {}, price ? `뼈다귀 코인 ${price}개로 이어서 달려요` : '🪽 천사 날개로 공짜!');
+      const yes = el('button', { class: 'btn primary', type: 'button' }, price ? `🪽 이어 달리기 (🦴${price})` : '🪽 이어 달리기 (공짜)');
+      const no = el('button', { class: 'btn secondary', type: 'button' }, '그만할래요');
+      const timer = setInterval(() => { left -= 1; count.textContent = String(left); if (left <= 0) { close(); s.offer = 'no'; } }, 1000);
+      const close = () => { clearInterval(timer); reviveBox.hidden = true; };
+      yes.addEventListener('click', async () => {
+        clearInterval(timer);
+        yes.disabled = true; no.disabled = true;
+        const r = await revive.buy(s.revives).catch((e) => ({ ok: false, message: e.message }));
+        if (!r?.ok) { msg.textContent = r?.message ?? '지금은 이어 달릴 수 없어요.'; no.disabled = false; sfx.error(); return; }
+        close(); doRevive();
+      });
+      no.addEventListener('click', () => { close(); s.offer = 'no'; });
+      reviveBox.replaceChildren(el('div', { class: 'panel' },
+        el('p', { class: 'why' }, s.reason), el('p', { class: 'title' }, '이어서 달릴까요?'), count, msg, el('div', { class: 'row' }, no, yes)));
+      reviveBox.hidden = false;
+      s.offer = 'open';
+    };
+    const doRevive = () => {
+      s.revives += 1;
+      if (s.inPit) { s.inPit = false; s.falling = true; }
+      s.over = false; s.overT = 0; s.offer = null; s.reason = '';
+      s.hp = Math.max(s.hp, maxHp * 0.6);
+      s.hurtT = 2.5; // 잠깐 깜빡이며 무적
+      // 바로 앞의 장애물과 구멍은 치워 줘요 (다시 시작하자마자 부딪히지 않게)
+      s.obs = s.obs.filter((o) => o.x > W + 40);
+      for (const p of s.pits) if (p.x < W + 40) p.bridged = true;
+      if (s.y > 0 || s.falling) { s.y = -46; s.vy = 0; s.falling = false; s.jumps = 1; }
+      s.countdown = 1.5;
+      setBgmTempo(tempoFor(s.stage));
+      sfx.levelUp();
+      s.banner = { text: '🪽 다시 달려요!', age: 0 };
+    };
+    const gameOver = (reason) => {
+      if (s.over) return;
+      s.over = true; s.overT = 0; s.reason = reason;
+      s.feverT = 0; s.fever = Math.min(s.fever, 99);
+      sfx.gameOver();
+      setBgmTempo(0.75, -3); // 음악이 축 늘어져요
+      if (canRevive()) setTimeout(() => { if (s.over && !done) showRevive(); }, 700);
+    };
 
     const dogBox = () => {
       const h = s.sliding ? 12 : 24;
@@ -527,7 +621,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       if (shield > 0) { shield -= 1; sfx.star(); pop('방패!'); return; }
       s.hp -= fx.tough ? amount / 2 : amount;
       sfx.hurt(); pop(text);
-      if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
+      if (s.hp <= 0) { s.hp = 0; gameOver('체력이 다 떨어졌어요'); }
     };
     const overPit = () => s.pits.some((p) => !p.bridged && DOG_X > p.x + 3 && DOG_X < p.x + p.w - 3);
     const invincible = () => s.feverT > 0 || s.dashT > 0;
@@ -535,17 +629,23 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
     const update = (dt) => {
       s.t += dt;
       if (s.countdown > 0) { s.countdown -= dt; return; }
-      if (s.over) { s.overT += dt; s.speed = Math.max(0, s.speed - 200 * dt); }
+      if (s.over) { s.overT += dt; s.speed = s.inPit ? 0 : Math.max(0, s.speed - 200 * dt); }
       else {
         // 구간: 달릴수록 빨라지고 어려워져요 (무한의 계단처럼)
         const stage = 1 + Math.floor(s.dist / 10 / STAGE_M);
-        if (stage > s.stage) { s.stage = stage; s.banner = { text: `구간 ${stage}! 더 빨라져요`, age: 0 }; sfx.levelUp(); }
+        if (stage > s.stage) {
+          s.stage = stage; s.banner = { text: `구간 ${stage}! 더 빨라져요`, age: 0 }; sfx.levelUp();
+          if (s.feverT <= 0) setBgmTempo(tempoFor(stage));
+        }
         const base = Math.min(230, 95 + (s.stage - 1) * 14 + ((s.dist / 10) % STAGE_M) * 0.02);
         s.speed = base * (s.feverT > 0 ? 1.25 : 1) * (s.dashT > 0 ? 1.6 : 1);
         s.hp -= HP.drain(s.t) * dt;
-        if (s.hp <= 0) { s.hp = 0; s.over = true; sfx.gameOver(); }
+        if (s.hp <= 0) { s.hp = 0; gameOver('헥헥… 체력이 다 떨어졌어요'); }
       }
-      if (s.feverT > 0) { s.feverT -= dt; s.fever = Math.max(0, (s.feverT / FEVER.secs) * 100); if (s.feverT <= 0) s.fever = 0; }
+      if (s.feverT > 0) {
+        s.feverT -= dt; s.fever = Math.max(0, (s.feverT / FEVER.secs) * 100);
+        if (s.feverT <= 0) { s.fever = 0; if (!s.over) setBgmTempo(tempoFor(s.stage)); }
+      }
       if (s.dashT > 0) s.dashT -= dt;
       if (s.magnetT > 0) s.magnetT -= dt;
       const dx = s.speed * dt;
@@ -568,13 +668,13 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         }
       }
       if (!s.onPlat && s.y >= 0) {
-        if (overPit() && !s.over) {
+        if (s.inPit) { s.y = Math.min(s.y, 90); s.vy = Math.min(s.vy, 200); } else if (overPit() && !(s.over && !s.falling)) {
           if (!s.falling) { s.falling = true; s.jumps = Math.max(s.jumps, 1); }
-          if (s.y > 34) { // 쏙 빠졌어요 → 구름 다리를 놓고 위에서 다시 출발
+          if (invincible() && s.y > 10) { // 피버·부스트 중에는 구름을 타고 퐁! 튀어 올라요
             for (const p of s.pits) if (DOG_X > p.x - 10 && DOG_X < p.x + p.w + 10) p.bridged = true;
-            s.y = -46; s.vy = 0; s.falling = false; s.jumps = 1;
-            if (invincible()) pop('퐁!'); else hurt(25, '앗, 퐁당!');
-            s.hurtT = 1.5;
+            s.vy = JUMP_V; s.falling = false; s.jumps = 1; pop('퐁!');
+          } else if (s.y > 40) { // 쏙 빠졌어요 → 게임 끝 (이어 달리기로 다시 할 수 있어요)
+            sfx.hurt(); gameOver('구멍에 쏙 빠졌어요!'); s.inPit = true; s.speed = 0;
           }
         } else {
           if (s.jumps > 0 || s.falling) { sfx.land(); for (let i = 0; i < 3; i++) s.dust.push({ x: DOG_X - 6 + i * 4, y: GROUND - 2, age: 0 }); }
@@ -585,9 +685,10 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       // 새 구간 만들기
       s.nextChunk -= dx;
       if (s.nextChunk <= 0 && !s.over) {
-        const c = makeChunk(W + 10, s.stage, rnd, fx.stars, s.feverT > 0);
+        const k = Math.max(1, s.speed / (s.feverT > 0 ? 1.25 : 1) / (s.dashT > 0 ? 1.6 : 1) / 95);
+        const c = makeChunk(W + 10, s.stage, rnd, fx.stars, s.feverT > 0, k);
         s.items.push(...c.items); s.obs.push(...c.obs); s.pits.push(...c.pits); s.plats.push(...c.plats);
-        s.nextChunk = c.len + Math.max(30, 60 - s.stage * 4) + rnd() * 40;
+        s.nextChunk = c.len + (Math.max(30, 60 - s.stage * 4) + rnd() * 40) * k;
       }
       s.nextHeart -= dt;
       if (s.nextHeart <= 0 && !s.over) { s.items.push({ x: W + 20, y: GROUND - 44, kind: 'heart' }); s.nextHeart = HP.heartEvery + rnd() * 4; }
@@ -621,7 +722,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
           if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + HP.heart); sfx.love(); pop('체력 UP', it.y, it.x); }
         }
         // 🔥 피버 타임!
-        if (s.fever >= 100 && s.feverT <= 0) { s.feverT = FEVER.secs; s.banner = { text: '🔥 피버 타임! 🔥', age: 0, fever: true }; sfx.levelUp(); }
+        if (s.fever >= 100 && s.feverT <= 0) { s.feverT = FEVER.secs; s.banner = { text: '🔥 피버 타임! 🔥', age: 0, fever: true }; sfx.levelUp(); setBgmTempo(tempoFor(s.stage) * 1.12, 2); }
         if (!s.newBest && best > 0 && s.score > best) { s.newBest = true; s.banner = { text: '🎉 최고 기록 경신!', age: 0 }; sfx.star(); }
         if (s.hurtT <= 0 && !invincible()) {
           for (const o of s.obs) {
@@ -646,9 +747,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       // 🕳️ 구멍 (구름 다리가 놓이면 건널 수 있어요)
       for (const p of s.pits) {
         if (p.bridged) { for (let x = p.x; x < p.x + p.w; x += 6) { ellipse(ctx, x + 3, GROUND + 1, 5, 3, '#ffffff'); } continue; }
-        rect(ctx, p.x, GROUND, p.w, H - GROUND, '#2a1d18');
-        rect(ctx, p.x, GROUND, p.w, 3, '#140c0a');
-        rect(ctx, p.x - 1, GROUND, 2, H - GROUND, OUT); rect(ctx, p.x + p.w - 1, GROUND, 2, H - GROUND, OUT);
+        drawPit(ctx, p, plat);
       }
       // 🧱 2층 발판
       for (const p of s.plats) {
@@ -668,6 +767,11 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         const my = o.type === 'laundry' ? GROUND - 30 : o.type === 'bird' ? GROUND - 28 : GROUND - def.h / 2 - 2;
         ellipse(ctx, W - 7, my, 6, 6, OUT); ellipse(ctx, W - 7, my, 5, 5, '#e84a5f');
         rect(ctx, W - 8, my - 3, 2, 4, '#ffffff'); rect(ctx, W - 8, my + 2, 2, 1, '#ffffff');
+      }
+      for (const p of s.pits) {
+        if (p.bridged || p.x <= W || p.x > W + 90 || Math.floor(s.t * 6) % 2) continue;
+        ellipse(ctx, W - 7, GROUND - 8, 6, 6, OUT); ellipse(ctx, W - 7, GROUND - 8, 5, 5, '#ffb000');
+        rect(ctx, W - 8, GROUND - 11, 2, 4, OUT); rect(ctx, W - 8, GROUND - 6, 2, 1, OUT);
       }
       for (const it of s.items) {
         const bob = Math.round(Math.sin(s.t * 6 + it.x * 0.1));
@@ -693,7 +797,10 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         else { pose = Math.floor(s.t * 10) % 2 ? 'walk1' : 'walk2'; opts = { eyes: s.hurtT > 0 ? 'sad' : 'open', mouth: 'tongue', tail: Math.floor(s.t * 8) % 2 }; }
         const spr = dogSprite(dog.breed, dog.stage, pose, { ...opts, equip: dog.equip });
         const bounce = s.jumps === 0 && !s.sliding && !s.over ? -(Math.floor(s.t * 10) % 2) : 0;
+        const pit = s.y > 0 && s.pits.find((p) => !p.bridged && DOG_X > p.x && DOG_X < p.x + p.w);
+        if (pit) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, GROUND); ctx.rect(pit.x, GROUND, pit.w, H - GROUND); ctx.clip(); }
         ctx.drawImage(spr.canvas, DOG_X - DOG_W / 2 + 2, Math.round(GROUND - 41 + s.y) + bounce);
+        if (pit) ctx.restore();
       }
       if (s.feverT > 0) { ctx.fillStyle = `hsla(${(s.t * 200) % 360}, 90%, 70%, 0.12)`; ctx.fillRect(0, 0, W, H); }
       ctx.font = 'bold 11px Galmuri11';
@@ -724,11 +831,11 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         ctx.fillRect(W / 2 - 80, 22, 160, 72);
         ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - 80, 22, 160, 72);
         ctx.fillStyle = OUT;
-        ctx.font = 'bold 11px Galmuri11'; ctx.fillText(s.newBest ? '🎉 새 최고 기록!' : '헥헥… 다 뛰었어요!', W / 2, 39);
+        ctx.font = 'bold 11px Galmuri11'; ctx.fillText(s.newBest ? '🎉 새 최고 기록!' : s.reason || '헥헥… 다 뛰었어요!', W / 2, 39);
         ctx.font = '9px Galmuri11';
         ctx.fillText(`간식 ${s.score}개 · ${Math.floor(s.dist / 10)}m · 구간 ${s.stage}`, W / 2, 55);
         ctx.fillText(`최고 기록 ${Math.max(best, s.score)}개 · ${Math.max(bestDist, Math.floor(s.dist / 10))}m`, W / 2, 69);
-        if (s.overT > 1) ctx.fillText('화면을 누르면 끝나요', W / 2, 85);
+        if (s.overT > 1 && !canRevive() && s.offer !== 'open') ctx.fillText('화면을 누르면 끝나요', W / 2, 85);
       }
       ctx.textAlign = 'start';
       hud.score.textContent = `${s.score}개`;
@@ -758,9 +865,11 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         update(dt);
       }
       draw();
-      if (s.over && s.overT > 5) { finish(); return; }
+      // 이어 달리기 창을 보는 동안은 기다려요
+      if (s.over && s.offer !== 'open' && (s.offer === 'no' ? s.overT > 1.2 : s.overT > 5 && !canRevive())) { finish(); return; }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
   });
 }
+export const __sim = { makeChunk: (...a) => makeChunk(...a), OBSTACLES, GROUND, GRAVITY, JUMP_V, DOUBLE_V, STAGE_M };

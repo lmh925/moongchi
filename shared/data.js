@@ -1053,11 +1053,14 @@ export const RUN_BOOSTERS = {
   magnet: { name: '간식 자석', emoji: '🧲', desc: '처음 20초 동안 간식을 끌어당겨요', price: 20 },
   dash: { name: '부스트 출발', emoji: '🚀', desc: '처음 4초는 무적으로 슝!', price: 15 },
   fever: { name: '피버 준비', emoji: '🔥', desc: '피버 게이지를 반 채우고 출발', price: 20 },
+  revive: { name: '천사 날개', emoji: '🪽', desc: '넘어지면 한 번 공짜로 이어 달려요', price: 25 },
 };
+// 🪽 이어 달리기: 넘어지거나 구멍에 빠지면 코인으로 한 판에 두 번까지 이어 달려요
+export const RUN_REVIVE = { prices: [20, 40], max: 2, hp: 0.6 };
 export const RUN_CHESTS = {
   everyM: 500, // 이만큼 달릴 때마다 보물 상자 하나
   max: 3,
-  maxSpeedM: 26, // 1초에 이만큼보다 멀리는 못 달려요 (거리 확인용)
+  maxSpeedM: 32, // 1초에 이만큼보다 멀리는 못 달려요 (거리 확인용)
   rewards: [
     { kind: 'coins', min: 8, max: 20, weight: 60 },
     { kind: 'treat', weight: 25 },

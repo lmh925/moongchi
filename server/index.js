@@ -330,6 +330,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const res = game.startMinigame(req.userId, req.body?.type ?? 'catch', { boosters: req.body?.boosters });
     return { ...res, coinsLeft: game.getUser(req.userId).coins };
   }));
+  api.post('/minigame/revive', authed, wrap((req) => game.reviveRun(req.userId, req.body?.gameId)));
   api.post('/minigame/finish', authed, wrap((req) => {
     const res = game.finishMinigame(req.userId, req.body?.gameId, req.body?.score, { dist: req.body?.dist });
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);

@@ -61,6 +61,30 @@ test('멍뭉런 출발 아이템은 코인으로 사고, 달린 거리만큼 보
   const s2 = game.startMinigame(userId, 'run');
   now += 10_000;
   const r2 = game.finishMinigame(userId, s2.gameId, 10, { dist: 99999 });
-  assert.equal(r2.dist, 260, '너무 먼 거리는 인정하지 않아요');
+  assert.equal(r2.dist, 10 * RUN_CHESTS.maxSpeedM, '너무 먼 거리는 인정하지 않아요');
   assert.equal(r2.chests.length, 0);
+});
+
+test('멍뭉런 이어 달리기: 천사 날개면 첫 번째 공짜, 그다음은 코인, 한 판에 두 번까지', async () => {
+  const { RUN_BOOSTERS, RUN_REVIVE } = await import('../shared/data.js');
+  const now = Date.UTC(2026, 8, 27, 3);
+  const db = openDb(':memory:');
+  const game = new Game(db, { now: () => now, rng: () => 0.5 });
+  const auth = new Auth(db, { now: () => now });
+  const { userId } = auth.signup('이어달리기', '1234');
+  game.createDog(userId, { name: '콩', breed: 'corgi', personality: 'hyper' });
+  db.prepare('UPDATE users SET coins = 200 WHERE id = ?').run(userId);
+  const s = game.startMinigame(userId, 'run', { boosters: ['revive'] });
+  assert.equal(game.getUser(userId).coins, 200 - RUN_BOOSTERS.revive.price);
+  const a = game.reviveRun(userId, s.gameId);
+  assert.equal(a.free, true); assert.equal(a.cost, 0);
+  const b = game.reviveRun(userId, s.gameId);
+  assert.equal(b.cost, RUN_REVIVE.prices[1]);
+  assert.throws(() => game.reviveRun(userId, s.gameId), /더 이어/);
+  // 날개가 없으면 첫 번째부터 코인
+  const s2 = game.startMinigame(userId, 'run');
+  const c = game.reviveRun(userId, s2.gameId);
+  assert.equal(c.cost, RUN_REVIVE.prices[0]);
+  db.prepare('UPDATE users SET coins = 0 WHERE id = ?').run(userId);
+  assert.throws(() => game.reviveRun(userId, s2.gameId), /부족/);
 });

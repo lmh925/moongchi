@@ -241,6 +241,98 @@ const TRACKS = {
   },
 };
 
+// 🏃 멍뭉런 전용 곡 (맵마다 달라요). 구간이 오를수록 setBgmTempo로 빨라져요.
+Object.assign(TRACKS, {
+  // 초록 들판: 통통 튀는 F장조
+  run_meadow: {
+    bpm: 144,
+    lead: [
+      ['F5', 0.5], ['A5', 0.5], ['C6', 0.5], ['A5', 0.5], ['F5', 0.5], ['C6', 0.5], ['D6', 1],
+      ['C6', 0.5], ['A5', 0.5], ['G5', 0.5], ['A5', 0.5], ['F5', 2],
+      ['G5', 0.5], ['A5', 0.5], ['A#5', 0.5], ['C6', 0.5], ['D6', 0.5], ['C6', 0.5], ['A#5', 0.5], ['A5', 0.5],
+      ['G5', 0.5], ['E5', 0.5], ['F5', 0.5], ['G5', 0.5], ['C6', 1], ['-', 1],
+      ['A5', 0.5], ['C6', 0.5], ['F6', 0.5], ['C6', 0.5], ['D6', 0.5], ['C6', 0.5], ['A5', 1],
+      ['A#5', 0.5], ['A5', 0.5], ['G5', 0.5], ['F5', 0.5], ['G5', 2],
+      ['F5', 0.5], ['G5', 0.5], ['A5', 0.5], ['C6', 0.5], ['A#5', 0.5], ['A5', 0.5], ['G5', 0.5], ['E5', 0.5],
+      ['F5', 1], ['C5', 0.5], ['F5', 0.5], ['F5', 1], ['-', 1],
+    ],
+    bass: [
+      ['F2', 1], ['C3', 1], ['F2', 1], ['C3', 1], ['A#2', 1], ['F3', 1], ['F2', 1], ['C3', 1],
+      ['A#2', 1], ['D3', 1], ['F2', 1], ['A2', 1], ['C3', 1], ['G2', 1], ['C3', 1], ['E3', 1],
+      ['F2', 1], ['C3', 1], ['D3', 1], ['A2', 1], ['A#2', 1], ['F3', 1], ['C3', 1], ['G2', 1],
+      ['A#2', 1], ['C3', 1], ['A2', 1], ['D3', 1], ['C3', 1], ['C3', 1], ['F2', 1], ['C3', 1],
+    ],
+    leadType: 'square', leadVol: 0.26, bassVol: 0.55, drums: true,
+  },
+  // 햇살 바닷가: 찰랑찰랑 엇박자 G장조
+  run_beach: {
+    bpm: 132,
+    lead: [
+      ['D5', 0.5], ['G5', 1], ['B5', 0.5], ['-', 0.5], ['A5', 0.5], ['G5', 1],
+      ['E5', 0.5], ['G5', 1], ['A5', 0.5], ['-', 0.5], ['B5', 1.5],
+      ['C6', 0.5], ['B5', 0.5], ['A5', 0.5], ['G5', 1], ['E5', 0.5], ['D5', 1],
+      ['E5', 0.5], ['F#5', 0.5], ['G5', 0.5], ['A5', 0.5], ['D5', 2],
+      ['D5', 0.5], ['G5', 1], ['B5', 0.5], ['-', 0.5], ['D6', 0.5], ['B5', 1],
+      ['C6', 0.5], ['E6', 1], ['C6', 0.5], ['-', 0.5], ['B5', 1.5],
+      ['A5', 0.5], ['B5', 0.5], ['C6', 0.5], ['B5', 0.5], ['A5', 0.5], ['F#5', 0.5], ['D5', 1],
+      ['G5', 1.5], ['B4', 0.5], ['G5', 1], ['-', 1],
+    ],
+    bass: [
+      ['G2', 1.5], ['D3', 0.5], ['G2', 1], ['B2', 1], ['C3', 1.5], ['G3', 0.5], ['C3', 1], ['E3', 1],
+      ['D3', 1.5], ['A2', 0.5], ['D3', 1], ['F#3', 1], ['G2', 1.5], ['D3', 0.5], ['D3', 1], ['D2', 1],
+      ['G2', 1.5], ['D3', 0.5], ['G2', 1], ['B2', 1], ['C3', 1.5], ['G3', 0.5], ['C3', 1], ['E3', 1],
+      ['D3', 1.5], ['A2', 0.5], ['D3', 1], ['F#3', 1], ['G2', 1.5], ['D3', 0.5], ['G2', 2],
+    ],
+    leadType: 'triangle', leadVol: 0.45, bassVol: 0.6, drums: true,
+  },
+  // 눈꽃 마을: 방울 소리 짤랑짤랑 A단조 → C장조
+  run_snow: {
+    bpm: 138,
+    lead: [
+      ['E6', 0.5], ['E6', 0.5], ['E6', 1], ['E6', 0.5], ['E6', 0.5], ['E6', 1],
+      ['E6', 0.5], ['G6', 0.5], ['C6', 0.75], ['D6', 0.25], ['E6', 2],
+      ['F6', 0.5], ['F6', 0.5], ['F6', 0.75], ['F6', 0.25], ['F6', 0.5], ['E6', 0.5], ['E6', 0.5], ['E6', 0.5],
+      ['E6', 0.5], ['D6', 0.5], ['D6', 0.5], ['E6', 0.5], ['D6', 1], ['G6', 1],
+      ['A5', 0.5], ['C6', 0.5], ['E6', 0.5], ['C6', 0.5], ['B5', 0.5], ['D6', 0.5], ['G6', 1],
+      ['A6', 0.5], ['G6', 0.5], ['E6', 0.5], ['C6', 0.5], ['D6', 2],
+      ['C6', 0.5], ['E6', 0.5], ['A6', 0.5], ['G6', 0.5], ['F6', 0.5], ['E6', 0.5], ['D6', 0.5], ['B5', 0.5],
+      ['C6', 1.5], ['G5', 0.5], ['C6', 1], ['-', 1],
+    ],
+    bass: [
+      ['C3', 1], ['G3', 1], ['C3', 1], ['G3', 1], ['C3', 1], ['E3', 1], ['G3', 1], ['C3', 1],
+      ['F3', 1], ['C3', 1], ['C3', 1], ['G3', 1], ['G2', 1], ['D3', 1], ['G2', 1], ['B2', 1],
+      ['A2', 1], ['E3', 1], ['G2', 1], ['D3', 1], ['F2', 1], ['C3', 1], ['G2', 1], ['D3', 1],
+      ['A2', 1], ['F3', 1], ['G2', 1], ['G2', 1], ['C3', 1], ['G2', 1], ['C3', 2],
+    ],
+    leadType: 'sine', leadVol: 0.5, bassVol: 0.55, drums: true, bells: true,
+  },
+  // 사탕 나라: 뿅뿅 달콤한 E장조
+  run_candy: {
+    bpm: 152,
+    lead: [
+      ['B5', 0.5], ['G#5', 0.5], ['E5', 0.5], ['G#5', 0.5], ['B5', 0.5], ['E6', 0.5], ['D#6', 0.5], ['B5', 0.5],
+      ['C#6', 0.5], ['B5', 0.5], ['A5', 0.5], ['G#5', 0.5], ['F#5', 2],
+      ['A5', 0.5], ['F#5', 0.5], ['D#5', 0.5], ['F#5', 0.5], ['A5', 0.5], ['D#6', 0.5], ['C#6', 0.5], ['A5', 0.5],
+      ['B5', 0.5], ['A5', 0.5], ['G#5', 0.5], ['F#5', 0.5], ['E5', 2],
+      ['E6', 0.5], ['B5', 0.5], ['G#5', 0.5], ['B5', 0.5], ['E6', 0.5], ['F#6', 0.5], ['G#6', 1],
+      ['F#6', 0.5], ['E6', 0.5], ['D#6', 0.5], ['C#6', 0.5], ['B5', 2],
+      ['C#6', 0.5], ['D#6', 0.5], ['E6', 0.5], ['C#6', 0.5], ['B5', 0.5], ['A5', 0.5], ['G#5', 0.5], ['F#5', 0.5],
+      ['E5', 1], ['B4', 0.5], ['E5', 0.5], ['E5', 1], ['-', 1],
+    ],
+    bass: [
+      ['E2', 0.5], ['E3', 0.5], ['B2', 0.5], ['E3', 0.5], ['E2', 0.5], ['E3', 0.5], ['B2', 0.5], ['E3', 0.5],
+      ['A2', 0.5], ['A3', 0.5], ['E3', 0.5], ['A3', 0.5], ['B2', 0.5], ['B3', 0.5], ['F#3', 0.5], ['B3', 0.5],
+      ['B2', 0.5], ['B3', 0.5], ['F#3', 0.5], ['B3', 0.5], ['B2', 0.5], ['B3', 0.5], ['F#3', 0.5], ['B3', 0.5],
+      ['B2', 0.5], ['B3', 0.5], ['F#3', 0.5], ['B3', 0.5], ['E2', 0.5], ['E3', 0.5], ['B2', 0.5], ['E3', 0.5],
+      ['E2', 0.5], ['E3', 0.5], ['B2', 0.5], ['E3', 0.5], ['C#3', 0.5], ['C#4', 0.5], ['G#3', 0.5], ['C#4', 0.5],
+      ['A2', 0.5], ['A3', 0.5], ['E3', 0.5], ['A3', 0.5], ['B2', 0.5], ['B3', 0.5], ['F#3', 0.5], ['B3', 0.5],
+      ['A2', 0.5], ['A3', 0.5], ['B2', 0.5], ['B3', 0.5], ['C#3', 0.5], ['C#4', 0.5], ['D#3', 0.5], ['D#4', 0.5],
+      ['E2', 0.5], ['E3', 0.5], ['B2', 0.5], ['E3', 0.5], ['E2', 1], ['-', 1],
+    ],
+    leadType: 'square', leadVol: 0.22, bassVol: 0.5, drums: true,
+  },
+});
+
 function flatten(seq) {
   const out = [];
   let beat = 0;
@@ -248,54 +340,68 @@ function flatten(seq) {
   return { notes: out, length: beat };
 }
 
+// 빠르기(tempo 배수)와 음높이(반음)를 곡이 흐르는 중에도 바꿀 수 있어요
+let tempo = 1;
+let semis = 0;
+
+export function setBgmTempo(mult = 1, shift = 0) {
+  tempo = mult; semis = shift;
+  if (!bgm || !ctx) return;
+  // 지금까지 예약한 박자에서 새 빠르기로 이어 가요 (끊김 없이)
+  bgm.anchorTime = bgm.beatTime(bgm.scheduledUntil);
+  bgm.anchorBeat = bgm.scheduledUntil;
+  bgm.spb = 60 / (TRACKS[bgm.name].bpm * tempo);
+}
+
 export function playBgm(name) {
+  if (name !== wantBgm) { tempo = 1; semis = 0; }
   wantBgm = name;
   if (!ctx || muted) return;
   if (bgm?.name === name) return;
   stopBgm(false);
-  const tr = TRACKS[name];
+  const tr = TRACKS[name] ?? TRACKS.play;
   const lead = flatten(tr.lead);
   const bass = flatten(tr.bass);
   const loopBeats = Math.max(lead.length, bass.length);
-  const spb = 60 / tr.bpm;
-  const state = { name, loopStart: ctx.currentTime + 0.1, scheduledUntil: 0 };
+  const state = { name: TRACKS[name] ? name : 'play', anchorTime: ctx.currentTime + 0.1, anchorBeat: 0, spb: 60 / (tr.bpm * tempo), scheduledUntil: 0 };
+  state.beatTime = (b) => state.anchorTime + (b - state.anchorBeat) * state.spb;
+  const shifted = (n) => N(n) * 2 ** (semis / 12);
   const schedule = () => {
     if (!ctx || muted) return;
-    const horizon = ctx.currentTime + 0.5;
+    const now = ctx.currentTime;
+    const horizon = now + 0.5;
     // 탭이 백그라운드였다가 돌아오면 밀린 음을 한꺼번에 치지 않고 건너뛰어요
-    const behind = (ctx.currentTime - state.loopStart) / spb;
+    const behind = state.anchorBeat + (now - state.anchorTime) / state.spb;
     if (behind > state.scheduledUntil + 1) state.scheduledUntil = Math.ceil(behind);
-    while (state.loopStart + state.scheduledUntil * spb < horizon) {
+    while (state.beatTime(state.scheduledUntil) < horizon) {
       const from = state.scheduledUntil;
       const to = from + 1;
       const loopIndex = Math.floor(from / loopBeats);
-      const base = state.loopStart + loopIndex * loopBeats * spb;
-      const inLoop = (b) => b - loopIndex * loopBeats;
+      const spb = state.spb;
       for (const note of lead.notes) {
         const b = note.beat + loopIndex * loopBeats;
         if (b >= from && b < to && note.n !== '-') {
-          tone({ type: tr.leadType, freq: N(note.n), dur: note.len * spb * 0.9, vol: tr.leadVol, at: base + inLoop(b) * spb - ctx.currentTime, bus: bgmBus, attack: 0.01 });
+          const at = state.beatTime(b) - now;
+          tone({ type: tr.leadType, freq: shifted(note.n), dur: note.len * spb * 0.9, vol: tr.leadVol, at, bus: bgmBus, attack: 0.01 });
+          if (tr.bells) tone({ type: 'sine', freq: shifted(note.n) * 2, dur: 0.12, vol: tr.leadVol * 0.25, at, bus: bgmBus });
         }
       }
       for (const note of bass.notes) {
         const b = note.beat + loopIndex * loopBeats;
-        if (b >= from && b < to) {
-          tone({ type: 'triangle', freq: N(note.n), dur: note.len * spb * 0.8, vol: tr.bassVol, at: base + inLoop(b) * spb - ctx.currentTime, bus: bgmBus, attack: 0.01 });
+        if (b >= from && b < to && note.n !== '-') {
+          tone({ type: 'triangle', freq: shifted(note.n), dur: note.len * spb * 0.8, vol: tr.bassVol, at: state.beatTime(b) - now, bus: bgmBus, attack: 0.01 });
         }
       }
       if (tr.drums) {
-        const at = base + inLoop(from) * spb - ctx.currentTime;
+        const t = state.beatTime(from);
         const n = ctx.createBufferSource();
-        {
-          n.buffer = noiseBuf;
-          const g = ctx.createGain();
-          const t = ctx.currentTime + at;
-          g.gain.setValueAtTime(from % 2 ? 0.25 : 0.12, t);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-          const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = from % 2 ? 1500 : 6000;
-          n.connect(f).connect(g).connect(bgmBus);
-          n.start(t); n.stop(t + 0.06);
-        }
+        n.buffer = noiseBuf;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(from % 2 ? 0.25 : 0.12, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+        const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = from % 2 ? 1500 : 6000;
+        n.connect(f).connect(g).connect(bgmBus);
+        n.start(t); n.stop(t + 0.06);
       }
       state.scheduledUntil = to;
     }

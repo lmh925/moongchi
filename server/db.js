@@ -205,6 +205,8 @@ export function openDb(file) {
   CREATE INDEX IF NOT EXISTS trades_to ON trades(to_id, status);
   CREATE INDEX IF NOT EXISTS trades_from ON trades(from_id, status);`);
   ensure('users', 'boost_day', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('minigames', 'revives', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('minigames', 'boosters', "TEXT NOT NULL DEFAULT '[]'");
   db.exec(`CREATE TABLE IF NOT EXISTS mail (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

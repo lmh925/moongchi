@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -2637,7 +2637,7 @@ function openRunnerReady() {
         },
       }, el('span', { class: 'big' }, bo.emoji), el('b', {}, bo.name), el('small', {}, bo.desc),
       el('span', { class: 'price' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '코인' }), bo.price)))),
-      el('p', { class: 'hint' }, '🕳️ 구멍은 점프로 넘고, 🐦 새는 슬라이드로 피해요. 간식을 모으면 🔥 피버 타임! 멀리 갈수록 빨라지고, 500m마다 🎁 보물 상자를 받아요.'),
+      el('p', { class: 'hint' }, '🕳️ 구멍에 빠지면 끝! 점프로 넘어요. 🐦 새는 슬라이드로 피해요. 간식을 모으면 🔥 피버 타임! 멀리 갈수록 빨라지고, 500m마다 🎁 보물 상자를 받아요. 넘어지면 🪽 이어 달리기도 할 수 있어요.'),
       el('button', { class: 'btn primary run-go', onclick: () => { closeReady(); startGame('run', { map, boosters: [...picked] }); } },
         cost ? `출발! (코인 ${cost})` : '출발!')].filter(Boolean));
   };
@@ -2690,7 +2690,21 @@ async function startGame(type, { map = 'meadow', boosters = [] } = {}) {
     if (start.cost) { state.me.user.coins = start.coinsLeft; $('#top-coins').textContent = start.coinsLeft; }
     let score; let run = null;
     if (type === 'run') {
-      run = await playRunner(state.me.dog, { map, best: prevBest.best, bestDist: prevBest.bestDist, boosters: start.boosters ?? [] });
+      const wing = (start.boosters ?? []).includes('revive');
+      run = await playRunner(state.me.dog, {
+        map, best: prevBest.best, bestDist: prevBest.bestDist, boosters: start.boosters ?? [],
+        revive: {
+          max: RUN_REVIVE.max,
+          price: (n) => (n === 0 && wing ? 0 : RUN_REVIVE.prices[n]),
+          buy: async () => {
+            try {
+              const r = await post('/minigame/revive', { gameId: start.gameId });
+              state.me.user.coins = r.coinsLeft; $('#top-coins').textContent = r.coinsLeft;
+              return { ok: true };
+            } catch (err) { return { ok: false, message: err.message }; }
+          },
+        },
+      });
       score = run.score;
     } else score = await playMinigame(state.me.dog);
     const res = await post('/minigame/finish', { gameId: start.gameId, score, dist: run?.dist ?? 0 });
