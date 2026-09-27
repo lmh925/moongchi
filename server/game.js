@@ -3,11 +3,11 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
-  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor,
+  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor, trainLevel, recommendedCourse, examFor,
 } from '../shared/rules.js';
 import { tx } from './db.js';
 
@@ -49,6 +49,7 @@ function rowToDog(row) {
     poop: JSON.parse(row.poop ?? '{}'),
     parents: row.parents ? JSON.parse(row.parents) : null,
     kids: row.kids ?? 0,
+    train: { xp: {}, certs: {}, perfect: {}, ...JSON.parse(row.train ?? '{}') },
   };
 }
 
@@ -352,13 +353,13 @@ export class Game {
       const amount = Math.min(raw * (k === fav ? TALENT_PERSONALITY_BONUS : 1), TALENT_DAILY_CAP - got);
       if (amount <= 0) continue;
       const before = talentStage(dog.talents[k] ?? 0);
-      const titlesBefore = unlockedTitles(level, dog.talents, dog.special, dog.kids);
+      const titlesBefore = unlockedTitles(level, dog.talents, dog.special, dog.kids, dog.train?.certs);
       dog.talents[k] = Math.round(((dog.talents[k] ?? 0) + amount) * 10) / 10;
       dog.talentDay.got[k] = Math.round((got + amount) * 10) / 10;
       const after = talentStage(dog.talents[k]);
       if (after > before) {
         const perks = TALENT_PERKS[k].filter((p) => p.stage > before && p.stage <= after).map((p) => p.text);
-        const titles = unlockedTitles(level, dog.talents, dog.special, dog.kids).filter((t) => !titlesBefore.includes(t)).map((t) => TITLES[t].name);
+        const titles = unlockedTitles(level, dog.talents, dog.special, dog.kids, dog.train?.certs).filter((t) => !titlesBefore.includes(t)).map((t) => TITLES[t].name);
         events.push({ type: 'talentUp', talent: k, name: TALENTS[k].name, stage: after, perks, titleNames: titles });
       }
     }
@@ -416,7 +417,7 @@ export class Game {
   setTitle(userId, titleId) {
     const dog = this.loadDog(userId);
     if (!dog) throw new GameError('강아지가 없어요.', 404);
-    if (titleId !== null && !unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids).includes(titleId)) throw new GameError('아직 얻지 못한 칭호예요.');
+    if (titleId !== null && !unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids, dog.train?.certs).includes(titleId)) throw new GameError('아직 얻지 못한 칭호예요.');
     dog.title = titleId;
     this.saveDog(dog);
     return dog;
@@ -732,38 +733,88 @@ export class Game {
       .get(userId, dayStart).n;
   }
 
-  startTraining(userId) {
+  // 훈련 수업: 과목(course)을 골라요. exam이면 자격증 시험 (Lv 3 초급, Lv 5 마스터)
+  startTraining(userId, { course = 'command', exam = false } = {}) {
+    if (!TRAIN_COURSES[course]) throw new GameError('그런 수업은 없어요.');
     const { dog } = this.refreshDog(userId);
     if (!dog) throw new GameError('강아지가 없어요.', 404);
     if (dog.school) throw new GameError(`${dog.name}(은)는 벌써 학교에 가 있어요!`);
     const used = this.trainingsToday(userId);
     if (used >= TRAINING.dailyLimit) throw new GameError('오늘은 훈련을 많이 했어요! 내일 또 해요.');
+    const examKind = exam ? examFor(dog.train, course) : null;
+    if (exam && !examKind) throw new GameError('아직 시험을 볼 수 없어요. 과목 레벨을 더 올려요!');
     const id = crypto.randomBytes(12).toString('hex');
-    this.db.prepare("INSERT INTO minigames (id, user_id, started_at, type) VALUES (?, ?, ?, 'train')").run(id, userId, this.now());
+    this.db.prepare("INSERT INTO minigames (id, user_id, started_at, type, course, exam) VALUES (?, ?, ?, 'train', ?, ?)").run(id, userId, this.now(), course, examKind);
+    const base = { trainingId: id, course, exam: examKind, level: trainLevel(dog.train.xp[course] ?? 0).level, recommended: recommendedCourse(kstDate(this.now())) === course, left: TRAINING.dailyLimit - used - 1 };
+    if (course !== 'command') return base;
     const learnable = learnableTricks(dog);
-    const target = learnable[0] ?? null;
+    const target = examKind ? null : learnable[0] ?? null;
     const progress = target ? (this.getUser(userId).trainProgress[target] ?? 0) : 0;
-    return { trainingId: id, target, progress, need: talentEffects(dog.talents, dog.special).learnHits, left: TRAINING.dailyLimit - used - 1 };
+    return { ...base, target, progress, need: talentEffects(dog.talents, dog.special).learnHits };
   }
 
-  finishTraining(userId, trainingId, { correct, targetHits, target }) {
+  // quit: 중간에 그만두기 (한 번도 못 맞혔으면 오늘 횟수를 돌려줘요)
+  finishTraining(userId, trainingId, { correct, targetHits, target, quit = false }) {
     return tx(this.db, () => {
       const row = this.db.prepare("SELECT * FROM minigames WHERE id = ? AND user_id = ? AND type = 'train'").get(String(trainingId), userId);
       if (!row || row.finished) throw new GameError('이미 끝난 수업이에요.');
-      if (this.now() - row.started_at < TRAINING.minSeconds * 1000) throw new GameError('수업을 조금 더 해야 해요!');
+      const course = TRAIN_COURSES[row.course] ? row.course : 'command';
+      const C = TRAIN_COURSES[course];
+      const elapsed = this.now() - row.started_at;
+      // 한 문제에 적어도 0.8초는 걸려요 (너무 빠른 점수는 인정하지 않아요)
+      const ok = Math.max(0, Math.min(C.rounds, Math.floor(Number(correct) || 0), Math.floor(elapsed / 800)));
+      if (ok === 0 && (quit || elapsed < TRAINING.minSeconds * 1000)) {
+        this.db.prepare("UPDATE minigames SET finished = 1, type = 'train_quit' WHERE id = ?").run(row.id);
+        return { course, quit: true, refunded: true, coins: 0, exp: 0, events: [] };
+      }
       this.db.prepare('UPDATE minigames SET finished = 1 WHERE id = ?').run(row.id);
-      const ok = Math.max(0, Math.min(TRAINING.rounds, Math.floor(Number(correct) || 0)));
-      const hits = Math.max(0, Math.min(ok, TRAINING.targetRounds, Math.floor(Number(targetHits) || 0)));
       const dog = this.loadDog(userId);
-      const coins = ok * TRAINING.coinsPerCorrect;
-      const exp = expFor(dog, ok * TRAINING.expPerCorrect);
+      const train = dog.train;
+      const score10 = (ok * 10) / C.rounds;
+      const perfect = !quit && ok === C.rounds;
+      const boosted = recommendedCourse(kstDate(this.now())) === course;
+      const boost = boosted ? TRAIN_LEVEL.recommendBoost : 1;
+      const before = trainLevel(train.xp[course] ?? 0).level;
+      const coins = Math.round(score10 * TRAINING.coinsPerCorrect * boost) + (perfect ? TRAIN_LEVEL.perfectCoins : 0);
+      const exp = expFor(dog, Math.round(score10 * TRAINING.expPerCorrect * boost));
       dog.exp += exp;
-      dog.affection = Math.min(RULES.statMax, dog.affection + Math.min(8, ok));
-      const need = talentEffects(dog.talents, dog.special).learnHits;
-      const events = [...this.addTalents(dog, { smart: Math.ceil(ok / 2) }), ...this.checkGrowth(dog, this.now())];
-      let learned = null;
+      dog.affection = Math.min(RULES.statMax, dog.affection + Math.min(8, Math.round(score10)));
+      const talentGain = Math.round((Math.ceil(score10 / 2) + (before - 1)) * boost);
+      const events = [...this.addTalents(dog, { [C.talent]: talentGain }), ...this.checkGrowth(dog, this.now())];
+      // 과목 경험 (만점이면 +1 더)
+      train.xp[course] = (train.xp[course] ?? 0) + 1 + (perfect ? 1 : 0);
+      if (perfect) train.perfect[course] = (train.perfect[course] ?? 0) + 1;
+      const level = trainLevel(train.xp[course]).level;
+      if (level > before) events.push({ type: 'courseLevel', course, name: C.name, level, exam: examFor(train, course) });
+      // 자격증 시험
+      let exam = null;
       const user = this.getUser(userId);
-      if (target && hits > 0 && learnableTricks(dog).includes(target)) {
+      const give = (item) => {
+        if (!item || user.owned.includes(item)) return null;
+        user.owned.push(item);
+        this.db.prepare('UPDATE users SET owned = ? WHERE id = ?').run(JSON.stringify(user.owned), userId);
+        return item;
+      };
+      if (row.exam) {
+        const passed = !quit && ok >= Math.ceil(C.rounds * TRAIN_LEVEL.pass);
+        exam = { kind: row.exam, passed, need: Math.ceil(C.rounds * TRAIN_LEVEL.pass) };
+        if (passed) {
+          train.certs[course] = row.exam;
+          const ev = { type: 'cert', course, name: C.name, kind: row.exam, certName: CERTS[row.exam].name };
+          if (row.exam === 'master') {
+            ev.item = give(C.master.item);
+            ev.title = TITLES[C.master.title].name;
+            const masters = Object.keys(TRAIN_COURSES).filter((k) => train.certs[k] === 'master').length;
+            if (masters === Object.keys(TRAIN_COURSES).length) ev.allItem = give(TRAIN_LEVEL.allMasterItem);
+          }
+          events.push(ev, ...this.track(userId, row.exam === 'master' ? 'certMaster' : 'certBasic'));
+        }
+      }
+      // 새 개인기 (명령 훈련에서만)
+      let learned = null;
+      const need = talentEffects(dog.talents, dog.special).learnHits;
+      const hits = Math.max(0, Math.min(ok, TRAINING.targetRounds, Math.floor(Number(targetHits) || 0)));
+      if (course === 'command' && target && hits > 0 && learnableTricks(dog).includes(target)) {
         const progress = (user.trainProgress[target] ?? 0) + hits;
         if (progress >= need) {
           dog.tricks.push(target);
@@ -773,9 +824,15 @@ export class Game {
         this.db.prepare('UPDATE users SET train_progress = ? WHERE id = ?').run(JSON.stringify(user.trainProgress), userId);
       }
       this.saveDog(dog);
+      this.db.prepare('UPDATE dogs SET train = ? WHERE id = ?').run(JSON.stringify(train), dog.id);
       this.addCoins(userId, coins);
       events.push(...this.track(userId, 'train'));
-      return { coins, exp, learned, learnedName: learned ? TRICKS[learned].name : null, progress: target ? (this.getUser(userId).trainProgress[target] ?? (learned ? need : 0)) : 0, need, events };
+      if (perfect) events.push(...this.track(userId, 'trainPerfect'));
+      return {
+        course, ok, rounds: C.rounds, perfect, boosted, quit: !!quit, coins, exp, talent: C.talent, talentGain, level, exam,
+        learned, learnedName: learned ? TRICKS[learned].name : null,
+        progress: target ? (this.getUser(userId).trainProgress[target] ?? (learned ? need : 0)) : 0, need, events,
+      };
     });
   }
 
@@ -881,7 +938,7 @@ export class Game {
       ...this.levelView(dog),
       talentDay: undefined,
       effects: talentEffects(dog.talents, dog.special),
-      titles: unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids),
+      titles: unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids, dog.train?.certs),
       emotes: unlockedEmotes(levelFromExp(dog.exp)),
     };
   }

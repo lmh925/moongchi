@@ -89,6 +89,11 @@ export const TITLES = {
   sp_gun: { name: '씩씩한 대장 건', special: 'gun' },
   sp_pichu: { name: '애교 막내 피츄', special: 'pichu' },
   parent: { name: '다정한 엄마아빠 멍', parent: true },
+  tr_command: { name: '명령 훈련 마스터', cert: 'command' },
+  tr_agility: { name: '어질리티 마스터', cert: 'agility' },
+  tr_nose: { name: '노즈워크 명탐정', cert: 'nose' },
+  tr_walk: { name: '런웨이 스타', cert: 'walk' },
+  tr_bond: { name: '마음 통역사', cert: 'bond' },
 };
 
 // 견종: 색상과 생김새 파라미터는 sprites.js에서 픽셀 아트로 그려집니다.
@@ -319,6 +324,13 @@ export const ITEMS = {
   toy_cactus: { name: '선인장 화분', slot: 'toy', stage: 0, price: null, rarity: 'common', shop: false },
   clover: { name: '네잎클로버 핀', slot: 'head', stage: 0, price: null, rarity: 'rare', shop: false, gacha: false, reward: true },
   toy_rocket: { name: '우주 로켓', slot: 'toy', stage: 0, price: null, rarity: 'epic', shop: false },
+  // 훈련 마스터 자격증 선물 (상점·뽑기·거래 없음)
+  tr_grad_cap: { name: '졸업 학사모', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  tr_headband: { name: '챔피언 머리띠', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  tr_detective_hat: { name: '명탐정 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  tr_star_shades: { name: '런웨이 별 선글라스', slot: 'face', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  tr_heart_scarf: { name: '마음 하트 스카프', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  tr_rainbow_medal: { name: '무지개 만능 메달', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
   // 스페셜 친구 전용 소품 (스페셜이 되면 선물로 받아요, 상점·뽑기·거래 없음)
   sp_cloud_pin: { name: '뭉치의 구름 머리핀', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'mungchi' },
   sp_heart_locket: { name: '뽀식이의 왕하트 목걸이', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'bbosik' },
@@ -395,6 +407,50 @@ export const TRAINING = {
   coinsPerCorrect: 1,
   expPerCorrect: 3,
 };
+
+// ---------- 훈련 수업 5과목 (재능 하나씩) ----------
+// 과목 Lv은 수업을 할수록 올라요 (만점이면 조금 더). Lv 3·5에 자격증 시험이 열려요.
+export const TRAIN_COURSES = {
+  command: {
+    name: '명령 훈련', talent: 'smart', emoji: '🎓', rounds: 10,
+    desc: '선생님 말에 맞는 개인기를 톡! 새 개인기도 여기서 배워요.',
+    teacher: { name: '푸들 선생님', breed: 'poodle', equip: { face: 'round_glasses', neck: 'bowtie' } },
+    master: { item: 'tr_grad_cap', title: 'tr_command' },
+  },
+  agility: {
+    name: '어질리티 코스', talent: 'strong', emoji: '🏃', rounds: 10,
+    desc: '허들은 점프, 터널은 엎드려, 지그재그 막대는 요리조리! 장애물에 맞는 버튼을 눌러요.',
+    teacher: { name: '시바 코치', breed: 'shiba', equip: { neck: 'bandana' } },
+    master: { item: 'tr_headband', title: 'tr_agility' },
+  },
+  nose: {
+    name: '노즈워크', talent: 'curious', emoji: '👃', rounds: 6,
+    desc: '컵 속에 숨은 간식을 잘 보고, 컵이 섞인 다음 찾아요. 킁킁!',
+    teacher: { name: '코기 탐정', breed: 'corgi', equip: { face: 'round_glasses' } },
+    master: { item: 'tr_detective_hat', title: 'tr_nose' },
+  },
+  walk: {
+    name: '워킹 & 포즈', talent: 'charm', emoji: '💃', rounds: 12,
+    desc: '음악에 맞춰 발자국이 동그라미에 닿을 때 톡! 멋진 런웨이 워킹을 해요.',
+    teacher: { name: '포메 디자이너', breed: 'pomeranian', equip: { face: 'sunglasses' } },
+    master: { item: 'tr_star_shades', title: 'tr_walk' },
+  },
+  bond: {
+    name: '교감 수업', talent: 'kind', emoji: '💗', rounds: 8,
+    desc: '강아지가 좋아하는 곳을 찾아 쓰다듬고, "기다려… 먹어!"를 연습해요.',
+    teacher: { name: '말티 선생님', breed: 'maltese', equip: { head: 'ribbon' } },
+    master: { item: 'tr_heart_scarf', title: 'tr_bond' },
+  },
+};
+export const TRAIN_LEVEL = {
+  xp: [0, 3, 8, 15, 25], // 과목 Lv 1~5에 필요한 누적 수업 점수 (수업 1번 = 1, 만점 +1)
+  exams: { 3: 'basic', 5: 'master' }, // 이 Lv이 되면 시험이 열려요
+  pass: 0.8, // 시험 통과: 80% 이상
+  recommendBoost: 1.5, // 오늘의 추천 과목
+  perfectCoins: 5, // 만점 보너스
+  allMasterItem: 'tr_rainbow_medal', // 다섯 과목 모두 마스터
+};
+export const CERTS = { basic: { name: '초급 자격증', emoji: '🥉' }, master: { name: '마스터 자격증', emoji: '🏆' } };
 
 // 조퇴했을 때 선생님 한마디
 export const EARLY_COMMENTS = [
@@ -650,6 +706,11 @@ export const SPECIAL_CAPSULE = { rare: 80, epic: 20 }; // 특별 캡슐 확률 (
 // ---------- 배지 ----------
 // stat: 모은 횟수(여러 개면 합), special: 따로 계산하는 조건
 export const BADGES = {
+  cert_basic: { name: '자격증 새내기', desc: '훈련 초급 자격증 1개 따기', icon: 'star', color: '#c98a4b', stat: ['certBasic'], n: 1 },
+  cert_collector: { name: '자격증 수집가', desc: '초급 자격증 5개 모두 모으기', icon: 'book', color: '#5b8cff', stat: ['certBasic'], n: 5 },
+  cert_master: { name: '훈련 마스터', desc: '마스터 자격증 1개 따기', icon: 'medal', color: '#ffd23f', stat: ['certMaster'], n: 1 },
+  all_rounder: { name: '만능 멍뭉이', desc: '다섯 과목 모두 마스터', icon: 'sparkle', color: '#b07cff', stat: ['certMaster'], n: 5 },
+  perfect: { name: '만점왕', desc: '훈련 수업 만점 10번', icon: 'star', color: '#ff6f91', stat: ['trainPerfect'], n: 10 },
   carer: { name: '돌봄 천사', desc: '밥·빗질·쓰다듬기 50번', icon: 'heart', color: '#ff6f91', stat: ['feed', 'brush', 'pet'], n: 50 },
   scholar: { name: '모범생', desc: '학교 10번 다녀오기', icon: 'star', color: '#5b8cff', stat: ['school'], n: 10 },
   trainer: { name: '훈련 대장', desc: '훈련 수업 20번', icon: 'star', color: '#3fb58a', stat: ['train'], n: 20 },

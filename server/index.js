@@ -21,7 +21,7 @@ import { Leaderboard } from './leaderboard.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
-import { RULES } from '../shared/data.js';
+import { RULES, TRAINING } from '../shared/data.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -154,6 +154,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       dogs: game.dogList(userId),
       food: dog ? game.kibble(userId) : null,
       slots: game.dogSlots(userId),
+      trainingLeft: Math.max(0, TRAINING.dailyLimit - game.trainingsToday(userId)),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -261,7 +262,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return me(req.userId, { events: res.events });
   }));
 
-  api.post('/training/start', authed, wrap((req) => game.startTraining(req.userId)));
+  api.post('/training/start', authed, wrap((req) => game.startTraining(req.userId, { course: String(req.body?.course ?? 'command'), exam: req.body?.exam === true })));
   api.post('/training/finish', authed, wrap((req) => {
     const result = game.finishTraining(req.userId, req.body?.trainingId, req.body ?? {});
     if (result.learned || result.events.length) hub.dogChanged(req.userId);

@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -12,6 +12,7 @@ import { playMinigame } from './minigame.js';
 import { playRunner, enterLandscape, exitLandscape, runnerMapPreview } from './runner.js';
 import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
+import { trainingSection, openTrainingBook, trainResultBody, certBody } from './train-ui.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
 import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
@@ -891,6 +892,12 @@ async function handleEvents(events = []) {
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
     if (ev.type === 'runLevel') { sfx.star(); toast(`🏃 멍뭉런 레벨 UP! 런 Lv ${ev.level}`, 'good'); }
     if (ev.type === 'runMap') await showRunMap(ev);
+    if (ev.type === 'courseLevel') {
+      sfx.star();
+      if (ev.exam) await waitModal({ title: `${ev.name} Lv ${ev.level}!`, className: 'celebrate', body: el('p', { class: 'center' }, `${CERTS[ev.exam].emoji} ${CERTS[ev.exam].name} 시험을 볼 수 있어요! 학교 탭에서 도전해 봐요.`), buttons: [{ label: '도전할래!' }] });
+      else toast(`📚 ${ev.name} 과목 Lv ${ev.level}!`, 'good');
+    }
+    if (ev.type === 'cert') { sfx.levelUp(); await waitModal({ title: '🎉 자격증을 땄어요!', className: 'celebrate', body: certBody(ev, state.me.dog, state.me.user.nickname), buttons: [{ label: '최고야!' }] }); }
   }
 }
 
@@ -1440,18 +1447,13 @@ function schoolPanel() {
       el('p', { class: 'hint' }, '조퇴하면 다닌 시간만큼만 선물을 받아요. 아이템으로 빨리 끝내면 선물을 다 받아요!'));
   }
   const real = (m) => fmtDuration((m * 60_000) / state.speed);
-  const learnable = Object.entries(TRICKS).filter(([id, t]) => t.stage <= dog.stage && !dog.tricks.includes(id));
-  const target = learnable[0];
-  const progress = target ? (state.me.user.trainProgress?.[target[0]] ?? 0) : 0;
   return el('div', {},
     el('h3', {}, '멍뭉 학교'),
-    el('div', { class: 'together-card' },
-      el('div', { class: 'title' }, '함께 등교하기', el('span', { class: 'chip' }, '바로 시작!')),
-      el('p', {}, `${dog.name}(이)랑 같이 교실에 가서 선생님 말씀대로 훈련해요. 잘하면 그 자리에서 새 개인기를 배워요!`),
-      target
-        ? el('div', { class: 'meta' }, '배우는 중: ', el('b', {}, target[1].name), ` (${progress}/${dog.effects?.learnHits ?? TRAINING.learnHits})`)
-        : el('div', { class: 'meta' }, '지금 배울 수 있는 개인기를 다 배웠어요! 자라면 새 개인기가 열려요.'),
-      el('button', { class: 'btn primary', onclick: startTraining }, '교실로 가기!')),
+    trainingSection(dog, {
+      now: serverNow(), left: state.me.trainingLeft ?? TRAINING.dailyLimit,
+      onStart: (course, exam) => startTraining(course, exam),
+      onBook: () => openTrainingBook(dog, state.me.user.owned),
+    }),
     el('div', { class: 'section-title' }, '혼자 보내기'),
     el('p', { class: 'sub' }, '수업을 고르면 강아지가 혼자 학교에 가요. 돌아오면 알림장과 선물을 받아요!'),
     el('div', { class: 'cards' }, Object.entries(SCHOOL_COURSES).map(([id, c]) => el('div', { class: 'card' },
@@ -1516,16 +1518,18 @@ async function useBoost(id) {
   } catch (err) { sfx.error(); toast(err.message, 'bad'); }
 }
 
-async function startTraining() {
+async function startTraining(course = 'command', exam = false) {
   const dog = state.me.dog;
   try {
     unlock();
-    const info = await post('/training/start');
+    const info = await post('/training/start', { course, exam });
     const score = await playTraining(publicDog(dog), info);
     const res = await post('/training/finish', { trainingId: info.trainingId, target: info.target, ...score });
     applyMe(res);
     const r = res.result;
-    if (r.learned) {
+    if (r.refunded) {
+      toast('수업을 그만뒀어요. 오늘 훈련 횟수는 그대로 남아 있어요!');
+    } else if (r.learned) {
       sfx.levelUp();
       await waitModal({
         title: '새 개인기를 배웠어요!',
@@ -1537,8 +1541,8 @@ async function startTraining() {
         buttons: [{ label: '최고야!' }],
       });
     } else {
-      if (r.coins) sfx.coin();
-      toast(`훈련 끝! 성공 ${score.correct}번 · 코인 +${r.coins} · 경험치 +${r.exp}${info.target ? ` · ${TRICKS[info.target].name} ${r.progress}/${r.need ?? TRAINING.learnHits}` : ''}`, 'good');
+      if (r.perfect || r.exam?.passed) sfx.levelUp(); else if (r.coins) sfx.coin();
+      await waitModal({ title: r.exam ? '시험 결과' : '수업 끝!', className: r.perfect || r.exam?.passed ? 'celebrate' : '', body: trainResultBody(r, dog), buttons: [{ label: '좋아요!' }] });
     }
     await handleEvents(res.events);
     renderPanel();

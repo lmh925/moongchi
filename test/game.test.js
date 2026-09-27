@@ -233,20 +233,24 @@ test('함께 등교 훈련: 배울 개인기를 3번 성공하면 바로 배워�
   const { auth, game, clock } = setup();
   const { userId } = auth.signup('훈련', '1111');
   game.createDog(userId, { name: '콩', breed: 'shiba', personality: 'shy' });
+  // 바로 끝내면(한 문제도 못 풀 시간) 보상 없이 오늘 횟수를 돌려줘요
+  const t0 = game.startTraining(userId);
+  const r0 = game.finishTraining(userId, t0.trainingId, { correct: 5, targetHits: 2, target: 'paw' });
+  assert.equal(r0.refunded, true);
+  assert.equal(game.trainingsToday(userId), 0);
   const t1 = game.startTraining(userId);
   assert.equal(t1.target, 'paw');
-  assert.throws(() => game.finishTraining(userId, t1.trainingId, { correct: 5, targetHits: 2, target: 'paw' }), /조금 더/);
   clock.advance(20_000);
   const r1 = game.finishTraining(userId, t1.trainingId, { correct: 5, targetHits: 2, target: 'paw' });
   assert.equal(r1.learned, null);
   assert.equal(r1.progress, 2);
-  assert.equal(r1.coins, 5);
+  assert.equal(r1.coins, Math.round(5 * (r1.boosted ? 1.5 : 1)));
   const t2 = game.startTraining(userId);
   assert.equal(t2.progress, 2);
   clock.advance(20_000);
   const r2 = game.finishTraining(userId, t2.trainingId, { correct: 99, targetHits: 99, target: 'paw' });
   assert.equal(r2.learned, 'paw');
-  assert.equal(r2.coins, 10, '점수는 최대 10개까지만 인정');
+  assert.equal(r2.coins, Math.round(10 * (r2.boosted ? 1.5 : 1)) + 5, '점수는 최대 10개까지만 인정 (+만점 보너스)');
   assert.ok(game.loadDog(userId).tricks.includes('paw'));
   game.startSchool(userId, 'walk');
   assert.throws(() => game.startTraining(userId), /학교/);

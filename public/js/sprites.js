@@ -221,6 +221,19 @@ const ACCESSORIES = {
     map: ['..ooooooooo..', '.onnnnnnnnno.', '.onnnyyynnno.', '.onnnnynnnno.', '.owwwwwwwwwo.', 'ooooooooooooo', '..........ooo'] },
   sp_propeller_hat: { anchor: 'head', dx: -5, dy: -9, colors: { o: '#4a3330', r: '#ff5d7a', y: '#ffe066', b: '#5bc0ff', g: '#6cc070' },
     map: ['rrrr.o.bbbb', '....ooo....', '.....o.....', '...ooooo...', '..oryrbgo..', '.orrybbggo.', 'ooooooooooo'] },
+  // 훈련 마스터 자격증 선물
+  tr_grad_cap: { anchor: 'head', dx: -7, dy: -6, colors: { o: '#1e1e28', k: '#33334a', l: '#4a4a66', y: '#ffd23f' },
+    map: ['......o......', '....ookoo....', '..ookkkkkoo..', 'ookkkklkkkkoo', '..ookkkkkoo.y', '....okkko...y', '....ooooo..yy'] },
+  tr_headband: { anchor: 'head', dx: -6, dy: -3, colors: { o: '#4a3330', r: '#e84a5f', w: '#ffffff', y: '#ffd23f' },
+    map: ['ooooooooooooo', 'orrrrwywrrrro', 'ooooooooooooo', '..........oro', '..........oro', '...........o.'] },
+  tr_detective_hat: { anchor: 'head', dx: -7, dy: -6, colors: { o: '#4a3330', b: '#a86b3a', l: '#c98a4b', d: '#6b4a33' },
+    map: ['....ooooo....', '..oobbbbboo..', '.oblbbbbbbbo.', '.obbbbbbbbbo.', '.odddddddddo.', 'obbbbbbbbbbbo', 'ooooooooooooo'] },
+  tr_star_shades: { anchor: 'eye', dx: -3, dy: -3, colors: { o: '#4a3330', p: '#ff5d9e', l: '#ffc2d6', y: '#ffd23f' },
+    map: ['...o...', '..opo..', 'ooplpoo', '.opppo.', '.oo.oo.'] },
+  tr_heart_scarf: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', p: '#ff7fa8', l: '#ffc2d6', r: '#e8264a' },
+    map: ['oppppppo', 'oplplplo', 'oppppppo', '.orro.oo', 'orrrro..', '.orro...', '..oo....'] },
+  tr_rainbow_medal: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#4a3330', r: '#ff6f91', y: '#ffe066', g: '#6cc070', b: '#5b8cff', v: '#b07cff', w: '#ffffff' },
+    map: ['or.....bo', '.oy...vo.', '..og.go..', '...ooo...', '..oyyyo..', '.oyrwbyo.', '.oygvgyo.', '..oyyyo..', '...ooo...'] },
 };
 
 // 정면 모습일 때 모양이 달라지는 액세서리 (안경은 두 눈에 씌워요)
@@ -229,6 +242,7 @@ const FRONT_ACC = {
   sunglasses: { dx: -6, dy: -2, map: ['ooooooooooooo', 'oggwgoooggwgo', 'ogggo...ogggo', '.ooo.....ooo.'] },
   round_glasses: { dx: -6, dy: -2, map: ['.ooo....ooo.', 'o...oooo...o', 'o...o..o...o', '.ooo....ooo.'] },
   heart_glasses: { dx: -6, dy: -2, map: ['.o.o....o.o.', 'orproooorpro', 'orrro..orrro', '.oro....oro.', '..o......o..'] },
+  tr_star_shades: { dx: -7, dy: -3, map: ['...o......o....', '..opo....opo...', 'ooplpooooplpoo.', '.opppo..opppo..', '.oo.oo..oo.oo..'] },
   // 패션쇼 의상실
   sw_party_mask: { dx: -7, dy: -2, map: ['y.ooooooooooo.y', '.op..ppppp..po.', '.opppppppppppo.', '..ooooo.ooooo..'] },
   sw_goggles: { dx: -7, dy: -2, map: ['..oooo...oooo..', 'kkoccoooooccokk', 'kkolco...olcokk', '..oooo...oooo..'] },

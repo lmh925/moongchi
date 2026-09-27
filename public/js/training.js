@@ -1,6 +1,7 @@
 // 함께 등교: 교실에서 선생님 명령에 맞춰 강아지를 훈련해요.
 // 선생님이 "앉아!" 하면 맞는 그림 버튼을 빨리 눌러요. "기다려!"일 때는 아무것도 누르지 않아야 해요.
-import { TRICKS, TRAINING } from '../shared/data.js';
+import { TRICKS, TRAINING, TRAIN_COURSES, TRAIN_LEVEL, CERTS } from '../shared/data.js';
+import { quitButton, playAgility, playNose, playWalk, playBond } from './training-games.js';
 import { Scene, SCENE_W, SCENE_H } from './scene.js';
 import { dogPortrait } from './sprites.js';
 import { el } from './ui.js';
@@ -66,8 +67,14 @@ function classroom() {
 
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-// info: { trainingId, target, progress, need }
+// 과목에 맞는 미니게임으로 보내요. 결과: { correct, targetHits?, quit? }
 export function playTraining(dog, info) {
+  const games = { agility: playAgility, nose: playNose, walk: playWalk, bond: playBond };
+  return (games[info.course] ?? playCommand)(dog, info);
+}
+
+// 🎓 명령 훈련. info: { trainingId, target, progress, need, level, exam }
+function playCommand(dog, info) {
   return new Promise((resolve) => {
     const canvas = el('canvas', { class: 'pixel' });
     const overlay = el('div', { class: 'overlay' });
@@ -76,18 +83,28 @@ export function playTraining(dog, info) {
     const scoreEl = el('span', {}, '0');
     const comboEl = el('span', { class: 'combo' }, '');
     const options = el('div', { class: 'train-options' });
-    const targetInfo = info.target
-      ? el('div', { class: 'train-target' }, '오늘 배울 개인기: ', el('b', {}, TRICKS[info.target].name), ` (${info.progress}/${info.need})`)
-      : el('div', { class: 'train-target' }, '모든 개인기를 배웠어요! 오늘은 복습 훈련이에요.');
+    const level = info.level ?? 1;
+    const targetInfo = info.exam
+      ? el('div', { class: 'train-target' }, `${TRAINING.rounds}번 중 ${Math.ceil(TRAINING.rounds * TRAIN_LEVEL.pass)}번 이상 성공하면 합격!`)
+      : info.target
+        ? el('div', { class: 'train-target' }, '오늘 배울 개인기: ', el('b', {}, TRICKS[info.target].name), ` (${info.progress}/${info.need})`)
+        : el('div', { class: 'train-target' }, '모든 개인기를 배웠어요! 오늘은 복습 훈련이에요.');
+    let quitted = false;
+    const quit = quitButton(() => {
+      quitted = true;
+      cancelAnimationFrame(timer);
+      scene.destroy(); wrap.remove(); playBgm('home');
+      resolve({ correct, targetHits, bestCombo, quit: true });
+    });
     const wrap = el('div', { class: 'modal-wrap' },
       el('div', { class: 'modal-card train-card' },
-        el('h2', { class: 'modal-title' }, '멍뭉 학교 훈련 수업'),
+        el('h2', { class: 'modal-title' }, `${TRAIN_COURSES.command.emoji} ${TRAIN_COURSES.command.name}`, info.exam ? el('span', { class: 'chip exam-chip' }, `${CERTS[info.exam].emoji} ${CERTS[info.exam].name} 시험`) : null),
         targetInfo,
         el('div', { class: 'stage train-stage' }, canvas, overlay, board),
         el('div', { class: 'game-hud' }, el('span', {}, '성공 ', scoreEl, `/${TRAINING.rounds}`), comboEl),
         el('div', { class: 'bar time-bar' }, timeBar),
         options,
-        el('p', { class: 'hint' }, '선생님 말에 맞는 그림을 빨리 눌러요! "기다려!"일 때는 꾹 참아요.')));
+        el('div', { class: 'train-foot' }, el('p', { class: 'hint' }, '선생님 말에 맞는 그림을 빨리 눌러요! "기다려!"일 때는 꾹 참아요.'), quit)));
     document.getElementById('modal-root').append(wrap);
 
     const scene = new Scene(canvas, overlay, {});
@@ -114,11 +131,12 @@ export function playTraining(dog, info) {
     const say = (text) => { scene.bubble('teacher', 'text', text); board.textContent = text; };
 
     const next = () => {
+      if (quitted) return;
       round += 1;
       if (round >= rounds.length) return end();
       const cmd = rounds[round];
       answered = false;
-      limit = Math.max(1600, 3800 - round * 220);
+      limit = Math.max(1300, 3800 - round * 220 - (level - 1) * 150 - (info.exam ? 300 : 0));
       deadline = performance.now() + limit;
       sfx.notify();
       if (cmd === 'wait') say('기다려!');
@@ -126,7 +144,9 @@ export function playTraining(dog, info) {
       // 보기 버튼 (정답 + 오답 2개). 기다려 판에서는 아무거나 3개
       const pick = new Set(cmd === 'wait' ? [] : [cmd]);
       const pool = shuffle(optionPool.filter((t) => t !== cmd));
-      while (pick.size < 3 && pool.length) pick.add(pool.pop());
+      const choices = level >= 3 || info.exam ? 4 : 3;
+      options.classList.toggle('four', choices === 4);
+      while (pick.size < choices && pool.length) pick.add(pool.pop());
       options.replaceChildren(...shuffle([...pick]).map((t) => {
         const [pose, opts] = TRICK_POSE[t];
         return el('button', { class: 'train-opt', type: 'button', onclick: () => answer(t) },
@@ -150,6 +170,7 @@ export function playTraining(dog, info) {
     };
 
     const result = (ok, text) => {
+      if (quitted) return;
       if (ok) {
         correct += 1; combo += 1; bestCombo = Math.max(bestCombo, combo);
         sfx.bark(1.2); sfx.love();
@@ -195,7 +216,7 @@ export function playTraining(dog, info) {
       }, 1400);
     };
 
-    setTimeout(() => { say('시작해요!'); setTimeout(next, 900); }, 700);
+    setTimeout(() => { if (quitted) return; say('시작해요!'); setTimeout(next, 900); }, 700);
     tick();
   });
 }

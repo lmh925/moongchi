@@ -1,6 +1,6 @@
 // 멍뭉고치 게임 규칙 (순수 함수 — 서버가 최종 판정하고, 브라우저는 화면 표시용으로 사용)
 import {
-  RUNNER, SPECIAL_PERKS,
+  RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL,
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
   LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP,
 } from './data.js';
@@ -106,11 +106,12 @@ export function talentEffects(talents = {}, special = null) {
 }
 
 // 지금 달 수 있는 칭호 목록
-export function unlockedTitles(level, talents = {}, special = null, kids = 0) {
+export function unlockedTitles(level, talents = {}, special = null, kids = 0, certs = {}) {
   const st = talentStages(talents);
   return Object.keys(TITLES).filter((id) => {
     const t = TITLES[id];
     if (t.special) return t.special === special;
+    if (t.cert) return certs?.[t.cert] === 'master';
     if (t.parent) return kids > 0;
     return t.talent ? st[t.talent] >= t.stage : level >= t.level;
   });
@@ -253,3 +254,28 @@ export function specialExp(exp) {
   return exp > 0 ? Math.max(exp + 1, Math.round(exp * SPECIAL_PERKS.expBoost)) : exp;
 }
 export const expFor = (dog, exp) => (dog?.special ? specialExp(exp) : exp);
+
+// ---------- 훈련 과목 ----------
+export function trainLevel(xp = 0) {
+  const L = TRAIN_LEVEL.xp;
+  let level = 1;
+  while (level < L.length && xp >= L[level]) level += 1;
+  return { level, into: xp - L[level - 1], need: level < L.length ? L[level] - L[level - 1] : 0, max: level >= L.length };
+}
+
+// 오늘의 추천 과목 (한국 날짜마다 바뀌어요)
+export function recommendedCourse(dateStr) {
+  const keys = Object.keys(TRAIN_COURSES);
+  let h = 0;
+  for (const ch of String(dateStr)) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+  return keys[h % keys.length];
+}
+
+// 지금 볼 수 있는 시험: Lv 3 → 초급, Lv 5 → 마스터 (초급을 먼저 따야 해요)
+export function examFor(train = {}, course) {
+  const { level } = trainLevel(train.xp?.[course] ?? 0);
+  const cert = train.certs?.[course] ?? null;
+  if (!cert && level >= 3) return 'basic';
+  if (cert === 'basic' && level >= 5) return 'master';
+  return null;
+}
