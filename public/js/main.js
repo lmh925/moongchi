@@ -19,6 +19,7 @@ import { openLeaderboard, lbToast } from './leaderboard.js';
 import { openDogCardMaker } from './dogcard.js';
 import { villageCard, openVillageMap, placeOpenBody, openYard, openTasteBook, tasteToast, setDoneBody } from './village-ui.js';
 import { openCafe } from './cafe-ui.js';
+import { openSpa, openCamp, newsTicker } from './extras-ui.js';
 import { PlazaView } from './plaza.js';
 import { CoopClient } from './coop.js';
 import { levelBar, titleChip, openDogCard, playLevelUp, talentUpBody } from './level.js';
@@ -1266,7 +1267,7 @@ function visitPlace(id) {
     });
     return;
   }
-  const handlers = { cafe: () => openCafeScreen?.(), spa: () => openSpaScreen?.(), camp: () => openCampScreen?.() };
+  const handlers = { cafe: openCafeScreen, spa: openSpaScreen, camp: openCampScreen };
   (handlers[id] ?? (() => toast('곧 만나요!')))();
 }
 
@@ -1304,6 +1305,7 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
       actionBtn('개인기', 'star', openTricks, away)),
+    newsTicker(state.me.news),
     villageCard(state.me, { onMap: openMap, onPlace: visitPlace }),
     questCard(state.me.progress),
     dogsRow(),
@@ -2920,6 +2922,6 @@ boot();
 function openCafeScreen() {
   openCafe({ post, applyMe, handleEvents, serverNow, me: () => state.me });
 }
-// 4단계에서 채워요 (온천·캠핑장)
-let openSpaScreen = null;
-let openCampScreen = null;
+// ♨️ 온천 · 🏕️ 캠핑장
+function openSpaScreen() { openSpa({ me: () => state.me, post, applyMe, handleEvents }); }
+function openCampScreen() { openCamp({ me: () => state.me, post, applyMe, handleEvents }); }

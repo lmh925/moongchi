@@ -1310,3 +1310,34 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .report-guest .stars { font-size: 8px; letter-spacing: -1px; }
 .report-guest .new { position: absolute; top: -6px; right: -4px; background: #ff6f91; color: #fff; font-size: 9px; font-weight: 800; padding: 0 4px; border-radius: 6px; }
 .level-up { color: var(--pink-d); font-weight: 800; }
+
+/* ♨️ 온천 */
+.spa-pool { position: relative; height: 170px; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; background: linear-gradient(#cfe0f0, #e8f2fb 55%, #9a8a7a 55%); }
+.spa-pool .water { position: absolute; left: 8%; right: 8%; bottom: 10px; height: 60px; border: 3px solid var(--ink); border-radius: 50%; background: radial-gradient(ellipse, #bff3ff, #6fd0e8); opacity: .9; }
+.spa-dog { position: absolute; left: 50%; bottom: 26px; width: 100px; margin-left: -50px; z-index: 1; }
+.spa-dog.bath { animation: hop 1s 3 steps(2); }
+.spa-pool .steam { position: absolute; font-size: 22px; animation: steam 2.4s infinite; opacity: .8; z-index: 2; }
+.spa-pool .s1 { left: 20%; bottom: 60px; } .spa-pool .s2 { left: 48%; bottom: 80px; animation-delay: .8s; } .spa-pool .s3 { left: 74%; bottom: 60px; animation-delay: 1.6s; }
+@keyframes steam { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-40px); opacity: 0; } }
+.spa-btn { width: 100%; font-size: 18px; }
+/* 🏕️ 캠핑장 */
+.camp-night { position: relative; height: 160px; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; margin-bottom: 8px; background: radial-gradient(circle at 80% 20%, #fff8c0 0 10px, transparent 11px), radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 40% 15%, #fff, transparent), radial-gradient(1.5px 1.5px at 60% 35%, #fff, transparent), radial-gradient(1px 1px at 10% 60%, #fff, transparent), linear-gradient(#1c2350, #3a3f7a 65%, #2f5a3a 65%); }
+.camp-night .tent { position: absolute; left: 10%; bottom: 30px; font-size: 54px; }
+.camp-night .fire { position: absolute; left: 44%; bottom: 20px; font-size: 26px; animation: hop .6s infinite steps(2); }
+.camp-dog { position: absolute; right: 8%; bottom: 14px; width: 96px; }
+.camp-night .zzz { position: absolute; right: 12%; bottom: 80px; color: #fff; font-weight: 800; animation: steam 2.4s infinite; }
+.dream-card { position: relative; margin: 10px 0; padding: 10px; border: 3px solid #b07cff; border-radius: 14px; background: linear-gradient(135deg, #f5efff, #eaf4ff); text-align: center; animation: pop .3s ease-out; }
+.dream-card .scene { font-size: 38px; letter-spacing: 4px; }
+.dream-card img { width: 64px; }
+.dream-card .new { position: absolute; top: -8px; right: 8px; background: #ff6f91; color: #fff; font-size: 11px; font-weight: 800; padding: 0 6px; border-radius: 8px; }
+.dream-album { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dream-cell { display: flex; flex-direction: column; align-items: center; padding: 4px 2px; border: 2px solid var(--line); border-radius: 10px; background: #f1ece4; text-align: center; font-size: 10px; }
+.dream-cell .scene { font-size: 14px; }
+.dream-cell.seen { background: #f5efff; border-color: #b07cff; }
+/* 📰 뉴스 */
+.news-ticker { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 6px 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fffdf3; font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; }
+.news-ticker b { flex: none; background: var(--ink); color: #fff; padding: 0 6px; border-radius: 6px; font-size: 12px; }
+.news-line { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.news-line.slide { animation: newsIn .4s ease-out; }
+@keyframes newsIn { from { transform: translateY(12px); opacity: 0; } }
+.news-list p { border-bottom: 1px dashed var(--line); padding: 4px 0; margin: 0; }

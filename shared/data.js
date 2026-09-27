@@ -1014,3 +1014,35 @@ export const CAFE_GUESTS = {
   owl: { name: '부엉이', emoji: '🦉', fav: 'pancake', level: 5 },
   unicorn: { name: '유니콘', emoji: '🦄', fav: 'pancake', level: 6, rare: true },
 };
+
+// ---------- ♨️ 온천 (하루 한 번) ----------
+export const SPA = { cleanliness: 100, affection: 15, exp: 8, fluff: 3 };
+
+// ---------- 🏕️ 캠핑장: 꿈 엿보기 (하루 한 번, 꿈 앨범에 모여요) ----------
+// {friend}·{fdog}가 있으면 친구 강아지가 꿈에 나와요 (친구가 없으면 다른 꿈)
+export const DREAMS = {
+  cloud: { title: '구름 위 산책', scene: '☁️🐾☁️', text: '{name}(이)가 폭신한 구름 위를 깡총깡총 걸어요. 구름이 솜사탕 맛이래요!' },
+  bone: { title: '왕뼈다귀 발견', scene: '🦴✨🦴', text: '집보다 큰 뼈다귀를 발견했어요! {name}(이)가 꼬리를 붕붕 흔들어요.', coins: 5 },
+  chef: { title: '요리사 {name}', scene: '👨‍🍳🍰🍪', text: '{name}(이)가 하얀 모자를 쓰고 케이크를 굽는 꿈을 꿔요. 냠냠!' },
+  space: { title: '우주 여행', scene: '🚀🌙⭐', text: '로켓을 타고 달나라에 갔어요. 달에서도 뼈다귀 냄새가 난대요!' },
+  sea: { title: '바닷속 모험', scene: '🐠🫧🐙', text: '{name}(이)가 문어 친구랑 바닷속에서 숨바꼭질을 해요.' },
+  candy: { title: '사탕 숲', scene: '🍭🍬🍫', text: '나무마다 사탕이 주렁주렁! 한 입 먹었더니 너무 달아서 깜짝!' },
+  flying: { title: '하늘을 나는 꿈', scene: '🪽🐶🌈', text: '귀가 날개가 되어 무지개 위를 훨훨 날아요.', hearts: 1 },
+  king: { title: '멍뭉 왕국', scene: '👑🏰🐾', text: '{name}(이)가 멍뭉 왕국의 임금님이 됐어요. 첫 명령은… 간식 파티!' },
+  snow: { title: '눈사람 친구', scene: '⛄❄️🧣', text: '눈사람이 목도리를 빌려줬어요. {name}(이)가 코를 톡 대요.' },
+  concert: { title: '멍멍 콘서트', scene: '🎤🎶🐶', text: '무대 위에서 {name}(이)가 노래를 불러요. 관객 모두가 떼창!' },
+  friendPlay: { title: '{fdog}랑 놀기', scene: '🐶💕🐶', text: '{friend}네 {fdog}랑 들판에서 공놀이를 해요. 서로 공을 양보해요!', friend: true, hearts: 1 },
+  friendPicnic: { title: '{fdog}랑 소풍', scene: '🧺🌸🐾', text: '{friend}네 {fdog}랑 도시락을 나눠 먹는 꿈이에요. 제일 맛있는 건 반씩!', friend: true, coins: 5 },
+};
+
+// ---------- 📰 멍뭉 뉴스 (친구들 소식 + 재미 뉴스) ----------
+export const FUN_NEWS = [
+  '놀이터에 무지개 간식 트럭이 나타났다는 소문이 있어요! 🌈🚚',
+  '오늘은 산책하기 좋은 날씨! 멍뭉 기상청 발표 ☀️',
+  '멍뭉 카페의 인기 메뉴 1위는 멍쿠키래요 🍪',
+  '전설의 유니콘 손님을 봤다는 제보가 들어왔어요 🦄',
+  '마당을 파다가 반짝이는 무언가를 찾은 강아지가 있대요 ✨',
+  '이번 주 멍뭉런 1등은 누구일까요? 🏃',
+  '온천에서 나온 강아지들이 뽀송뽀송하다는 소식 ♨️',
+  '밤하늘에 강아지 모양 별자리가 떴대요 🌌',
+];

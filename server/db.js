@@ -165,6 +165,15 @@ export function openDb(file) {
   ensure('users', 'taste_day', "TEXT NOT NULL DEFAULT '{}'");
   ensure('dogs', 'tastes', "TEXT NOT NULL DEFAULT '{}'");
   ensure('users', 'cafe', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'spa', "TEXT NOT NULL DEFAULT '{}'");
+  ensure('users', 'dreams', "TEXT NOT NULL DEFAULT '{}'");
+  db.exec(`CREATE TABLE IF NOT EXISTS news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS news_user ON news(user_id, created_at);`);
   ensure('minigames', 'course', 'TEXT');
   ensure('minigames', 'exam', 'TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS wishes (

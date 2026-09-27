@@ -21,6 +21,7 @@ import { Leaderboard } from './leaderboard.js';
 import { Asks } from './asks.js';
 import { Village } from './village.js';
 import { Cafe } from './cafe.js';
+import { Extras } from './extras.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -51,6 +52,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const village = new Village(db, { game, asks });
   game.village = village;
   const cafe = new Cafe(db, { game, friends, asks, village });
+  const extras = new Extras(db, { game, friends, asks, village });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -157,6 +159,9 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const others = game.refreshOthers(userId);
     if (others.length) { events.push(...others); hub.dogsChanged(userId); }
     const user = game.getUser(userId);
+    const { events: extraEvents = [], ...rest } = extra;
+    const allEvents = [...extraEvents, ...events];
+    extras.noteEvents(userId, allEvents);
     return {
       user,
       dog: game.dogView(dog),
@@ -167,15 +172,18 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       asks: asks.view(userId),
       village: village.view(userId),
       cafe: cafe.view(userId),
+      spaToday: extras.spaToday(userId),
+      dreams: extras.dreamView(userId),
+      news: extras.news(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
       pendingTrades: trades.pendingFor(userId),
       wishes: babies.list(userId),
-      events: [...(extra.events ?? []), ...events],
+      events: allEvents,
       speed,
       serverNow: game.now(),
-      ...extra,
+      ...rest,
     };
   };
 
@@ -346,6 +354,17 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/cafe/introduce', authed, wrap((req) => {
     const ev = cafe.introduce(req.userId, String(req.body?.a ?? ''), String(req.body?.b ?? ''));
     return me(req.userId, { events: [ev] });
+  }));
+
+  // ---------- ♨️ 온천 · 🏕️ 꿈 ----------
+  api.post('/spa/bathe', authed, wrap((req) => {
+    const res = extras.bathe(req.userId);
+    hub.dogChanged(req.userId);
+    return me(req.userId, { events: res.events });
+  }));
+  api.post('/camp/dream', authed, wrap((req) => {
+    const res = extras.dream(req.userId);
+    return { ...me(req.userId, { events: res.events }), dream: res.dream };
   }));
 
   // ---------- 💭 말풍선 소원 ----------
