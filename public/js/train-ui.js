@@ -25,11 +25,12 @@ export function trainingSection(dog, { now, left, onStart, onBook }) {
   const learnable = Object.entries(TRICKS).filter(([id, t]) => t.stage <= dog.stage && !(dog.tricks ?? []).includes(id));
   return el('div', { class: 'train-box' },
     el('div', { class: 'train-head' },
-      el('b', {}, '훈련 수업'),
-      el('span', { class: 'chip' }, `오늘 ${left}번 남음`),
+      el('span', { class: 'sub' }, `${dog.name}(이)랑 바로 수업해요. 과목마다 자라는 재능이 달라요!`),
       el('button', { class: 'btn small', onclick: onBook }, '📒 훈련 수첩')),
-    el('p', { class: 'sub' }, `${dog.name}(이)랑 교실에 가요. 과목마다 자라는 재능이 달라요! 과목 Lv 3·5가 되면 자격증 시험을 볼 수 있어요.`),
-    el('div', { class: 'course-grid' }, Object.entries(TRAIN_COURSES).map(([id, C]) => {
+    el('div', { class: 'course-grid' }, Object.entries(TRAIN_COURSES)
+      // 추천 과목과 시험 볼 수 있는 과목이 먼저 보여요
+      .sort(([a], [b]) => ((b === rec) * 2 + !!examFor(train, b)) - ((a === rec) * 2 + !!examFor(train, a)))
+      .map(([id, C]) => {
       const T = TALENTS[C.talent];
       const exam = examFor(train, id);
       const off = left <= 0 || !!dog.school;
@@ -41,7 +42,7 @@ export function trainingSection(dog, { now, left, onStart, onBook }) {
             el('b', {}, `${C.emoji} ${C.name}`),
             el('div', { class: 'meta' }, el('span', { class: 'talent-dot', style: { background: T.color } }), `${T.name} 재능 · ${C.teacher.name}`)),
           certIcons(train.certs?.[id])),
-        el('div', { class: 'meta' }, C.desc),
+        el('div', { class: 'meta course-desc' }, C.desc),
         id === 'command' && learnable[0] ? el('div', { class: 'meta' }, '배우는 중: ', el('b', {}, learnable[0][1].name)) : null,
         levelBar(train.xp?.[id] ?? 0),
         el('div', { class: 'course-btns' },

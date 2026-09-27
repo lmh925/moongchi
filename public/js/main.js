@@ -1447,17 +1447,41 @@ function schoolPanel() {
       el('p', { class: 'hint' }, '조퇴하면 다닌 시간만큼만 선물을 받아요. 아이템으로 빨리 끝내면 선물을 다 받아요!'));
   }
   const real = (m) => fmtDuration((m * 60_000) / state.speed);
+  const tab = state.schoolTab ?? 'train';
+  const left = state.me.trainingLeft ?? TRAINING.dailyLimit;
+  const pickTab = (k) => { state.schoolTab = k; sfx.tap(); renderPanel(); };
+  // 맨 위에서 두 가지를 바로 고를 수 있게: 같이 훈련 / 혼자 학교 보내기
+  const switcher = el('div', { class: 'school-switch', role: 'tablist' },
+    el('button', { class: `school-tab ${tab === 'train' ? 'on' : ''}`, role: 'tab', 'aria-selected': String(tab === 'train'), onclick: () => pickTab('train') },
+      el('span', { class: 'icon' }, '🎓'),
+      el('b', {}, '같이 훈련'),
+      el('small', {}, `오늘 ${left}번 남음`)),
+    el('button', { class: `school-tab ${tab === 'school' ? 'on' : ''}`, role: 'tab', 'aria-selected': String(tab === 'school'), onclick: () => pickTab('school') },
+      el('span', { class: 'icon' }, '🚌'),
+      el('b', {}, '학교 보내기'),
+      el('small', {}, '혼자 다녀와요')));
+  if (tab === 'train') {
+    return el('div', {},
+      el('h3', {}, '멍뭉 학교'),
+      switcher,
+      trainingSection(dog, {
+        now: serverNow(), left,
+        onStart: (course, exam) => startTraining(course, exam),
+        onBook: () => openTrainingBook(dog, state.me.user.owned),
+      }));
+  }
   return el('div', {},
     el('h3', {}, '멍뭉 학교'),
-    trainingSection(dog, {
-      now: serverNow(), left: state.me.trainingLeft ?? TRAINING.dailyLimit,
-      onStart: (course, exam) => startTraining(course, exam),
-      onBook: () => openTrainingBook(dog, state.me.user.owned),
-    }),
-    el('div', { class: 'section-title' }, '혼자 보내기'),
-    el('p', { class: 'sub' }, '수업을 고르면 강아지가 혼자 학교에 가요. 돌아오면 알림장과 선물을 받아요!'),
-    el('div', { class: 'cards' }, Object.entries(SCHOOL_COURSES).map(([id, c]) => el('div', { class: 'card' },
-      el('div', { class: 'title' }, c.name, el('button', {
+    switcher,
+    el('p', { class: 'sub school-sub' }, `수업을 고르면 ${dog.name}(이)가 혼자 학교에 가요. 다녀오는 동안은 돌봐 줄 수 없고, 돌아오면 알림장과 선물을 받아요!`),
+    el('div', { class: 'school-list' }, Object.entries(SCHOOL_COURSES).map(([id, c]) => el('div', { class: 'school-item' },
+      el('div', { class: 'school-time' }, el('b', {}, real(c.minutes)), el('small', {}, '다녀와요')),
+      el('div', { class: 'school-info' },
+        el('b', {}, c.name),
+        el('small', {}, c.desc),
+        el('div', { class: 'school-gifts' },
+          el('span', {}, `🦴 ${c.coins}`), el('span', {}, `⭐ ${c.exp}`), el('span', {}, `🎵 개인기 ${Math.round(c.trickChance * 100)}%`))),
+      el('button', {
         class: 'btn small green',
         onclick: () => modal({
           title: `${c.name}에 보낼까요?`,
@@ -1467,9 +1491,7 @@ function schoolPanel() {
             { label: '다녀와!', onClick: () => goSchool(id) },
           ],
         }),
-      }, '보내기')),
-      el('div', { class: 'meta' }, c.desc),
-      el('div', { class: 'meta' }, `⏰ ${real(c.minutes)} · 코인 ${c.coins} · 경험치 ${c.exp} · 개인기 배울 확률 ${Math.round(c.trickChance * 100)}%`)))),
+      }, '보내기')))),
     boostCard(false));
 }
 
