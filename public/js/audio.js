@@ -204,6 +204,12 @@ export const sfx = {
     tone({ type: 'square', freq: 1800, dur: 0.03, vol: 0.1, at: 0.02 });
   },
   error() { if (ready()) tone({ type: 'square', freq: 220, to: 180, dur: 0.15, vol: 0.18 }); },
+  // 흥! (귀찮아하는 소리)
+  huff() {
+    if (!ready()) return;
+    noise({ dur: 0.12, vol: 0.25, freq: 900, sweep: 400, q: 1 });
+    tone({ type: 'triangle', freq: 520, to: 300, dur: 0.18, vol: 0.28, at: 0.05 });
+  },
 };
 
 // ---------- 배경음 ----------

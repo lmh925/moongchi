@@ -231,7 +231,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/dog/action', authed, wrap((req) => {
     const res = game.act(req.userId, req.body?.action);
     if (res.events.some((e) => e.type === 'grew')) hub.dogChanged(req.userId);
-    return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction } };
+    return { ...me(req.userId, { events: res.events }), result: { coins: res.coins, exp: res.exp, reaction: res.reaction, refusal: res.refusal, patience: res.patience } };
   }));
 
   api.post('/dog/clean', authed, wrap((req) => {

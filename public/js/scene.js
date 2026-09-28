@@ -655,6 +655,30 @@ export class Scene {
     if (action === 'pet' || action === 'love') this.burst(e, 'heart', action === 'love' ? 5 : 3);
   }
 
+  // 😤 귀찮아요! 성격마다 다른 거절 동작
+  refuse(id, act) {
+    const e = this.entities.get(id);
+    if (!e) return;
+    e.pokes = [];
+    if (act === 'run') {
+      const far = e.x < (AREA.x0 + AREA.x1) / 2 ? AREA.x1 - 10 : AREA.x0 + 10;
+      e.state = 'walk'; e.stateT = 0; e.tx = far; e.ty = AREA.y0 + Math.random() * (AREA.y1 - AREA.y0);
+      this.burst(e, 'sweat', 1);
+    } else if (act === 'nap') {
+      e.state = 'sleep'; e.stateT = 0; e.sleepFor = 4; e.tx = e.x; e.ty = e.y;
+    } else if (act === 'hide') {
+      this.sleep(id, 5);
+      this.burst(e, 'surprise', 1);
+    } else if (act === 'beg') {
+      this.trick(id, 'sit');
+      this.burst(e, 'food', 2);
+    } else {
+      e.state = 'idle'; e.stateT = 0; e.idleFor = 3; e.tx = e.x; e.ty = e.y;
+      e.facing = -(e.facing || 1); // 홱!
+      this.particles.push({ icon: 'sweat', x: e.x + e.facing * 10, y: e.y - 30, vx: e.facing * 6, vy: -10, life: 0.9, age: 0, small: true });
+    }
+  }
+
   sleep(id, seconds = 6) {
     const e = this.entities.get(id);
     if (!e) return;

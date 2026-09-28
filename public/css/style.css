@@ -1447,3 +1447,6 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .cast-cell.me { border-style: dashed; cursor: default; }
 .polaroid img { max-height: 60vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
 .pb-card > .modal-buttons { position: sticky; bottom: -12px; background: var(--paper); padding: 8px 0 12px; margin-bottom: -12px; z-index: 3; }
+.patience-meter { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; font-size: 13px; color: var(--ink-soft); }
+.patience-meter[hidden] { display: none; }
+.patience-meter .pips { letter-spacing: 1px; }

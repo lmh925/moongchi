@@ -931,6 +931,25 @@ function tick() {
   }
   const left = $('#school-left');
   if (left && dog.school) left.textContent = fmtDuration(dog.school.endsAt - serverNow());
+  renderPatience();
+}
+
+// 😤 참을성 게이지: 쓰다듬기·빗질을 연달아 하면 줄고, 시간이 지나면 다시 차요
+function renderPatience() {
+  const box = $('#patience-meter');
+  if (!box) return;
+  const p = state.patience;
+  if (!p || p.dogId !== state.me.dog?.id) { box.hidden = true; return; }
+  const refill = RULES.patience.refillSec * 1000;
+  const since = Date.now() - p.at;
+  const firstIn = p.nextIn * 1000;
+  const n = since < firstIn ? p.n : Math.min(p.cap, p.n + 1 + Math.floor((since - firstIn) / refill));
+  if (n >= p.cap) { box.hidden = true; return; }
+  const next = since < firstIn ? Math.ceil((firstIn - since) / 1000) : Math.ceil((refill - ((since - firstIn) % refill)) / 1000);
+  box.hidden = false;
+  box.replaceChildren(el('span', {}, n ? '기분 좋아요' : '😤 조금 귀찮아요'),
+    el('span', { class: 'pips' }, '💗'.repeat(n) + '🤍'.repeat(p.cap - n)),
+    el('small', {}, `${next}초 뒤 💗 +1`));
 }
 
 // ---------- 돌봄 ----------
@@ -951,7 +970,17 @@ async function doCare(action, { quiet = false } = {}) {
     applyMe(res);
     const r = res.result;
     const scene = state.scene;
-    if (r.reaction === 'full') {
+    if (r.patience) state.patience = { ...r.patience, at: Date.now(), dogId: dog.id };
+    if (r.reaction === 'grumpy') {
+      // 😤 너무 많이 만지면 귀찮아해요 (벌칙 없이 수치만 안 올라요)
+      scene.refuse(myId(), r.refusal?.act);
+      scene.bubble(myId(), 'text', r.refusal?.text ?? '흥!');
+      sfx.huff();
+      if (!state.grumpyHintAt || Date.now() - state.grumpyHintAt > 10_000) {
+        state.grumpyHintAt = Date.now();
+        toast(`${dog.name}(이)가 조금 귀찮은가 봐요. ${r.patience?.nextIn ?? 20}초쯤 쉬었다가 다시 해 줘요!`);
+      }
+    } else if (r.reaction === 'full') {
       scene.bubble(myId(), 'text', '배불러요~');
       sfx.error();
     } else {
@@ -1359,6 +1388,7 @@ function homePanel() {
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
       actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away || !!state.party),
       actionBtn('개인기', 'star', openTricks, away)),
+    el('div', { id: 'patience-meter', class: 'patience-meter' }),
     newsTicker(state.me.news),
     villageCard(state.me, { onMap: openMap, onPlace: visitPlace }),
     questCard(state.me.progress),

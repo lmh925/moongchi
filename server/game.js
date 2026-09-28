@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
   STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, REQUIRED_ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
-  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS, RUN_REVIVE,
+  SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, REFUSALS, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS, RUN_REVIVE,
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
@@ -427,11 +427,49 @@ export class Game {
     return dog;
   }
 
+  // 😤 참을성: 쓰다듬기·빗질을 연달아 하면 줄어들고, 시간이 지나면 다시 차요 (서버가 켜져 있는 동안만 기억해요)
+  patience(dog, spend = false) {
+    const P = RULES.patience;
+    const R = P.refillSec * 1000;
+    const cap = P.cap[dog.personality] ?? 4;
+    this.patienceMap ??= new Map();
+    const now = this.now();
+    const s = this.patienceMap.get(dog.id) ?? { n: cap, t: now, refused: 0 };
+    if (s.n < cap) {
+      const g = Math.floor((now - s.t) / R);
+      if (g > 0) { s.n = Math.min(cap, s.n + g); s.t += g * R; s.refused = 0; }
+    }
+    if (s.n >= cap) s.t = now;
+    let ok = true;
+    if (spend) {
+      if (s.n > 0) s.n -= 1;
+      else { ok = false; s.refused += 1; }
+    }
+    this.patienceMap.set(dog.id, s);
+    const nextIn = s.n >= cap ? 0 : Math.max(1, Math.ceil((s.t + R - now) / 1000));
+    return { ok, n: s.n, cap, nextIn, refused: s.refused };
+  }
+
   act(userId, action) {
     if (!RULES.actions[action]) throw new GameError('알 수 없는 돌봄이에요.');
     const { dog: fresh, events } = this.refreshDog(userId);
     if (!fresh) throw new GameError('강아지가 없어요.', 404);
     if (fresh.school) throw new GameError(`${fresh.name}(이)가 학교에 가 있어요!`);
+    if (RULES.patience.actions.includes(action)) {
+      const p = this.patience(fresh, true);
+      if (!p.ok) {
+        // 귀찮아요! 성격마다 다른 재밌는 거절 (수치는 그대로, 벌칙 없음)
+        const list = REFUSALS[fresh.personality] ?? REFUSALS.sweet;
+        const refusal = list[(p.refused - 1) % list.length];
+        return { dog: fresh, coins: 0, exp: 0, reaction: 'grumpy', refusal, patience: p, events };
+      }
+      const res = this.actInner(userId, action, fresh, events);
+      return { ...res, patience: p };
+    }
+    return this.actInner(userId, action, fresh, events);
+  }
+
+  actInner(userId, action, fresh, events) {
     return tx(this.db, () => {
       // 밥: 사료 그릇에서 한 번 분량을 써요 (배부르면 안 먹으니까 쓰지 않아요)
       if (action === 'feed' && fresh.fullness < RULES.actions.feed.fullAt) {

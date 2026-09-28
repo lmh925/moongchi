@@ -267,6 +267,28 @@ export const PERSONALITIES = {
 };
 
 // 도입부 심리테스트: 각 선택지가 성격/견종 점수를 더합니다.
+// 참을성이 바닥났을 때 성격마다 다르게 거절해요. act: turn(홱 돌아서기) run(도망) nap(자는 척) hide(침대로 숨기) beg(간식 조르기)
+export const REFUSALS = {
+  sleepy: [
+    { act: 'nap', text: '쿨쿨… (자는 척)' }, { act: 'turn', text: '하암~ 졸려요…' }, { act: 'hide', text: '이불 속으로 쏙!' },
+  ],
+  hyper: [
+    { act: 'run', text: '잡아 봐라~!' }, { act: 'run', text: '우다다다!' }, { act: 'turn', text: '나 지금 바빠!' },
+  ],
+  foodie: [
+    { act: 'beg', text: '간식 주면 생각해 볼게…' }, { act: 'turn', text: '배고파서 기운 없어~' }, { act: 'beg', text: '쓰다듬 말고 간식!' },
+  ],
+  sweet: [
+    { act: 'turn', text: '헤헤, 오늘은 충분해~ 💕' }, { act: 'run', text: '이따 또 해 줘!' }, { act: 'nap', text: '행복해서 졸려…' },
+  ],
+  shy: [
+    { act: 'hide', text: '부, 부끄러워…!' }, { act: 'turn', text: '(얼굴 빨개짐)' }, { act: 'hide', text: '잠깐만 숨을래…' },
+  ],
+  smart: [
+    { act: 'turn', text: '흠흠, 쓰다듬기는 하루 적당히!' }, { act: 'run', text: '나 공부하러 갈게 📚' }, { act: 'turn', text: '털이 다 눕잖아~' },
+  ],
+};
+
 export const QUIZ = [
   {
     q: '주말 아침! 눈을 떴을 때 가장 하고 싶은 일은?',
@@ -820,6 +842,12 @@ export const RULES = {
     pet: { stat: 'affection', gain: 10, exp: 5, coins: 1, expBelow: 90, coinBelow: 60, fullAt: 101 },
   },
   favoriteBonus: 5, // 좋아하는 돌봄을 받으면 애정도가 추가로 올라요
+  // 😤 참을성: 쓰다듬기·빗질은 연달아 몇 번까지만 좋아해요. 시간이 지나면 다시 차요 (벌칙은 없고 수치만 안 올라요)
+  patience: {
+    refillSec: 20,
+    cap: { sweet: 6, hyper: 5, foodie: 4, smart: 4, sleepy: 3, shy: 3 },
+    actions: ['pet', 'brush'],
+  },
   dailyCoins: 20,
   startingCoins: 50,
   minigame: {
