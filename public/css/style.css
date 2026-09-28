@@ -1406,3 +1406,4 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .personality-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .personality-row .chip { border: 2px solid var(--line); background: #fff; font: inherit; font-size: 13px; padding: 4px 8px; cursor: pointer; color: var(--ink); }
 .personality-row .chip.on { background: var(--pink-l); border-color: var(--pink-d); font-weight: 700; }
+.stage.party-on canvas { touch-action: none; }

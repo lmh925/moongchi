@@ -304,6 +304,16 @@ export class Scene {
     this.running = true;
     this.last = performance.now();
     canvas.addEventListener('pointerdown', (e) => this.onPointer(e));
+    // 간식 파티: 누른 채로 끌면 강아지가 손가락을 졸졸 따라와요
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this.partyMode || !this.dragging || performance.now() - this.dragT < 90) return;
+      this.dragT = performance.now();
+      this.partyTap(e, false);
+    });
+    const endDrag = () => { this.dragging = false; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('pointerleave', endDrag);
     const loop = (t) => {
       if (!this.running) return;
       const dt = Math.min(0.1, (t - this.last) / 1000);
@@ -484,7 +494,27 @@ export class Scene {
     this.poops = list.map((p) => ({ ...p, ...toLogical(p.x, p.y) }));
   }
 
+  // 간식 파티 중에는 쓰다듬기 대신 무조건 이동! 간식 근처를 누르면 그 간식으로 바로 달려가요
+  partyTap(ev, marker) {
+    const r = this.canvas.getBoundingClientRect();
+    let x = ((ev.clientX - r.left) / r.width) * SCENE_W;
+    let y = ((ev.clientY - r.top) / r.height) * SCENE_H;
+    let best = null; let bestD = 26;
+    for (const t of this.treats.values()) {
+      const d = Math.hypot(t.lx - x, (t.ly - y) * 1.3);
+      if (d < bestD) { best = t; bestD = d; }
+    }
+    if (best) { x = best.lx; y = best.ly; }
+    const cx = Math.min(AREA.x1, Math.max(AREA.x0, x)); const cy = Math.min(AREA.y1, Math.max(AREA.y0, y));
+    if (marker) this.particles.push({ marker: true, x: cx, y: cy, vx: 0, vy: 0, life: 0.5, age: 0 });
+    this.handlers.onFloorTap?.(toNorm(cx, cy), { party: true });
+  }
+
   onPointer(ev) {
+    if (this.partyMode) {
+      this.dragging = true; this.dragT = performance.now();
+      return this.partyTap(ev, true);
+    }
     const r = this.canvas.getBoundingClientRect();
     const x = ((ev.clientX - r.left) / r.width) * SCENE_W;
     const y = ((ev.clientY - r.top) / r.height) * SCENE_H;
@@ -598,7 +628,7 @@ export class Scene {
       const me = [...this.entities.values()].find((e) => e.mine);
       if (me) {
         for (const t of this.treats.values()) {
-          if (!t.pending && t.fall === 0 && Math.abs(t.lx - me.x) < 11 && Math.abs(t.ly - me.y) < 7) {
+          if (!t.pending && t.fall === 0 && Math.abs(t.lx - me.x) < 15 && Math.abs(t.ly - me.y) < 9) {
             t.pending = true;
             this.handlers.onTreatNear(t, toNorm(me.x, me.y));
           }

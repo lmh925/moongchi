@@ -464,7 +464,7 @@ function flyCoin() {
 function updateAskBubble() {
   if (!state.scene) return;
   const cur = state.me?.asks?.cur;
-  state.scene.setAsk(myId(), cur && atHome() && !state.plaza && !state.me.dog.school ? cur : null, openAsk);
+  state.scene.setAsk(myId(), cur && atHome() && !state.plaza && !state.party && !state.me.dog.school ? cur : null, openAsk);
 }
 
 function openAsk() {
@@ -643,10 +643,10 @@ function enterGame(me) {
   if (!entered) {
     entered = true;
     state.scene = new Scene($('#stage-canvas'), $('#stage-overlay'), {
-      onFloorTap: (n) => {
+      onFloorTap: (n, { party = false } = {}) => {
         const e = state.scene.entities.get(myId());
         if (!e || e.dog?.atSchool) return toast(atHome() ? '강아지가 학교에 가 있어요!' : '강아지가 학교에 가 있어요.');
-        sfx.tap();
+        if (!party) sfx.tap();
         state.scene.moveTo(myId(), n.x, n.y);
         state.socket?.emit('room:move', n);
       },
@@ -744,6 +744,8 @@ function connectSocket() {
     if (kind === 'sticker' && (value === 'heart' || value === 'sparkle' || value === 'note')) state.scene.effectAt(userId, value, 2);
   });
   socket.on('room:pet', ({ from, to }) => {
+    // 간식 파티 중에는 멈춰 세우지 않고 하트만 퐁 (달리기를 방해하지 않게)
+    if (state.party) { state.scene.burst(state.scene.entities.get(to), 'heart', 2); return; }
     state.scene.care(to, 'love');
     if (from !== myId()) sfx.love();
     if (to === myId() && from !== myId()) {
@@ -1355,7 +1357,7 @@ function homePanel() {
     el('div', { class: 'actions' },
       actionBtn(`밥주기${state.me.food ? ` ${state.me.food.n}/${FOOD.kibbleMax}` : ''}`, 'food', openFoodBowl, away),
       actionBtn('빗질하기', 'brush', () => doCare('brush'), away),
-      actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away),
+      actionBtn('쓰다듬기', 'heart', () => doCare('pet'), away || !!state.party),
       actionBtn('개인기', 'star', openTricks, away)),
     newsTicker(state.me.news),
     villageCard(state.me, { onMap: openMap, onPlace: visitPlace }),
@@ -1429,7 +1431,7 @@ function partyButton() {
   return el('div', { class: 'party-card' },
     el('div', {},
       el('div', { class: 'title' }, '간식 파티'),
-      el('div', { class: 'meta' }, '30초 동안 떨어지는 간식을 누가 더 많이 먹을까? 바닥을 눌러 달려가요!')),
+      el('div', { class: 'meta' }, '30초 동안 떨어지는 간식을 누가 더 많이 먹을까? 간식을 톡 누르거나, 손가락으로 끌면 졸졸 따라 달려가요!')),
     el('button', {
       class: 'btn primary', disabled: !!state.party || !!state.me.dog.school,
       onclick: async () => {
@@ -1443,12 +1445,14 @@ function partyButton() {
 function startPartyView(party, quiet = false) {
   state.party = { endsAt: party.endsAt - state.offset, scores: party.scores };
   state.scene.partyMode = true;
+  $('.stage')?.classList.add('party-on'); // 끌어도 화면이 스크롤되지 않게
   state.scene.clearTreats();
   const me = state.scene.entities.get(myId());
-  if (me && me.state === 'sleep') { me.state = 'idle'; me.stateT = 0; }
+  if (me && (me.state === 'sleep' || me.state === 'care')) { me.state = 'idle'; me.stateT = 0; }
+  updateAskBubble();
   let hud = $('#party-hud');
   if (!hud) { hud = el('div', { id: 'party-hud', class: 'party-hud' }); $('.stage').append(hud); }
-  if (!quiet) { sfx.bell(); toast('간식 파티 시작! 바닥을 눌러서 간식으로 달려가요!', 'good'); }
+  if (!quiet) { sfx.bell(); toast('간식 파티 시작! 간식을 톡 누르거나 끌어서 달려가요!', 'good'); }
   playBgm('play');
   clearInterval(state.partyTimer);
   state.partyTimer = setInterval(renderPartyHud, 250);
@@ -1472,7 +1476,9 @@ function stopPartyView() {
   state.party = null;
   clearInterval(state.partyTimer);
   $('#party-hud')?.remove();
+  $('.stage')?.classList.remove('party-on');
   if (state.scene) { state.scene.partyMode = false; state.scene.clearTreats(); }
+  updateAskBubble();
 }
 
 async function endPartyView(results) {
@@ -1572,9 +1578,9 @@ function visitPanel() {
       el('span', { class: `lv-badge frame-${dog.frame ?? 0}` }, `Lv ${dog.level}`), titleChip(dog),
       el('button', { class: 'btn small secondary card-btn', onclick: () => openDogCard(dog, { ownerName: room.owner.nickname, badges: showcaseIcons(dog.showcase) }) }, '강아지 카드')) : null,
     el('div', { class: 'actions' },
-      actionBtn(dog ? `${dog.name} 쓰다듬기` : '쓰다듬기', 'heart', () => state.socket.emit('room:pet', { userId: room.owner.id }), !dog || dog.atSchool),
+      actionBtn(dog ? `${dog.name} 쓰다듬기` : '쓰다듬기', 'heart', () => state.socket.emit('room:pet', { userId: room.owner.id }), !dog || dog.atSchool || !!state.party),
       actionBtn('개인기', 'star', openTricks, !!mine.school),
-      actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school),
+      actionBtn(`${mine.name} 쓰다듬기`, 'paw', () => doCare('pet'), !!mine.school || !!state.party),
       actionBtn('집으로', 'paw', () => enterRoom(myId()), false)),
     partyButton(),
     bondList());
