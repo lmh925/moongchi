@@ -1376,13 +1376,54 @@ function partner() {
   return e ? { dog: e.dog, name: e.dog.name } : { dog: NEIGHBOR, name: '이웃집 초코' };
 }
 
+// 📸 같이 찍을 친구 고르기: 이 방 친구 · 우리 집 강아지들 · 친구 목록 강아지 · 이웃집 초코 (최대 3마리)
+async function pickBoothCast() {
+  const mine = publicDog(state.me.dog);
+  const pool = [];
+  const seen = new Set();
+  const add = (key, dog, name, tag) => { if (!dog || seen.has(key)) return; seen.add(key); pool.push({ key, dog, name, tag }); };
+  for (const e of state.scene?.entities.values() ?? []) {
+    if (e.id !== myId() && e.dog && !String(e.id).startsWith('dog:')) add(`u${e.id}`, e.dog, e.dog.name, '같이 있는 친구');
+  }
+  for (const d of state.me.dogs ?? []) if (!d.active) add(`d${d.id}`, d, d.name, '우리 집');
+  const f = await api('/friends').catch(() => ({ friends: [] }));
+  for (const fr of f.friends ?? []) if (fr.dog) add(`u${fr.id ?? fr.userId}`, fr.dog, fr.dog.name, `${fr.nickname}네`);
+  add('choco', NEIGHBOR, '이웃집 초코', '이웃집');
+  const chosen = new Set(pool.slice(0, 1).map((p) => p.key));
+  return new Promise((resolve) => {
+    const body = el('div', { class: 'booth-cast' });
+    const render = () => {
+      body.replaceChildren(
+        el('p', { class: 'sub' }, `같이 찍을 친구를 골라요! (${chosen.size}/3) · 혼자 찍어도 좋아요`),
+        el('div', { class: 'cast-grid' },
+          el('div', { class: 'cast-cell me on' }, el('img', { class: 'pixel', src: dogPortrait(mine.breed, mine.stage, { equip: mine.equip, eyes: 'happy' }), alt: '' }), el('small', {}, `${mine.name}`), el('small', {}, '나')),
+          pool.map((p) => el('button', {
+            type: 'button', class: `cast-cell ${chosen.has(p.key) ? 'on' : ''}`, 'aria-pressed': String(chosen.has(p.key)),
+            onclick: () => {
+              if (chosen.has(p.key)) chosen.delete(p.key);
+              else if (chosen.size >= 3) { toast('친구는 3마리까지 함께 찍을 수 있어요.'); return; } else chosen.add(p.key);
+              sfx.tap(); render();
+            },
+          }, el('img', { class: 'pixel', src: dogPortrait(p.dog.breed, p.dog.stage, { equip: p.dog.equip }), alt: '' }), el('small', {}, p.name), el('small', { class: 'meta' }, p.tag)))));
+    };
+    render();
+    modal({
+      title: '📸 누구랑 찍을까?', className: 'picker-modal', body, dismissable: false,
+      buttons: [
+        { label: '다음에', kind: 'secondary', onClick: () => resolve(null) },
+        { label: '찰칵하러 가기!', onClick: () => resolve([{ dog: mine, name: mine.name }, ...pool.filter((p) => chosen.has(p.key)).map((p) => ({ dog: p.dog, name: p.name }))]) },
+      ],
+    });
+  });
+}
+
 async function startPhotobooth() {
   unlock();
-  const p = partner();
-  const mine = publicDog(state.me.dog);
+  const cast = await pickBoothCast();
+  if (!cast) return;
   let again = 'again';
   while (again === 'again') {
-    again = await playPhotobooth([mine, p.dog], [mine.name, p.dog.name], { charm: state.me.dog.talentStages?.charm ?? 1 });
+    again = await playPhotobooth(cast, { charm: state.me.dog.talentStages?.charm ?? 1 });
   }
   if (state.tab === 'play') renderPanel();
 }
@@ -2622,7 +2663,7 @@ function playPanel() {
         el('div', { class: 'title' }, '네컷 포토부스', el('span', { class: 'btns' },
           el('button', { class: 'btn small', onclick: openAlbum }, '앨범'),
           el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startPhotobooth }, '찍기!'))),
-        el('div', { class: 'meta' }, '나란히 서서 소품을 씌우고 네 컷 사진을 찍어요.')),
+        el('div', { class: 'meta' }, '친구를 최대 3마리 불러서 포즈·자리·소품을 바꿔 가며 네 컷! 프레임과 펜으로 꾸며요.')),
       el('div', { class: 'card' },
         el('div', { class: 'title' }, '합동 줄넘기', el('button', { class: 'btn small green', disabled: !!dog.school, onclick: startJumpRope }, '놀기!')),
         el('div', { class: 'meta' }, '밧줄이 발밑 선에 닿을 때 톡! 둘이 같이 깡총 뛰어요. 몇 콤보까지 갈 수 있을까?'))),

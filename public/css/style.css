@@ -1407,3 +1407,43 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .personality-row .chip { border: 2px solid var(--line); background: #fff; font: inherit; font-size: 13px; padding: 4px 8px; cursor: pointer; color: var(--ink); }
 .personality-row .chip.on { background: var(--pink-l); border-color: var(--pink-d); font-weight: 700; }
 .stage.party-on canvas { touch-action: none; }
+
+/* 📸 멍뭉 네컷 (인생네컷) */
+.pb-stage.wide { aspect-ratio: 160 / 112; }
+.pb-cut { aspect-ratio: 160 / 112; }
+.pb-props { pointer-events: none; }
+.pb-prop { pointer-events: auto; }
+.pb-count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 64px; font-weight: 700; color: #fff; text-shadow: 3px 3px 0 var(--pink-d), -2px -2px 0 var(--ink); pointer-events: none; animation: pop .3s ease-out; }
+.pb-count[hidden] { display: none; }
+.pb-selbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; margin-top: 8px; padding: 6px; background: var(--pink-l); border: 2px solid var(--pink); border-radius: 10px; }
+.pb-selbar .btn { white-space: nowrap; }
+.pb-selname { white-space: nowrap; }
+.pb-pose { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.pb-pose > span { min-width: 3.5em; text-align: center; font-weight: 700; }
+.pb-deco .pb-deco-box { position: relative; width: 100%; border-radius: 6px; box-shadow: 0 3px 0 rgba(74, 51, 48, .3); }
+.pb-deco-main { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 1fr); gap: 10px; align-items: start; }
+.pb-deco-main.grid { grid-template-columns: minmax(0, 1fr); }
+.pb-deco-side .segmented { margin-top: 0; }
+.pb-deco-main:not(.grid) .pb-deco-side .segmented button { font-size: 12px; padding: 6px 4px; }
+.pb-deco-box canvas { display: block; width: 100%; height: auto; }
+.pb-deco-draw { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+.pb-deco-panel { margin-top: 6px; }
+.pb-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-opts .btn { white-space: nowrap; }
+.pb-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-swatch { width: 58px; height: 42px; border: 3px solid var(--line); border-radius: 10px; display: grid; place-items: end center; padding-bottom: 2px; cursor: pointer; font: inherit; }
+.pb-swatch small { font-size: 10px; background: rgba(255, 255, 255, .8); border-radius: 4px; padding: 0 3px; color: var(--ink); }
+.pb-swatch.on, .pb-pen.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--pink); }
+.pb-pen { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--line); cursor: pointer; }
+.pb-swatches.pens { margin: 6px 0; }
+.pb-stamps { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pb-stamps .pb-item { flex: 0 0 48px; height: 48px; cursor: pointer; }
+.pb-stamps .pb-item.on { border-color: var(--pink-d); background: var(--pink-l); }
+.booth-cast .cast-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.cast-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; background: #fff; border: 2px solid var(--line); border-radius: 10px; font: inherit; color: var(--ink); cursor: pointer; }
+.cast-cell img { width: 56px; height: 51px; }
+.cast-cell small { font-size: 11px; line-height: 1.25; text-align: center; }
+.cast-cell.on { border-color: var(--pink-d); background: var(--pink-l); box-shadow: 0 0 0 2px var(--pink); }
+.cast-cell.me { border-style: dashed; cursor: default; }
+.polaroid img { max-height: 60vh; width: auto; max-width: 100%; display: block; margin: 0 auto; }
+.pb-card > .modal-buttons { position: sticky; bottom: -12px; background: var(--paper); padding: 8px 0 12px; margin-bottom: -12px; z-index: 3; }
