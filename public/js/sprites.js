@@ -250,6 +250,122 @@ const FRONT_ACC = {
   sw_visor: { dx: -7, dy: -2, map: ['ooooooooooooooo', 'olccccccccccclo', 'occccccccccccco', 'ooooooooooooooo'] },
 };
 
+
+// ---------- 옷 · 코스튬 (몸) ----------
+// base: 옷 색, pat: 무늬, 그 밖에 치마·망토·날개·등지느러미·등뼈 같은 모양을 더해요
+export const OUTFITS = {
+  body_stripe: { base: '#5b8cff', pat: 'stripe', pc: '#ffffff' },
+  body_hoodie: { base: '#ffb3c9', pat: 'plain', pocket: '#ff8fb1', trim: '#ff8fb1' },
+  body_raincoat: { base: '#ffd23f', pat: 'plain', buttons: '#c98a00', trim: '#ffe98a' },
+  body_overall: { base: '#5a86c8', pat: 'overall', pc: '#fff6e6', buttons: '#ffd23f' },
+  body_sweater: { base: '#e84a5f', pat: 'knit', pc: '#ffffff', trim: '#ffffff' },
+  body_dress: { base: '#ffe3ef', pat: 'dots', pc: '#ff6f91', skirt: '#ffc2d3' },
+  body_tutu: { base: '#ffc2d3', pat: 'plain', skirt: '#fff0f6', tutu: true },
+  body_hanbok: { base: '#ffe066', pat: 'saekdong', skirt: '#e84a5f', trim: '#ffffff' },
+  body_tuxedo: { base: '#2b2b3a', pat: 'tux', pc: '#ffffff', emblem: '#e84a5f' },
+  body_princess: { base: '#c7a8ff', pat: 'plain', skirt: '#e3d4ff', tutu: true, emblem: '#ffd23f' },
+  body_bee: { base: '#ffd23f', pat: 'band', pc: '#2b2b3a', wings: '#eaf6ff' },
+  body_dino: { base: '#6cc070', pat: 'plain', belly: '#c9eea0', spikes: '#ffd23f' },
+  body_ladybug: { base: '#e84a5f', pat: 'bigdots', pc: '#2b2b3a' },
+  body_shark: { base: '#7f9ab8', pat: 'plain', belly: '#ffffff', fin: '#6c86a5' },
+  body_hero: { base: '#5b8cff', pat: 'plain', cape: '#e84a5f', emblem: '#ffd23f' },
+  body_angel: { base: '#ffffff', pat: 'plain', trim: '#ffe066', wings: '#ffffff' },
+  body_santa: { base: '#e84a5f', pat: 'plain', trim: '#ffffff', belt: '#2b2b3a' },
+  body_witch: { base: '#6a4fb1', pat: 'plain', cape: '#3d2f6b', emblem: '#ffe066' },
+  // 패션쇼 무대 전용
+  sw_picnic_dress: { base: '#ffffff', pat: 'check', pc: '#e84a5f', skirt: '#ff9fb8' },
+  sw_party_suit: { base: '#b07cff', pat: 'dots', pc: '#ffe066', emblem: '#ff6f91' },
+  sw_winter_coat: { base: '#e07a5f', pat: 'plain', trim: '#ffffff', buttons: '#6b3f2a' },
+  sw_sailor_suit: { base: '#ffffff', pat: 'sailor', pc: '#3f6fd8', emblem: '#e84a5f' },
+  sw_royal_gown: { base: '#e84a5f', pat: 'plain', skirt: '#ffd23f', cape: '#8a2be2', emblem: '#ffffff' },
+  sw_school_uniform: { base: '#2f4a7a', pat: 'tux', pc: '#ffffff', emblem: '#e84a5f', skirt: '#4a6b9a' },
+  sw_flower_dress: { base: '#c9eea0', pat: 'dots', pc: '#ff9fc4', skirt: '#ffe3ef', tutu: true },
+  sw_space_suit: { base: '#e3e9f2', pat: 'plain', belt: '#5b8cff', emblem: '#e84a5f', buttons: '#ffd23f' },
+};
+const SAEKDONG = ['#e84a5f', '#ffd23f', '#6cc070', '#5b8cff', '#ffffff', '#ff9fc4'];
+
+function addColor(grid, key, c) { grid.pal[key] = c; grid.pal[`${key}S`] = shade(c, -26); grid.pal[`${key}L`] = shade(c, 16); }
+
+// region: 옷을 입힐 몸통 픽셀, box: { cx, cy, rx, ry, front }
+function paintOutfit(grid, region, o, box) {
+  addColor(grid, 'cl', o.base);
+  grid.paint(region, 'cl', { outline: false });
+  const { cx, cy, rx, ry } = box;
+  for (let y = 0; y < grid.h; y++) {
+    for (let x = 0; x < grid.w; x++) {
+      if (!region.has(x, y)) continue;
+      let c = null;
+      if (o.pat === 'stripe' && y % 3 === 0) c = o.pc;
+      else if (o.pat === 'knit' && ((x + (y % 2 ? 1 : 0)) % 4 === 0) && y % 2) c = o.pc;
+      else if (o.pat === 'dots' && x % 4 === 1 && y % 3 === 1) c = o.pc;
+      else if (o.pat === 'bigdots' && x % 6 < 2 && (y + (Math.floor(x / 6) % 2) * 2) % 5 < 2) c = o.pc;
+      else if (o.pat === 'band' && Math.floor((box.front ? y : x) / 3) % 2) c = o.pc;
+      else if (o.pat === 'saekdong') c = SAEKDONG[Math.floor((box.front ? y : x) / 2) % SAEKDONG.length];
+      else if (o.pat === 'overall' && y < cy - 1) c = o.pc;
+      else if (o.pat === 'check' && (Math.floor(x / 2) + Math.floor(y / 2)) % 2) c = o.pc;
+      else if (o.pat === 'sailor' && (y < cy - ry * 0.4 || Math.abs(y - (cy + ry * 0.4)) < 1)) c = o.pc;
+      else if (o.pat === 'tux' && (box.front ? Math.abs(x - cx) < 2.5 : x > cx + rx * 0.35)) c = o.pc;
+      if (o.belly && y > cy + ry * 0.2) c = o.belly;
+      if (o.belt && Math.abs(y - (cy + 1)) < 1) c = o.belt;
+      if (o.trim && !region.has(x, y + 1)) c = o.trim;
+      if (c) grid.set(x, y, c);
+    }
+  }
+  // 작은 장식: 단추·주머니·가슴 엠블럼
+  const chestX = box.front ? Math.round(cx) : Math.round(cx + rx * 0.55); const chestY = Math.round(cy - (box.front ? 1 : 0));
+  if (o.buttons) for (let i = 0; i < 2; i++) if (region.has(chestX, chestY - 1 + i * 3)) grid.set(chestX, chestY - 1 + i * 3, o.buttons);
+  if (o.pocket && region.has(chestX - 1, chestY + 2)) { grid.set(chestX - 1, chestY + 2, o.pocket); grid.set(chestX, chestY + 2, o.pocket); grid.set(chestX + 1, chestY + 2, o.pocket); }
+  if (o.emblem) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (region.has(chestX + dx, chestY + dy)) grid.set(chestX + dx, chestY + dy, o.emblem);
+  if (o.pat === 'overall') for (const dx of box.front ? [-3, 3] : [0]) for (let y = Math.round(cy - ry); y < cy; y++) if (region.has(Math.round(cx + dx + (box.front ? 0 : rx * 0.3)), y)) grid.set(Math.round(cx + dx + (box.front ? 0 : rx * 0.3)), y, o.base);
+}
+
+// 옷 모양 더하기 (치마·망토·날개·등지느러미·등뼈)
+function outfitShapes(grid, o, box, bodyMask, when) {
+  const { cx, cy, rx, ry, front } = box;
+  if (when === 'behind') {
+    if (o.wings) {
+      addColor(grid, 'wg', o.wings);
+      const w = grid.mask();
+      if (front) w.ellipse(cx - rx - 2, cy - ry * 0.5, 4, 5).ellipse(cx + rx + 2, cy - ry * 0.5, 4, 5);
+      else w.ellipse(cx - 3, cy - ry - 3, 5, 4).ellipse(cx + 2, cy - ry - 4, 4, 3);
+      grid.paint(w, 'wg');
+    }
+    if (o.cape && front) { addColor(grid, 'ca', o.cape); grid.paint(grid.mask().ellipse(cx, cy + 1, rx + 2.5, ry + 1.5), 'ca'); }
+    return;
+  }
+  if (o.skirt) {
+    addColor(grid, 'sk', o.skirt);
+    const sk = grid.mask();
+    const sy = cy + ry * 0.55;
+    sk.ellipse(cx, sy, rx + (front ? 2.5 : 1.5), Math.max(2.5, ry * 0.5));
+    if (o.tutu) sk.bumps(cx, sy, rx + (front ? 2.5 : 1.5), Math.max(2.5, ry * 0.5), 12, 1.4);
+    grid.paint(sk, 'sk');
+    if (o.tutu) for (let x = Math.round(cx - rx); x <= cx + rx; x += 3) grid.set(x, Math.round(sy), '#ffffff');
+  }
+  if (o.cape && !front) {
+    addColor(grid, 'ca', o.cape);
+    const c = grid.mask();
+    c.tri(cx + rx * 0.7, cy - ry, cx - rx - 4, cy - ry * 0.2, cx - rx - 2, cy + ry * 0.8).tri(cx + rx * 0.7, cy - ry, cx + rx * 0.2, cy - ry * 0.2, cx - rx - 2, cy + ry * 0.8);
+    grid.paint(c, 'ca');
+  }
+  if (o.cape && front) { // 망토 매듭
+    grid.set(Math.round(cx) - 1, Math.round(cy - ry) + 1, o.emblem ?? '#ffd23f'); grid.set(Math.round(cx), Math.round(cy - ry) + 1, o.emblem ?? '#ffd23f');
+  }
+  if ((o.spikes || o.fin) && !front) {
+    const top = (x) => { for (let y = 0; y < grid.h; y++) if (bodyMask.has(x, y)) return y; return null; };
+    const m = grid.mask();
+    if (o.spikes) {
+      for (let x = Math.round(cx - rx + 3); x <= cx + rx - 4; x += 4) { const t = top(x); if (t !== null) m.tri(x - 2, t + 1, x + 2, t + 1, x, t - 3); }
+      addColor(grid, 'sp', o.spikes); grid.paint(m, 'sp');
+    } else {
+      const x = Math.round(cx - 1); const t = top(x);
+      if (t !== null) m.tri(x - 4, t + 1, x + 3, t + 1, x - 2, t - 6);
+      addColor(grid, 'fn', o.fin); grid.paint(m, 'fn');
+    }
+  }
+  if (o.wings && front) { /* 앞모습 날개는 몸 뒤에서 이미 그렸어요 */ }
+}
+
 // ---------- 강아지 그리기 ----------
 const STAGE_GEO = [
   { headR: 7.5, bodyRx: 7.5, bodyRy: 5, leg: 3 },
@@ -414,6 +530,9 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
   }
 
   // 3) 몸통 (+포메 갈기)
+  const outfit = OUTFITS[opts.equip?.body];
+  const obox = { cx: bcx, cy: bcy, rx: bodyRx, ry: bodyRy, front: false };
+  if (outfit) outfitShapes(grid, outfit, obox, null, 'behind');
   {
     const m = grid.mask().ellipse(bcx, bcy, bodyRx + extra * 0.5, bodyRy + extra * 0.5);
     if (sitting) m.ellipse(bcx - 3, GROUND - 3, 5, 3.5);
@@ -448,6 +567,13 @@ export function buildDog(breedId, stage, pose = 'stand', opts = {}) {
     if (b.pattern === 'collie' && !lying) {
       const collar = clip(grid.mask().ellipse(bcx + bodyRx - 2, bcy - 1, 3.5, bodyRy + 1), m);
       grid.paint(collar, 'acc', { outline: false });
+    }
+    // 👕 옷: 엉덩이 쪽 조금은 털이 보이게 남겨요
+    if (outfit) {
+      const region = grid.mask();
+      for (let y = 0; y < grid.h; y++) for (let x = 0; x < grid.w; x++) if (m.has(x, y) && x > bcx - bodyRx * 0.72) region.set(x, y);
+      paintOutfit(grid, region, outfit, obox);
+      outfitShapes(grid, outfit, obox, m, 'over');
     }
   }
 
@@ -638,6 +764,9 @@ function buildDogFront(b, stage, opts) {
 
   // 몸통 (+포메 갈기)
   let bodyMask;
+  const outfit = OUTFITS[opts.equip?.body];
+  const obox = { cx: C, cy: bcy, rx: bodyRx, ry: bodyRy, front: true };
+  if (outfit) outfitShapes(grid, outfit, obox, null, 'behind');
   {
     const m = grid.mask().ellipse(C, bcy, bodyRx, bodyRy);
     if (fuzzy) m.bumps(C, bcy, bodyRx, bodyRy, 10 + fluff * 4, bumpR + extra * 0.5, 0, Math.PI);
@@ -657,6 +786,7 @@ function buildDogFront(b, stage, opts) {
       const sad = clip(grid.mask().ellipse(C + bodyRx * 0.55, bcy - bodyRy * 0.3, bodyRx * 0.45, bodyRy * 0.6).ellipse(C - bodyRx * 0.55, bcy - bodyRy * 0.3, bodyRx * 0.45, bodyRy * 0.6), m);
       grid.paint(sad, 'sad', { outline: false });
     }
+    if (outfit) { paintOutfit(grid, m, outfit, obox); outfitShapes(grid, outfit, obox, m, 'over'); }
   }
 
   // 앞다리
@@ -668,8 +798,8 @@ function buildDogFront(b, stage, opts) {
     if (bottomAcc) grid.paint(grid.mask().rect(x, GROUND - tanH + 1, 3, tanH), 'acc', { outline: false, flat: true });
   }
 
-  // 말티즈의 길게 늘어진 털
-  if (b.coat === 'silky') {
+  // 말티즈의 길게 늘어진 털 (옷을 입으면 옷 속으로 쏙)
+  if (b.coat === 'silky' && !outfit) {
     const m = grid.mask();
     const top = Math.round(bcy);
     for (let x = Math.round(C - bodyRx + 1); x <= Math.round(C + bodyRx - 1); x++) {
@@ -928,6 +1058,8 @@ export function propFit(id) {
 
 // 액세서리 단독 미리보기 (상점)
 export function accessoryURL(id, scale = 4) {
+  // 옷은 하얀 비숑에게 입혀서 보여 줘요
+  if (OUTFITS[id]) return dogPortrait('bichon', 1, { equip: { body: id } });
   const acc = ACCESSORIES[id];
   if (!acc) return null;
   const w = Math.max(...acc.map.map((r) => r.length));

@@ -2,7 +2,7 @@
 import crypto from 'node:crypto';
 import {
   PERSONALITIES, BREEDS, RULES, SCHOOL_COURSES, REPORT_SUBJECTS, TEACHER_COMMENTS, EARLY_COMMENTS, TRICKS,
-  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
+  STAGE_GIFT_TRICK, STARTING_TRICKS, ITEMS, RARITY, GACHA, TRAINING, DOG_SLOTS, ROOM_SLOTS, REQUIRED_ROOM_SLOTS, DEFAULT_OWNED, DEFAULT_ROOM, STAGES,
   SPECIAL_CAPSULE, SPECIALS, RENAME_PRICE, ADOPT, FOOD, TREATS, TREAT_RULES, POOP, SCHOOL_BOOSTS, BOOST_RULES, TALENTS, TALENT_DAILY_CAP, TALENT_PERSONALITY, TALENT_PERSONALITY_BONUS, TALENT_GAINS, TALENT_PERKS, TITLES, RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL, CERTS, ASK_RULES, TASTES, RUN_BOOSTERS, RUN_CHESTS, RUN_REVIVE,
 } from '../shared/data.js';
 import {
@@ -62,7 +62,7 @@ function rowToUser(row) {
     nickname: row.nickname,
     friendCode: row.friend_code,
     coins: row.coins,
-    owned: JSON.parse(row.owned),
+    owned: [...new Set([...DEFAULT_OWNED, ...JSON.parse(row.owned)])], // 기본 가구(나중에 생긴 바닥 등)는 모두 가지고 있어요
     room: { ...DEFAULT_ROOM, ...JSON.parse(row.room) },
     lastDaily: row.last_daily,
     minigameDate: row.minigame_date,
@@ -731,7 +731,7 @@ export class Game {
       return { dog, user, events };
     }
     if (ROOM_SLOTS.includes(slot)) {
-      if (itemId === null && (slot === 'wallpaper' || slot === 'bed')) throw new GameError('이건 꼭 하나 있어야 해요.');
+      if (itemId === null && REQUIRED_ROOM_SLOTS.includes(slot)) throw new GameError('이건 꼭 하나 있어야 해요.');
       const changed = user.room[slot] !== itemId;
       user.room[slot] = itemId;
       this.db.prepare('UPDATE users SET room = ? WHERE id = ?').run(JSON.stringify(user.room), userId);

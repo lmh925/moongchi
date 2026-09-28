@@ -25,7 +25,7 @@ import { Extras } from './extras.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
-import { RULES, TRAINING } from '../shared/data.js';
+import { RULES, TRAINING, DOG_SLOTS } from '../shared/data.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -321,8 +321,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.post('/equip', authed, wrap((req) => {
     const slot = req.body?.slot;
     const res = game.equip(req.userId, slot, req.body?.itemId ?? null);
-    if (!['head', 'neck', 'face'].includes(slot)) res.events = [...(res.events ?? []), ...village.checkSets(req.userId, game.getUser(req.userId).room)];
-    if (['head', 'neck', 'face'].includes(slot)) { hub.dogChanged(req.userId); plaza.dogChanged(req.userId); } else hub.roomDecorChanged(req.userId);
+    if (!DOG_SLOTS.includes(slot)) res.events = [...(res.events ?? []), ...village.checkSets(req.userId, game.getUser(req.userId).room)];
+    if (DOG_SLOTS.includes(slot)) { hub.dogChanged(req.userId); plaza.dogChanged(req.userId); } else hub.roomDecorChanged(req.userId);
     return me(req.userId, { events: res.events ?? [] });
   }));
 

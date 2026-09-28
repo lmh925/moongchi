@@ -1841,8 +1841,11 @@ async function goSchool(course) {
 
 function roomThumb(id) {
   const item = ITEMS[id];
-  const c = renderRoom({ wallpaper: item.slot === 'wallpaper' ? id : 'wall_wood', [item.slot]: id });
-  const crop = { wallpaper: [0, 0, 64, 48], rug: [52, 104, 96, 32], bed: [8, 70, 56, 40], toy: [136, 110, 28, 24] }[item.slot];
+  const c = renderRoom({ wallpaper: item.slot === 'wallpaper' ? id : 'wall_wood', deco: item.slot === 'deco' ? id : null, [item.slot]: id });
+  const crop = {
+    wallpaper: [0, 0, 64, 48], floor: [0, 76, 64, 40], deco: [0, 0, 64, 48], rug: [52, 104, 96, 32], bed: [8, 70, 56, 40],
+    furni: [130, 36, 60, 56], toy: [134, 104, 32, 28],
+  }[item.slot];
   const out = document.createElement('canvas');
   out.width = crop[2] * 2; out.height = crop[3] * 2;
   const ctx = out.getContext('2d');
@@ -1854,7 +1857,7 @@ function roomThumb(id) {
 function closetPanel() {
   const { user, dog } = state.me;
   const dogTab = state.closetTab === 'dog';
-  const slots = dogTab ? DOG_SLOTS : ROOM_SLOTS;
+  const slots = dogTab ? ['body', ...DOG_SLOTS.filter((x) => x !== 'body')] : ROOM_SLOTS; // 새 옷이 먼저 보이게
   const current = (slot) => (dogTab ? dog.equip[slot] : user.room[slot]);
   const preview = dogTab ? el('img', { class: 'pixel', style: { width: `${DOG_W * 2}px`, height: `${DOG_H * 2}px`, display: 'block', margin: '0 auto' }, src: dogPortrait(dog.breed, dog.stage, { equip: dog.equip }), alt: '' }) : null;
   const itemNode = (id) => {
@@ -1862,7 +1865,7 @@ function closetPanel() {
     const owned = user.owned.includes(id);
     const on = current(item.slot) === id;
     const locked = dogTab && dog.stage < item.stage;
-    const thumb = dogTab ? accessoryURL(id, 5) : roomThumb(id);
+    const thumb = item.slot === 'body' ? dogPortrait(dog.breed, dog.stage, { equip: { ...dog.equip, body: id } }) : dogTab ? accessoryURL(id, 5) : roomThumb(id);
     const gachaOnly = item.shop === false && !owned;
     return el('button', {
       class: `item r-${item.rarity} ${on ? 'equipped' : ''} ${locked ? 'locked' : ''} ${gachaOnly ? 'mystery' : ''}`,
@@ -1896,13 +1899,15 @@ function closetPanel() {
     preview,
     ...slots.map((slot) => {
       const ids = Object.keys(ITEMS).filter((k) => ITEMS[k].slot === slot);
-      const label = { head: '머리', neck: '목', face: '얼굴', wallpaper: '벽지', rug: '러그', bed: '침대', toy: '장난감' }[slot];
+      const label = { head: '머리', neck: '목', face: '얼굴', body: '옷 · 코스튬', wallpaper: '벽지', floor: '바닥', deco: '벽 장식', rug: '러그', bed: '침대', furni: '가구', toy: '장난감' }[slot];
       return el('div', {}, el('div', { class: 'section-title' }, label), el('div', { class: 'items' }, ids.map(itemNode)));
     }));
 }
 
 function itemThumb(id) {
-  return ['head', 'neck', 'face'].includes(ITEMS[id].slot) ? accessoryURL(id, 5) : roomThumb(id);
+  const slot = ITEMS[id].slot;
+  if (slot === 'body') return dogPortrait(state.me?.dog?.breed ?? 'bichon', 1, { equip: { body: id } });
+  return DOG_SLOTS.includes(slot) ? accessoryURL(id, 5) : roomThumb(id);
 }
 
 function showOdds() {
@@ -1951,7 +1956,7 @@ async function itemClick(id, { owned, on, locked }) {
       applyMe(res);
       toast(`${item.name}(을)를 샀어요!`, 'good');
     }
-    const required = item.slot === 'wallpaper' || item.slot === 'bed';
+    const required = ['wallpaper', 'floor', 'bed'].includes(item.slot);
     if (on && required) return toast('이건 꼭 하나 있어야 해요. 다른 걸 골라 주세요!');
     res = await post('/equip', { slot: item.slot, itemId: on ? null : id });
     applyMe(res);
@@ -2511,7 +2516,7 @@ function openShowWardrobe() {
       el('img', { class: 'pixel wardrobe-preview', src: dogPortrait(dog.breed, dog.stage, { equip }), alt: '' }),
       el('p', { class: 'hint center' }, '무대에서만 빌려 입는 옷이에요. ✨ 주제에 맞는 옷을 입으면 응원을 하나 더 받고 시작해요! (최대 2개)'),
       DOG_SLOTS.map((slot) => el('div', {},
-        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴' }[slot]),
+        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴', body: '옷' }[slot]),
         el('div', { class: 'items' }, picks.filter((id) => SHOW_WARDROBE[id].slot === slot).map((id) => {
           const on = costume()[slot] === id;
           const match = SHOW_WARDROBE[id].theme === themeKey;
@@ -2539,7 +2544,7 @@ function openQuickCloset() {
     return el('div', { class: 'quick-closet' }, DOG_SLOTS.map((slot) => {
       const ids = user.owned.filter((id) => ITEMS[id]?.slot === slot && (ITEMS[id].stage ?? 0) <= dog.stage);
       return el('div', {},
-        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴' }[slot]),
+        el('div', { class: 'section-title' }, { head: '머리', neck: '목', face: '얼굴', body: '옷' }[slot]),
         ids.length ? el('div', { class: 'items' }, ids.map((id) => {
           const on = dog.equip[slot] === id;
           return el('button', {

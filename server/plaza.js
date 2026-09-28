@@ -590,7 +590,7 @@ export class PlazaHub {
     if (!m) return { ok: false, reason: '놀이터에 들어가 있지 않아요.' };
     const s = this.channels.get(socket.data.plaza)?.show;
     if (!s || !s.players.includes(m.userId) || s.status !== 'dress') return { ok: false, reason: '옷 갈아입는 시간에만 의상실을 쓸 수 있어요.' };
-    if (!['head', 'neck', 'face'].includes(slot)) return { ok: false, reason: '그런 자리는 없어요.' };
+    if (!['head', 'neck', 'face', 'body'].includes(slot)) return { ok: false, reason: '그런 자리는 없어요.' };
     if (itemId !== null && SHOW_WARDROBE[itemId]?.slot !== slot) return { ok: false, reason: '그런 의상은 없어요.' };
     const now = Date.now();
     if (now - (m.lastDress ?? 0) < 150) return { ok: false, reason: '천천히 갈아입어요!' };

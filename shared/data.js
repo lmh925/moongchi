@@ -349,7 +349,7 @@ export const TRICKS = {
 export const STAGE_GIFT_TRICK = { 1: 'jump', 2: 'dance' };
 export const STARTING_TRICKS = ['sit'];
 
-// 꾸미기 아이템: 강아지 액세서리(head/neck/face)와 방 가구(wallpaper/rug/bed/toy)
+// 꾸미기 아이템: 강아지 액세서리(head/neck/face/body)와 방 가구(wallpaper/floor/deco/rug/bed/furni/toy)
 // rarity: common(일반) / rare(레어) / epic(전설). shop: false면 뽑기에서만 나와요.
 export const ITEMS = {
   // 강아지 액세서리 - 머리
@@ -379,6 +379,26 @@ export const ITEMS = {
   heart_glasses: { name: '하트 안경', slot: 'face', stage: 0, price: null, rarity: 'rare', shop: false },
   star_glasses: { name: '별 안경', slot: 'face', stage: 1, price: 60, rarity: 'rare' },
   sunglasses: { name: '선글라스', slot: 'face', stage: 2, price: 80, rarity: 'rare' },
+  // 옷 (몸)
+  body_stripe: { name: '줄무늬 티셔츠', slot: 'body', stage: 0, price: 40, rarity: 'common' },
+  body_hoodie: { name: '딸기우유 후드티', slot: 'body', stage: 0, price: 55, rarity: 'common' },
+  body_raincoat: { name: '노란 우비', slot: 'body', stage: 0, price: 50, rarity: 'common' },
+  body_overall: { name: '청 멜빵바지', slot: 'body', stage: 0, price: 60, rarity: 'common' },
+  body_sweater: { name: '눈꽃 스웨터', slot: 'body', stage: 0, price: 65, rarity: 'common' },
+  body_dress: { name: '꽃무늬 원피스', slot: 'body', stage: 0, price: 70, rarity: 'rare' },
+  body_tutu: { name: '발레 튜튜', slot: 'body', stage: 0, price: 80, rarity: 'rare' },
+  body_hanbok: { name: '색동 한복', slot: 'body', stage: 0, price: 100, rarity: 'rare' },
+  body_tuxedo: { name: '멋쟁이 턱시도', slot: 'body', stage: 1, price: 110, rarity: 'rare' },
+  body_princess: { name: '공주님 드레스', slot: 'body', stage: 1, price: 150, rarity: 'epic' },
+  // 코스튬 (몸)
+  body_bee: { name: '꿀벌 코스튬', slot: 'body', stage: 0, price: 90, rarity: 'rare' },
+  body_dino: { name: '공룡 코스튬', slot: 'body', stage: 0, price: 120, rarity: 'rare' },
+  body_ladybug: { name: '무당벌레 코스튬', slot: 'body', stage: 0, price: null, rarity: 'rare', shop: false },
+  body_shark: { name: '아기 상어 코스튬', slot: 'body', stage: 0, price: null, rarity: 'rare', shop: false },
+  body_hero: { name: '슈퍼히어로 망토', slot: 'body', stage: 0, price: null, rarity: 'epic', shop: false },
+  body_angel: { name: '천사 날개 옷', slot: 'body', stage: 0, price: null, rarity: 'epic', shop: false },
+  body_santa: { name: '산타 옷', slot: 'body', stage: 0, price: null, rarity: 'rare', shop: false },
+  body_witch: { name: '꼬마 마녀 망토', slot: 'body', stage: 0, price: null, rarity: 'epic', shop: false },
   // 방 가구 - 벽지
   wall_wood: { name: '포근한 나무 벽', slot: 'wallpaper', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
   wall_pink: { name: '딸기우유 벽지', slot: 'wallpaper', stage: 0, price: 60, rarity: 'common' },
@@ -387,18 +407,54 @@ export const ITEMS = {
   wall_night: { name: '별밤 벽지', slot: 'wallpaper', stage: 0, price: 100, rarity: 'rare' },
   wall_sky: { name: '구름 하늘 벽지', slot: 'wallpaper', stage: 0, price: null, rarity: 'rare', shop: false },
   wall_forest: { name: '숲속 오두막 벽지', slot: 'wallpaper', stage: 0, price: null, rarity: 'epic', shop: false },
+  wall_brick: { name: '빨간 벽돌 벽', slot: 'wallpaper', stage: 0, price: 70, rarity: 'common' },
+  wall_lemon: { name: '레몬 도트 벽지', slot: 'wallpaper', stage: 0, price: 60, rarity: 'common' },
+  wall_ocean: { name: '바닷속 벽지', slot: 'wallpaper', stage: 0, price: 110, rarity: 'rare' },
+  wall_heart: { name: '하트 뿅뿅 벽지', slot: 'wallpaper', stage: 0, price: null, rarity: 'rare', shop: false },
+  // 바닥
+  floor_wood: { name: '나무 마루', slot: 'floor', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
+  floor_tile: { name: '파스텔 체크 타일', slot: 'floor', stage: 0, price: 50, rarity: 'common' },
+  floor_pink: { name: '폭신 분홍 카펫', slot: 'floor', stage: 0, price: 60, rarity: 'common' },
+  floor_marble: { name: '반짝 대리석', slot: 'floor', stage: 0, price: 90, rarity: 'rare' },
+  floor_grass: { name: '잔디 마당', slot: 'floor', stage: 0, price: 70, rarity: 'common' },
+  floor_candy: { name: '사탕 줄무늬 바닥', slot: 'floor', stage: 0, price: 80, rarity: 'rare' },
+  floor_star: { name: '별빛 바닥', slot: 'floor', stage: 0, price: null, rarity: 'rare', shop: false },
+  floor_cloud: { name: '구름 바닥', slot: 'floor', stage: 0, price: null, rarity: 'epic', shop: false },
+  // 벽 장식
+  deco_frame: { name: '발바닥 액자', slot: 'deco', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
+  deco_bunting: { name: '알록달록 가랜드', slot: 'deco', stage: 0, price: 35, rarity: 'common' },
+  deco_clock: { name: '뻐꾸기 시계', slot: 'deco', stage: 0, price: 50, rarity: 'common' },
+  deco_poster: { name: '멍뭉 포스터', slot: 'deco', stage: 0, price: 40, rarity: 'common' },
+  deco_lights: { name: '반짝 꼬마전구', slot: 'deco', stage: 0, price: 70, rarity: 'rare' },
+  deco_neon: { name: '하트 네온사인', slot: 'deco', stage: 0, price: null, rarity: 'rare', shop: false },
+  deco_medals: { name: '트로피 선반', slot: 'deco', stage: 0, price: null, rarity: 'epic', shop: false },
   // 러그
   rug_round: { name: '분홍 동그라미 러그', slot: 'rug', stage: 0, price: 40, rarity: 'common' },
   rug_check: { name: '체크무늬 러그', slot: 'rug', stage: 0, price: 45, rarity: 'common' },
   rug_grass: { name: '잔디 매트', slot: 'rug', stage: 0, price: 50, rarity: 'common' },
   rug_rainbow: { name: '무지개 러그', slot: 'rug', stage: 0, price: 90, rarity: 'rare' },
   rug_star: { name: '별님 러그', slot: 'rug', stage: 0, price: null, rarity: 'rare', shop: false },
+  rug_heart: { name: '하트 러그', slot: 'rug', stage: 0, price: 55, rarity: 'common' },
+  rug_paw: { name: '발바닥 러그', slot: 'rug', stage: 0, price: 50, rarity: 'common' },
+  rug_ocean: { name: '파도 러그', slot: 'rug', stage: 0, price: null, rarity: 'rare', shop: false },
   // 침대
   bed_basket: { name: '바구니 침대', slot: 'bed', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
   bed_cloud: { name: '구름 침대', slot: 'bed', stage: 0, price: 80, rarity: 'rare' },
   bed_house: { name: '빨간 지붕 집', slot: 'bed', stage: 0, price: 120, rarity: 'rare' },
   bed_tent: { name: '캠핑 텐트', slot: 'bed', stage: 0, price: null, rarity: 'rare', shop: false },
   bed_castle: { name: '공주님 성 침대', slot: 'bed', stage: 0, price: null, rarity: 'epic', shop: false },
+  bed_cushion: { name: '동글 방석', slot: 'bed', stage: 0, price: 45, rarity: 'common' },
+  bed_car: { name: '자동차 침대', slot: 'bed', stage: 0, price: 110, rarity: 'rare' },
+  bed_shell: { name: '조개 침대', slot: 'bed', stage: 0, price: null, rarity: 'epic', shop: false },
+  // 큰 가구 (벽 앞)
+  furni_sofa: { name: '말랑 소파', slot: 'furni', stage: 0, price: 80, rarity: 'common' },
+  furni_bookcase: { name: '책장', slot: 'furni', stage: 0, price: 70, rarity: 'common' },
+  furni_lamp: { name: '스탠드 조명', slot: 'furni', stage: 0, price: 50, rarity: 'common' },
+  furni_plant: { name: '커다란 화분', slot: 'furni', stage: 0, price: 45, rarity: 'common' },
+  furni_piano: { name: '장난감 피아노', slot: 'furni', stage: 0, price: 120, rarity: 'rare' },
+  furni_fishtank: { name: '물고기 어항', slot: 'furni', stage: 0, price: 100, rarity: 'rare' },
+  furni_wardrobe: { name: '공주님 옷장', slot: 'furni', stage: 0, price: null, rarity: 'rare', shop: false },
+  furni_arcade: { name: '멍뭉 오락기', slot: 'furni', stage: 0, price: null, rarity: 'epic', shop: false },
   // 장난감
   toy_ball: { name: '통통 공', slot: 'toy', stage: 0, price: 20, rarity: 'common' },
   toy_bone: { name: '뼈다귀 인형', slot: 'toy', stage: 0, price: 30, rarity: 'common' },
@@ -407,6 +463,10 @@ export const ITEMS = {
   toy_cactus: { name: '선인장 화분', slot: 'toy', stage: 0, price: null, rarity: 'common', shop: false },
   clover: { name: '네잎클로버 핀', slot: 'head', stage: 0, price: null, rarity: 'rare', shop: false, gacha: false, reward: true },
   toy_rocket: { name: '우주 로켓', slot: 'toy', stage: 0, price: null, rarity: 'epic', shop: false },
+  toy_blocks: { name: '쌓기 블록', slot: 'toy', stage: 0, price: 30, rarity: 'common' },
+  toy_yarn: { name: '털실 공', slot: 'toy', stage: 0, price: 25, rarity: 'common' },
+  toy_dino: { name: '공룡 인형', slot: 'toy', stage: 0, price: 55, rarity: 'rare' },
+  toy_robot: { name: '꼬마 로봇', slot: 'toy', stage: 0, price: null, rarity: 'rare', shop: false },
   // 훈련 마스터 자격증 선물 (상점·뽑기·거래 없음)
   tr_grad_cap: { name: '졸업 학사모', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
   tr_headband: { name: '챔피언 머리띠', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
@@ -431,10 +491,11 @@ export const RARITY = {
 // 캡슐 뽑기 (현금 결제 없이 게임 코인으로만)
 export const GACHA = { price: 30, freePerDay: 1 };
 
-export const DOG_SLOTS = ['head', 'neck', 'face'];
-export const ROOM_SLOTS = ['wallpaper', 'rug', 'bed', 'toy'];
-export const DEFAULT_OWNED = ['wall_wood', 'bed_basket'];
-export const DEFAULT_ROOM = { wallpaper: 'wall_wood', rug: null, bed: 'bed_basket', toy: null };
+export const DOG_SLOTS = ['head', 'neck', 'face', 'body'];
+export const ROOM_SLOTS = ['wallpaper', 'floor', 'deco', 'rug', 'bed', 'furni', 'toy'];
+export const REQUIRED_ROOM_SLOTS = ['wallpaper', 'floor', 'bed']; // 꼭 하나는 있어야 해요
+export const DEFAULT_OWNED = ['wall_wood', 'bed_basket', 'floor_wood', 'deco_frame'];
+export const DEFAULT_ROOM = { wallpaper: 'wall_wood', floor: 'floor_wood', deco: 'deco_frame', rug: null, bed: 'bed_basket', furni: null, toy: null };
 
 // 멍뭉 학교 코스 (minutes: 실제 시간 기준)
 export const SCHOOL_COURSES = {
@@ -635,6 +696,15 @@ export const SHOW_WARDROBE = {
   sw_daisy: { name: '데이지 꽃목걸이', slot: 'neck', theme: 'flower' },
   sw_antenna: { name: '외계인 더듬이', slot: 'head', theme: 'space' },
   sw_visor: { name: '우주 바이저', slot: 'face', theme: 'space' },
+  // 무대 전용 옷
+  sw_picnic_dress: { name: '체크 피크닉 원피스', slot: 'body', theme: 'picnic' },
+  sw_party_suit: { name: '반짝이 파티 재킷', slot: 'body', theme: 'party' },
+  sw_winter_coat: { name: '폭신 겨울 코트', slot: 'body', theme: 'winter' },
+  sw_sailor_suit: { name: '세일러복', slot: 'body', theme: 'sea' },
+  sw_royal_gown: { name: '왕실 망토 드레스', slot: 'body', theme: 'royal' },
+  sw_school_uniform: { name: '멍뭉 교복', slot: 'body', theme: 'school' },
+  sw_flower_dress: { name: '꽃잎 원피스', slot: 'body', theme: 'flower' },
+  sw_space_suit: { name: '우주복', slot: 'body', theme: 'space' },
 };
 
 export const TREASURE = {
@@ -1044,7 +1114,7 @@ export const TASTES = {
   loveHeartsPerDay: 2, // 😍로 받는 💗 (하루에)
 };
 
-// 가구 세트: 방 4칸(벽지·러그·침대·장난감)을 한 테마로 맞추면 완성!
+// 가구 세트: 방에 네 가지를 한 테마로 맞추면 완성!
 export const ROOM_SETS = {
   cozy: { name: '포근한 우리 집', items: ['wall_wood', 'rug_check', 'bed_basket', 'toy_bone'] },
   camping: { name: '캠핑 세트', items: ['wall_forest', 'rug_grass', 'bed_tent', 'toy_cactus'] },
@@ -1053,6 +1123,11 @@ export const ROOM_SETS = {
   sky: { name: '하늘 나라 세트', items: ['wall_sky', 'rug_rainbow', 'bed_cloud', 'toy_duck'] },
   mint: { name: '민트 놀이방', items: ['wall_mint', 'rug_round', 'bed_house', 'toy_ball'] },
   candy: { name: '사탕 가게 세트', items: ['wall_candy', 'rug_rainbow', 'bed_house', 'toy_bear'] },
+  ocean: { name: '바닷속 세트', items: ['wall_ocean', 'rug_ocean', 'bed_shell', 'furni_fishtank'] },
+  party: { name: '생일 파티 세트', items: ['wall_lemon', 'deco_bunting', 'floor_tile', 'toy_blocks'] },
+  concert: { name: '꼬마 음악가 세트', items: ['wall_heart', 'deco_neon', 'floor_marble', 'furni_piano'] },
+  library: { name: '조용한 도서관', items: ['wall_brick', 'deco_clock', 'furni_bookcase', 'rug_paw'] },
+  game: { name: '게임방 세트', items: ['wall_night', 'floor_star', 'furni_arcade', 'toy_robot'] },
 };
 export const SET_REWARD = { hearts: 3, coins: 20 };
 

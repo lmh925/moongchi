@@ -57,6 +57,29 @@ function drawWall(ctx, id) {
       ellipse(ctx, x, y, r * 1.6, r * 0.6, '#ffffff'); ellipse(ctx, x + r * 0.5, y - r * 0.4, r * 0.9, r * 0.5, '#ffffff');
     }
     for (const [x, y] of [[40, 30], [110, 8]]) { rect(ctx, x, y, 3, 1, '#4a3330'); rect(ctx, x + 4, y - 1, 3, 1, '#4a3330'); }
+  } else if (id === 'wall_brick') {
+    rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#c8645a');
+    for (let y = 0, row = 0; y < FLOOR_TOP; y += 6, row++) {
+      rect(ctx, 0, y, SCENE_W, 1, '#e9d6c8');
+      for (let x = (row % 2) * 8; x < SCENE_W; x += 16) rect(ctx, x, y, 1, 6, '#e9d6c8');
+      for (let x = (row % 2) * 8 + 3; x < SCENE_W; x += 32) rect(ctx, x, y + 2, 5, 1, '#d97a6e');
+    }
+  } else if (id === 'wall_lemon') {
+    rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#fff5c4');
+    for (let y = 5; y < FLOOR_TOP - 4; y += 10) for (let x = (y / 10) % 2 ? 3 : 8; x < SCENE_W; x += 10) { ellipse(ctx, x, y, 2, 1.5, '#ffe066'); rect(ctx, x + 1, y - 2, 1, 1, '#6cc070'); }
+  } else if (id === 'wall_ocean') {
+    ['#5bb8e8', '#4aa6dc', '#3a93cf', '#2e7fbf'].forEach((c, i) => rect(ctx, 0, i * 18, SCENE_W, 18, c));
+    for (const [x, y] of [[14, 40], [40, 20], [150, 30], [176, 50], [30, 60], [60, 8]]) { ellipse(ctx, x, y, 2, 2, '#bfe8ff'); rect(ctx, x, y - 1, 1, 1, '#ffffff'); }
+    for (const [x, y, c] of [[26, 30, '#ffb000'], [162, 14, '#ff6f91'], [140, 56, '#ffe066']]) { ellipse(ctx, x, y, 4, 2.5, c); rect(ctx, x - 6, y - 2, 3, 5, c); rect(ctx, x + 2, y - 1, 1, 1, OUT); }
+    for (let x = 4; x < SCENE_W; x += 22) for (let y = FLOOR_TOP - 14; y < FLOOR_TOP; y += 2) rect(ctx, x + ((y / 2) % 2), y, 2, 2, '#3fa06a');
+  } else if (id === 'wall_heart') {
+    rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#f7d9ff');
+    for (let y = 4; y < FLOOR_TOP - 6; y += 14) {
+      for (let x = (y / 14) % 2 ? 4 : 12; x < SCENE_W; x += 16) {
+        const c = (x + y) % 3 ? '#ff9fc4' : '#c7a8ff';
+        rect(ctx, x, y, 2, 2, c); rect(ctx, x + 3, y, 2, 2, c); rect(ctx, x, y + 1, 5, 2, c); rect(ctx, x + 1, y + 3, 3, 1, c); rect(ctx, x + 2, y + 4, 1, 1, c);
+      }
+    }
   } else if (id === 'wall_forest') {
     rect(ctx, 0, 0, SCENE_W, FLOOR_TOP, '#8a5a34');
     for (let y = 0; y < FLOOR_TOP; y += 8) {
@@ -112,12 +135,74 @@ function drawWindow(ctx) {
   rect(ctx, x - 10, y - 6, w + 20, 2, '#8a5429');
 }
 
-function drawFrame(ctx) {
-  const x = 22; const y = 16;
-  rect(ctx, x - 1, y - 1, 20, 18, OUT);
-  rect(ctx, x, y, 18, 16, '#e0a800');
-  rect(ctx, x + 2, y + 2, 14, 12, '#fff6e6');
-  ctx.drawImage(iconCanvas('paw'), x + 4, y + 3);
+// 벽 장식 (왼쪽 벽)
+function drawDeco(ctx, id) {
+  if (id === 'deco_frame') {
+    const x = 22; const y = 16;
+    rect(ctx, x - 1, y - 1, 20, 18, OUT);
+    rect(ctx, x, y, 18, 16, '#e0a800');
+    rect(ctx, x + 2, y + 2, 14, 12, '#fff6e6');
+    ctx.drawImage(iconCanvas('paw'), x + 4, y + 3);
+  } else if (id === 'deco_bunting') {
+    const cs = ['#ff6f91', '#ffd23f', '#6cc070', '#5b8cff', '#b07cff'];
+    for (let x = 2; x < 62; x++) rect(ctx, x, 8 + Math.round(Math.sin(((x - 2) / 60) * Math.PI) * 6), 1, 1, OUT);
+    for (let i = 0; i < 7; i++) {
+      const x = 5 + i * 8; const y = 9 + Math.round(Math.sin(((x - 2) / 60) * Math.PI) * 6);
+      for (let j = 0; j < 7; j++) rect(ctx, x + Math.floor(j / 2), y + j, 7 - Math.floor(j / 2) * 2, 1, cs[i % 5]);
+    }
+  } else if (id === 'deco_clock') {
+    const x = 30; const y = 8;
+    for (let i = 0; i < 8; i++) rect(ctx, x - i - 1, y + i, i * 2 + 3, 1, OUT);
+    for (let i = 1; i < 8; i++) rect(ctx, x - i, y + i, i * 2 + 1, 1, '#c0392b');
+    rect(ctx, x - 9, y + 8, 19, 18, OUT); rect(ctx, x - 8, y + 9, 17, 16, '#9c6b3f');
+    ellipse(ctx, x + 0.5, y + 16, 6, 6, OUT); ellipse(ctx, x + 0.5, y + 16, 5, 5, '#fff6e6');
+    rect(ctx, x, y + 12, 1, 5, OUT); rect(ctx, x, y + 16, 3, 1, OUT);
+    rect(ctx, x - 4, y + 26, 1, 8, OUT); rect(ctx, x + 4, y + 26, 1, 12, OUT);
+    ellipse(ctx, x - 4, y + 35, 2, 2, '#e0a800'); ellipse(ctx, x + 4, y + 39, 2, 2, '#e0a800');
+    rect(ctx, x - 2, y + 4, 4, 3, '#ffe066'); rect(ctx, x + 2, y + 5, 2, 1, '#ff9f3a');
+  } else if (id === 'deco_poster') {
+    const x = 16; const y = 8;
+    rect(ctx, x - 1, y - 1, 32, 34, OUT); rect(ctx, x, y, 30, 32, '#fff6e6');
+    rect(ctx, x + 2, y + 2, 26, 20, '#ffd9e3');
+    ellipse(ctx, x + 15, y + 14, 7, 6, '#ffffff'); ellipse(ctx, x + 10, y + 10, 2.5, 4, '#e0c9b8'); ellipse(ctx, x + 20, y + 10, 2.5, 4, '#e0c9b8');
+    rect(ctx, x + 12, y + 13, 1, 1, OUT); rect(ctx, x + 17, y + 13, 1, 1, OUT); rect(ctx, x + 14, y + 16, 2, 1, OUT);
+    rect(ctx, x + 4, y + 25, 22, 2, '#e8708f'); rect(ctx, x + 7, y + 28, 16, 1, '#b8a39a');
+    rect(ctx, x + 14, y - 2, 2, 2, '#ff5d7a');
+  } else if (id === 'deco_lights') {
+    const cs = ['#ff6f91', '#ffe066', '#7cc7ff', '#8fe08a', '#c7a8ff'];
+    for (let x = 0; x < SCENE_W; x++) {
+      if (x > 62 && x < 132) continue;
+      rect(ctx, x, 6 + Math.round(Math.abs(Math.sin(x / 10)) * 4), 1, 1, '#4a6b3a');
+    }
+    for (let x = 4, i = 0; x < SCENE_W; x += 9, i++) {
+      if (x > 60 && x < 132) continue;
+      const y = 7 + Math.round(Math.abs(Math.sin(x / 10)) * 4);
+      ellipse(ctx, x, y + 2, 2.5, 2.5, 'rgba(255,255,220,0.35)');
+      rect(ctx, x - 1, y + 1, 2, 3, cs[i % 5]); rect(ctx, x - 1, y + 1, 1, 1, '#ffffff');
+    }
+  } else if (id === 'deco_neon') {
+    const x = 32; const y = 22;
+    const heart = (c, grow) => {
+      for (let a = 0; a < 64; a++) {
+        const t = (a / 64) * Math.PI * 2;
+        const hx = 16 * Math.sin(t) ** 3; const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        rect(ctx, Math.round(x + hx * (0.8 + grow)), Math.round(y + hy * (0.75 + grow)), 1 + (grow ? 1 : 0), 1 + (grow ? 1 : 0), c);
+      }
+    };
+    heart('rgba(255,111,145,0.35)', 0.08); heart('#ff6f91', 0); heart('#ffd0dc', -0.04);
+  } else if (id === 'deco_medals') {
+    const x = 8; const y = 34;
+    rect(ctx, x, y, 50, 3, '#8a5429'); rect(ctx, x, y, 50, 1, '#b07a45');
+    for (const [dx, h, c] of [[6, 14, '#ffd23f'], [22, 18, '#ffd23f'], [38, 12, '#c9d3e0']]) {
+      rect(ctx, x + dx - 1, y - 4, 10, 4, OUT); rect(ctx, x + dx, y - 3, 8, 3, '#7a4b2a');
+      rect(ctx, x + dx + 3, y - h + 4, 2, h - 8, c);
+      ellipse(ctx, x + dx + 4, y - h + 2, 5, 4, OUT); ellipse(ctx, x + dx + 4, y - h + 2, 4, 3, c); rect(ctx, x + dx + 2, y - h + 1, 1, 1, '#ffffff');
+    }
+    for (const dx of [4, 30]) { rect(ctx, x + dx, 6, 1, 10, '#e84a5f'); rect(ctx, x + dx + 4, 6, 1, 10, '#5b8cff'); ellipse(ctx, x + dx + 2.5, 18, 3, 3, '#ffd23f'); }
+  }
+}
+
+function drawShelf(ctx) {
   // 선반과 화분
   rect(ctx, 146, 38, 30, 3, '#8a5429'); rect(ctx, 146, 38, 30, 1, '#b07a45');
   rect(ctx, 152, 30, 8, 8, OUT); rect(ctx, 153, 31, 6, 7, '#e07a5f');
@@ -125,12 +210,93 @@ function drawFrame(ctx) {
   rect(ctx, 164, 30, 3, 8, '#5bc0ff'); rect(ctx, 168, 32, 3, 6, '#ffd23f'); rect(ctx, 172, 29, 3, 9, '#ff9fb8');
 }
 
-function drawFloor(ctx) {
-  rect(ctx, 0, FLOOR_TOP, SCENE_W, SCENE_H - FLOOR_TOP, '#dca36a');
-  for (let y = FLOOR_TOP, row = 0; y < SCENE_H; y += 9, row++) {
-    rect(ctx, 0, y, SCENE_W, 1, '#b97f47');
-    rect(ctx, 0, y + 1, SCENE_W, 1, '#e9b983');
-    for (let x = (row % 2) * 20; x < SCENE_W; x += 40) rect(ctx, x, y, 1, 9, '#b97f47');
+function drawFloor(ctx, id) {
+  const H = SCENE_H - FLOOR_TOP;
+  if (id === 'floor_tile') {
+    for (let y = FLOOR_TOP, r = 0; y < SCENE_H; y += 9, r++) for (let x = 0, c = 0; x < SCENE_W; x += 12, c++) rect(ctx, x, y, 12, 9, (r + c) % 2 ? '#ffe3ec' : '#e8f7f1');
+    for (let y = FLOOR_TOP; y < SCENE_H; y += 9) rect(ctx, 0, y, SCENE_W, 1, '#f3d5dd');
+  } else if (id === 'floor_pink') {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#ffc2d3');
+    for (let y = FLOOR_TOP + 1; y < SCENE_H; y += 2) for (let x = (y % 4) ? 0 : 1; x < SCENE_W; x += 3) rect(ctx, x, y, 1, 1, '#ffb0c4');
+  } else if (id === 'floor_marble') {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#f4f0f7');
+    for (let y = FLOOR_TOP; y < SCENE_H; y += 18) rect(ctx, 0, y, SCENE_W, 1, '#d8d0e0');
+    for (let x = 0, i = 0; x < SCENE_W; x += 32, i++) rect(ctx, x + (i % 2) * 16, FLOOR_TOP, 1, H, '#e2dbe8');
+    for (let i = 0; i < 14; i++) { const x = (i * 47) % SCENE_W; const y = FLOOR_TOP + ((i * 19) % H); for (let k = 0; k < 8; k++) rect(ctx, x + k, y + Math.round(Math.sin(k) * 1.5), 1, 1, '#cfc4dc'); }
+  } else if (id === 'floor_grass') {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#7cc46f');
+    for (let i = 0; i < 260; i++) { const x = (i * 37) % SCENE_W; const y = FLOOR_TOP + ((i * 23) % H); rect(ctx, x, y, 1, 2, i % 3 ? '#6ab35e' : '#94d487'); }
+    for (const [x, y, c] of [[20, 132, '#ffffff'], [90, 84, '#ffe066'], [176, 90, '#ff9fb8'], [60, 140, '#ffe066']]) { rect(ctx, x, y, 1, 1, c); rect(ctx, x - 1, y + 1, 3, 1, c); rect(ctx, x, y + 2, 1, 1, c); }
+  } else if (id === 'floor_candy') {
+    for (let y = FLOOR_TOP; y < SCENE_H; y++) for (let x = -H; x < SCENE_W; x += 18) { rect(ctx, x + (y - FLOOR_TOP), y, 6, 1, '#ff9fc4'); rect(ctx, x + (y - FLOOR_TOP) + 6, y, 6, 1, '#fff6fa'); rect(ctx, x + (y - FLOOR_TOP) + 12, y, 6, 1, '#b9f0dc'); }
+  } else if (id === 'floor_star') {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#3a3f78');
+    for (let i = 0; i < 50; i++) { const x = (i * 53) % SCENE_W; const y = FLOOR_TOP + 2 + ((i * 29) % (H - 3)); rect(ctx, x, y, 1, 1, i % 4 ? '#c9c2ff' : '#ffe066'); }
+    for (const [x, y] of [[30, 100], [120, 130], [170, 86]]) { rect(ctx, x, y - 1, 1, 3, '#fff6c2'); rect(ctx, x - 1, y, 3, 1, '#fff6c2'); }
+  } else if (id === 'floor_cloud') {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#cfe8ff');
+    for (const [x, y, r] of [[20, 90, 9], [80, 110, 12], [150, 96, 10], [40, 132, 11], [130, 136, 9], [186, 120, 8]]) { ellipse(ctx, x, y, r * 1.6, r * 0.6, '#ffffff'); ellipse(ctx, x + r * 0.5, y - r * 0.35, r * 0.9, r * 0.45, '#ffffff'); }
+  } else {
+    rect(ctx, 0, FLOOR_TOP, SCENE_W, H, '#dca36a');
+    for (let y = FLOOR_TOP, row = 0; y < SCENE_H; y += 9, row++) {
+      rect(ctx, 0, y, SCENE_W, 1, '#b97f47');
+      rect(ctx, 0, y + 1, SCENE_W, 1, '#e9b983');
+      for (let x = (row % 2) * 20; x < SCENE_W; x += 40) rect(ctx, x, y, 1, 9, '#b97f47');
+    }
+  }
+  rect(ctx, 0, FLOOR_TOP, SCENE_W, 2, 'rgba(74,51,48,0.25)'); // 걸레받이 그림자
+}
+
+// 큰 가구 (오른쪽 벽 앞, 바닥에 서 있어요)
+function drawFurni(ctx, id) {
+  const bx = 160; const by = 90; // 가운데 아래
+  if (id === 'furni_sofa') {
+    rect(ctx, bx - 23, by - 20, 46, 20, OUT); rect(ctx, bx - 22, by - 19, 44, 10, '#ff9fb8');
+    rect(ctx, bx - 22, by - 9, 44, 7, '#ff7fa8'); rect(ctx, bx - 22, by - 19, 44, 2, '#ffc2d3');
+    rect(ctx, bx - 26, by - 13, 6, 12, OUT); rect(ctx, bx - 25, by - 12, 4, 10, '#ff7fa8'); rect(ctx, bx + 20, by - 13, 6, 12, OUT); rect(ctx, bx + 21, by - 12, 4, 10, '#ff7fa8');
+    rect(ctx, bx - 20, by - 2, 2, 3, OUT); rect(ctx, bx + 18, by - 2, 2, 3, OUT);
+    ellipse(ctx, bx - 10, by - 12, 4, 3, '#ffe066'); ellipse(ctx, bx + 9, by - 12, 4, 3, '#b9f0dc');
+  } else if (id === 'furni_bookcase') {
+    rect(ctx, bx - 14, by - 46, 28, 46, OUT); rect(ctx, bx - 13, by - 45, 26, 44, '#9c6b3f');
+    const cs = ['#e84a5f', '#5b8cff', '#ffd23f', '#6cc070', '#b07cff', '#ff9f3a'];
+    for (let r = 0; r < 4; r++) {
+      const y = by - 44 + r * 11;
+      rect(ctx, bx - 12, y, 24, 9, '#6b3f2a');
+      for (let i = 0, x = bx - 11; x < bx + 10; i++) { const w = 2 + ((i + r) % 3 === 0 ? 1 : 0); rect(ctx, x, y + 1 + ((i + r) % 2), w, 8 - ((i + r) % 2), cs[(i + r * 2) % 6]); x += w + 1; }
+      rect(ctx, bx - 13, y + 9, 26, 2, '#b07a45');
+    }
+  } else if (id === 'furni_lamp') {
+    ellipse(ctx, bx, by - 30, 16, 14, 'rgba(255,240,170,0.25)');
+    rect(ctx, bx - 6, by - 2, 12, 3, OUT); rect(ctx, bx - 1, by - 34, 2, 32, OUT);
+    for (let i = 0; i < 10; i++) rect(ctx, bx - 5 - Math.floor(i / 2), by - 44 + i, 10 + Math.floor(i / 2) * 2, 1, i ? '#ffe3a0' : OUT);
+    rect(ctx, bx - 10, by - 34, 20, 1, OUT);
+  } else if (id === 'furni_plant') {
+    rect(ctx, bx - 8, by - 12, 16, 12, OUT); rect(ctx, bx - 7, by - 11, 14, 11, '#e07a5f'); rect(ctx, bx - 8, by - 12, 16, 2, '#c95f47');
+    for (const [dx, dy, r] of [[-8, -24, 6], [7, -26, 6], [0, -34, 7], [-4, -18, 5], [5, -18, 5]]) { ellipse(ctx, bx + dx, by + dy, r, r * 0.7, OUT); ellipse(ctx, bx + dx, by + dy, r - 1, r * 0.7 - 1, '#3f8f3a'); ellipse(ctx, bx + dx - 1, by + dy - 1, r / 2, r / 3, '#6cc070'); }
+  } else if (id === 'furni_piano') {
+    rect(ctx, bx - 20, by - 30, 40, 30, OUT); rect(ctx, bx - 19, by - 29, 38, 18, '#2b2b3a'); rect(ctx, bx - 19, by - 29, 38, 2, '#44445a');
+    rect(ctx, bx - 19, by - 11, 38, 5, '#ffffff'); for (let x = bx - 17; x < bx + 18; x += 4) rect(ctx, x, by - 11, 2, 3, '#2b2b3a');
+    rect(ctx, bx - 19, by - 6, 38, 5, '#2b2b3a'); rect(ctx, bx - 18, by - 1, 3, 2, OUT); rect(ctx, bx + 15, by - 1, 3, 2, OUT);
+    rect(ctx, bx - 6, by - 26, 12, 8, '#fff6e6'); rect(ctx, bx - 4, by - 24, 1, 4, OUT); rect(ctx, bx, by - 23, 1, 4, OUT);
+  } else if (id === 'furni_fishtank') {
+    rect(ctx, bx - 16, by - 12, 32, 12, OUT); rect(ctx, bx - 15, by - 11, 30, 11, '#9c6b3f');
+    rect(ctx, bx - 17, by - 34, 34, 22, OUT); rect(ctx, bx - 16, by - 33, 32, 20, '#8fd3ff'); rect(ctx, bx - 16, by - 33, 32, 3, '#bfe8ff');
+    rect(ctx, bx - 16, by - 16, 32, 3, '#f7dc9b'); rect(ctx, bx - 10, by - 24, 1, 8, '#3f8f3a'); rect(ctx, bx - 8, by - 21, 1, 5, '#3f8f3a'); rect(ctx, bx + 11, by - 26, 1, 10, '#3f8f3a');
+    for (const [x, y, c] of [[-3, -26, '#ff9f3a'], [6, -20, '#ff6f91']]) { ellipse(ctx, bx + x, by + y, 3, 2, c); rect(ctx, bx + x - 5, by + y - 1, 2, 3, c); rect(ctx, bx + x + 1, by + y - 1, 1, 1, OUT); }
+    rect(ctx, bx + 2, by - 30, 1, 1, '#ffffff'); rect(ctx, bx + 3, by - 28, 1, 1, '#ffffff');
+  } else if (id === 'furni_wardrobe') {
+    rect(ctx, bx - 16, by - 46, 32, 46, OUT); rect(ctx, bx - 15, by - 45, 30, 44, '#ffc2d3'); rect(ctx, bx - 15, by - 45, 30, 3, '#ffe3ef');
+    rect(ctx, bx, by - 42, 1, 38, OUT); rect(ctx, bx - 3, by - 26, 1, 4, '#e0a800'); rect(ctx, bx + 3, by - 26, 1, 4, '#e0a800');
+    for (const dx of [-8, 7]) { rect(ctx, bx + dx - 2, by - 38, 2, 2, '#ff6f91'); rect(ctx, bx + dx + 1, by - 38, 2, 2, '#ff6f91'); rect(ctx, bx + dx - 2, by - 37, 5, 2, '#ff6f91'); rect(ctx, bx + dx - 1, by - 35, 3, 1, '#ff6f91'); }
+    for (let i = 0; i < 6; i++) rect(ctx, bx - 8 - i, by - 52 + i, 16 + i * 2, 1, i ? '#b07cff' : OUT);
+    rect(ctx, bx - 14, by - 1, 3, 2, OUT); rect(ctx, bx + 11, by - 1, 3, 2, OUT);
+  } else if (id === 'furni_arcade') {
+    rect(ctx, bx - 13, by - 44, 26, 44, OUT); rect(ctx, bx - 12, by - 43, 24, 42, '#5b8cff'); rect(ctx, bx - 12, by - 43, 24, 6, '#ff6f91');
+    rect(ctx, bx - 9, by - 35, 18, 14, OUT); rect(ctx, bx - 8, by - 34, 16, 12, '#1f2350');
+    rect(ctx, bx - 6, by - 31, 2, 2, '#ffe066'); rect(ctx, bx + 2, by - 28, 3, 3, '#8fe08a'); rect(ctx, bx - 3, by - 26, 6, 1, '#ff6f91');
+    rect(ctx, bx - 12, by - 20, 24, 6, '#3f6fd8'); rect(ctx, bx - 7, by - 22, 2, 3, OUT); ellipse(ctx, bx - 6, by - 23, 2, 2, '#e84a5f');
+    ellipse(ctx, bx + 4, by - 18, 1.5, 1.5, '#ffe066'); ellipse(ctx, bx + 8, by - 18, 1.5, 1.5, '#8fe08a');
+    rect(ctx, bx - 9, by - 41, 18, 2, '#ffffff');
   }
 }
 
@@ -164,6 +330,20 @@ function drawRug(ctx, id) {
       rect(ctx, cx + x, cy + y, 1, 1, '#fff6c2'); rect(ctx, cx + x - 1, cy + y, 3, 1, '#ffe066'); rect(ctx, cx + x, cy + y - 1, 1, 3, '#ffe066');
     }
     ellipse(ctx, cx - 4, cy, 5, 4, '#fff3a0'); ellipse(ctx, cx - 2, cy - 1, 4, 3, '#4a5aa8');
+  } else if (id === 'rug_heart') {
+    ellipse(ctx, cx, cy, 45, 12, '#ffd9e3');
+    for (let y = -9; y <= 9; y++) for (let x = -40; x <= 40; x++) {
+      const hx = x / 26; const hy = -y / 9 + 0.25;
+      if ((hx * hx + hy * hy - 1) ** 3 - hx * hx * hy ** 3 <= 0) rect(ctx, cx + x, cy + y, 1, 1, '#ff6f91');
+    }
+    ellipse(ctx, cx - 10, cy - 3, 4, 2, '#ffb3c6');
+  } else if (id === 'rug_paw') {
+    ellipse(ctx, cx, cy, 45, 12, '#c68642'); ellipse(ctx, cx, cy, 41, 10, '#d9a066');
+    ellipse(ctx, cx, cy + 3, 11, 5, '#8a5a2b');
+    for (const [dx, dy] of [[-14, -4], [-5, -7], [5, -7], [14, -4]]) ellipse(ctx, cx + dx, cy + dy, 4, 2.5, '#8a5a2b');
+  } else if (id === 'rug_ocean') {
+    ellipse(ctx, cx, cy, 45, 12, '#4fb3e8');
+    for (let r = 0; r < 4; r++) for (let x = -40; x < 40; x += 1) { const y = Math.round(Math.sin(x / 4 + r) * 1.5) + r * 5 - 7; const dx = x / 45; const dy = y / 12; if (dx * dx + dy * dy < 0.85) rect(ctx, cx + x, cy + y, 1, 1, r % 2 ? '#bfe8ff' : '#8fd3ff'); }
   } else if (id === 'rug_rainbow') {
     const bands = ['#ff7f9f', '#ffb86b', '#ffe066', '#8fe08a', '#7cc7ff', '#b69cff'];
     bands.forEach((c, i) => ellipse(ctx, cx, cy, 45 - i * 6.5, 12 - i * 1.8, c));
@@ -199,6 +379,21 @@ function drawBed(ctx, id) {
     for (let i = x - 14; i < x + 14; i += 4) rect(ctx, i, y - 17, 3, 3, '#ffc2d3');
     ellipse(ctx, x, y - 2, 13, 4, '#ffffff'); ellipse(ctx, x - 5, y - 4, 5, 2, '#ffe3ef');
     rect(ctx, x - 3, y - 24, 6, 3, '#ffd23f'); rect(ctx, x - 3, y - 26, 1, 2, '#ffd23f'); rect(ctx, x, y - 26, 1, 2, '#ffd23f'); rect(ctx, x + 2, y - 26, 1, 2, '#ffd23f');
+  } else if (id === 'bed_cushion') {
+    ellipse(ctx, x, y, 22, 9, OUT); ellipse(ctx, x, y, 21, 8, '#7cc7ff'); ellipse(ctx, x, y - 1, 17, 6, '#a9dcff');
+    for (const [dx, dy] of [[-14, 0], [14, 0], [0, -6], [0, 6]]) rect(ctx, x + dx, y + dy, 1, 1, '#3f8fcf');
+    rect(ctx, x - 1, y - 1, 2, 2, '#3f8fcf');
+  } else if (id === 'bed_car') {
+    rect(ctx, x - 26, y - 12, 52, 18, OUT); rect(ctx, x - 25, y - 11, 50, 16, '#e84a5f'); rect(ctx, x - 25, y - 11, 50, 3, '#ff7f8f');
+    rect(ctx, x - 12, y - 20, 24, 9, OUT); rect(ctx, x - 11, y - 19, 22, 8, '#bfe8ff'); rect(ctx, x - 1, y - 19, 2, 8, '#e84a5f');
+    ellipse(ctx, x, y - 4, 15, 4, '#ffffff'); ellipse(ctx, x - 5, y - 5, 5, 2, '#ffe3ef');
+    for (const dx of [-16, 16]) { ellipse(ctx, x + dx, y + 6, 6, 5, OUT); ellipse(ctx, x + dx, y + 6, 4, 3.5, '#4a4a5a'); rect(ctx, x + dx - 1, y + 5, 2, 2, '#c9d3e0'); }
+    rect(ctx, x + 22, y - 8, 3, 3, '#ffe066'); rect(ctx, x - 25, y - 8, 2, 3, '#ff9f3a');
+  } else if (id === 'bed_shell') {
+    for (let i = 0; i < 9; i++) { const a = Math.PI * (0.1 + (i / 8) * 0.8); const ex = x + Math.cos(a) * -22; const ey = y - 6 - Math.sin(a) * 22; ellipse(ctx, (x + ex) / 2, (y - 4 + ey) / 2, 4, 12, OUT); }
+    for (let i = 0; i < 9; i++) { const a = Math.PI * (0.1 + (i / 8) * 0.8); const ex = x + Math.cos(a) * -21; const ey = y - 6 - Math.sin(a) * 21; ellipse(ctx, (x + ex) / 2, (y - 4 + ey) / 2, 3, 11, i % 2 ? '#ffc2d3' : '#ffb0c4'); }
+    ellipse(ctx, x, y, 25, 9, OUT); ellipse(ctx, x, y, 24, 8, '#ff9fc4'); ellipse(ctx, x, y - 1, 18, 5, '#fff0f6');
+    ellipse(ctx, x + 14, y - 3, 3, 3, '#ffffff'); rect(ctx, x + 13, y - 4, 1, 1, '#e3dcff');
   } else if (id === 'bed_house') {
     rect(ctx, x - 22, y - 26, 44, 34, OUT);
     rect(ctx, x - 21, y - 20, 42, 27, '#f5d7a1');
@@ -243,6 +438,26 @@ function drawToy(ctx, id) {
     ellipse(ctx, x, y - 12, 2, 2, '#5bc0ff'); rect(ctx, x - 1, y - 13, 1, 1, '#fff');
     rect(ctx, x - 4, y - 19, 8, 3, '#e84a5f');
     rect(ctx, x - 2, y + 1, 4, 2, '#ffb000'); rect(ctx, x - 1, y + 3, 2, 1, '#ffe066');
+  } else if (id === 'toy_blocks') {
+    for (const [dx, dy, c] of [[-7, 0, '#e84a5f'], [1, 0, '#5b8cff'], [-3, -8, '#ffd23f']]) {
+      rect(ctx, x + dx - 1, y + dy - 7, 9, 9, OUT); rect(ctx, x + dx, y + dy - 6, 7, 7, c); rect(ctx, x + dx + 2, y + dy - 4, 3, 3, '#ffffff');
+    }
+  } else if (id === 'toy_yarn') {
+    ellipse(ctx, x, y - 1, 6, 6, OUT); ellipse(ctx, x, y - 1, 5, 5, '#ff7fa8');
+    for (let i = -4; i <= 4; i += 2) rect(ctx, x + i, y - 5 + Math.abs(i) / 2, 1, 8 - Math.abs(i), '#ffc2d3');
+    for (let i = 0; i < 10; i++) rect(ctx, x + 6 + i, y + 3 + Math.round(Math.sin(i / 2)), 1, 1, '#ff7fa8');
+  } else if (id === 'toy_dino') {
+    ellipse(ctx, x, y - 2, 7, 5, OUT); ellipse(ctx, x + 6, y - 9, 4, 3.5, OUT); rect(ctx, x + 3, y - 8, 4, 5, OUT);
+    ellipse(ctx, x, y - 2, 6, 4, '#6cc070'); ellipse(ctx, x + 6, y - 9, 3, 2.5, '#6cc070'); rect(ctx, x + 4, y - 8, 2, 5, '#6cc070');
+    rect(ctx, x - 10, y - 2, 4, 2, OUT); rect(ctx, x - 9, y - 2, 3, 1, '#6cc070');
+    for (const dx of [-4, -1, 2]) rect(ctx, x + dx, y - 7, 2, 2, '#ffd23f');
+    rect(ctx, x + 7, y - 10, 1, 1, OUT); rect(ctx, x - 4, y + 2, 2, 2, OUT); rect(ctx, x + 2, y + 2, 2, 2, OUT);
+  } else if (id === 'toy_robot') {
+    rect(ctx, x - 6, y - 8, 12, 11, OUT); rect(ctx, x - 5, y - 7, 10, 9, '#c9d3e0');
+    rect(ctx, x - 5, y - 17, 10, 9, OUT); rect(ctx, x - 4, y - 16, 8, 7, '#e3e9f2');
+    rect(ctx, x - 3, y - 14, 2, 2, '#5bc0ff'); rect(ctx, x + 1, y - 14, 2, 2, '#5bc0ff'); rect(ctx, x - 2, y - 11, 4, 1, OUT);
+    rect(ctx, x, y - 20, 1, 3, OUT); ellipse(ctx, x + 0.5, y - 21, 1.5, 1.5, '#e84a5f');
+    rect(ctx, x - 8, y - 6, 2, 6, OUT); rect(ctx, x + 6, y - 6, 2, 6, OUT); rect(ctx, x - 2, y - 5, 4, 3, '#ffd23f');
   } else if (id === 'toy_bear') {
     ellipse(ctx, x, y - 2, 6, 7, OUT); ellipse(ctx, x, y - 10, 5, 5, OUT);
     ellipse(ctx, x - 4, y - 14, 2, 2, OUT); ellipse(ctx, x + 4, y - 14, 2, 2, OUT);
@@ -270,8 +485,10 @@ export function renderRoom(decor = {}) {
   const ctx = c.getContext('2d');
   drawWall(ctx, decor.wallpaper);
   drawWindow(ctx);
-  drawFrame(ctx);
-  drawFloor(ctx);
+  drawShelf(ctx);
+  drawDeco(ctx, decor.deco === undefined ? 'deco_frame' : decor.deco);
+  drawFloor(ctx, decor.floor);
+  drawFurni(ctx, decor.furni);
   drawRug(ctx, decor.rug);
   drawBed(ctx, decor.bed);
   drawToy(ctx, decor.toy);
