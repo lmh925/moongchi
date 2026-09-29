@@ -44,6 +44,19 @@ export class Village {
     return { type: 'placeOpen', id, name: P.name, emoji: P.emoji };
   }
 
+  // 💗가 기준을 넘은 곳은 저절로 열려요 (me()에서 불러요)
+  autoOpen(userId) {
+    const r = this.row(userId);
+    const events = [];
+    for (const [id, P] of Object.entries(PLACES)) {
+      if (r.places.includes(id) || r.heartsTotal < P.hearts) continue;
+      r.places.push(id);
+      events.push({ type: 'placeOpen', id, name: P.name, emoji: P.emoji });
+    }
+    if (events.length) this.db.prepare('UPDATE users SET places = ? WHERE id = ?').run(JSON.stringify(r.places), userId);
+    return events;
+  }
+
   has(userId, id) { return this.row(userId).places.includes(id); }
 
   // 🌳 마당 땅 파기 (하루 3번)

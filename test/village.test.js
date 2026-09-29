@@ -80,3 +80,25 @@ test('가구 세트를 맞추면 처음 한 번 💗와 코인', () => {
   assert.equal(village.checkSets(userId, room).length, 0, '한 번만');
   assert.equal(village.checkSets(userId, { ...room, toy: null }).length, 0);
 });
+
+test('💗가 기준을 넘으면 장소가 저절로 열려요', async () => {
+  const { openDb } = await import('../server/db.js');
+  const { Game } = await import('../server/game.js');
+  const { Auth } = await import('../server/auth.js');
+  const { Friends } = await import('../server/friends.js');
+  const { Asks } = await import('../server/asks.js');
+  const { Village } = await import('../server/village.js');
+  const { PLACES } = await import('../shared/data.js');
+  const db = openDb(':memory:');
+  const game = new Game(db, {});
+  const friends = new Friends(db, game);
+  const asks = new Asks(db, { game, friends });
+  const village = new Village(db, { game, asks });
+  const { userId } = new Auth(db, {}).signup('자동열림', '1234');
+  assert.deepEqual(village.autoOpen(userId), []);
+  asks.addHearts(userId, PLACES.cafe.hearts);
+  const evs = village.autoOpen(userId);
+  assert.deepEqual(evs.map((e) => e.id), ['yard', 'cafe']);
+  assert.deepEqual(village.autoOpen(userId), [], '한 번만 열려요');
+  assert.ok(village.has(userId, 'cafe') && !village.has(userId, 'spa'));
+});

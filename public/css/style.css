@@ -1521,3 +1521,4 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .cal-emojis .emo.on { border-color: var(--pink-d); background: var(--pink-l); }
 
 .nose-level { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 700; background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 1px 10px; z-index: 3; }
+.place-lock { font-size: 11px; color: var(--ink-soft); text-align: center; white-space: pre-line; flex: none; }

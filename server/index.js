@@ -161,7 +161,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     events.push(...babies.deliver(userId));
     const others = game.refreshOthers(userId);
     if (others.length) { events.push(...others); hub.dogsChanged(userId); }
-    if (dog) events.push(...memories.checkBirthdays(userId));
+    if (dog) events.push(...memories.checkBirthdays(userId), ...village.autoOpen(userId));
     const user = game.getUser(userId);
     const { events: extraEvents = [], ...rest } = extra;
     const allEvents = [...extraEvents, ...events];

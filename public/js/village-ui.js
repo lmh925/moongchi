@@ -46,7 +46,7 @@ export function openVillageMap(me, { onOpen, onPlace }) {
     className: 'village-map',
     body: el('div', {},
       el('p', { class: 'sub center' }, `지금까지 모은 💗 ${total}개`),
-      el('p', { class: 'hint center' }, '💗는 써도 없어지지 않아요! 모은 개수가 늘면 차례로 열려요. 💗는 소원 들어주기·출석·오늘의 약속으로 모아요.'),
+      el('p', { class: 'hint center' }, '💗는 써도 없어지지 않아요! 모은 개수가 기준을 넘으면 저절로 열려요. 💗는 소원 들어주기·출석·오늘의 약속으로 모아요.'),
       el('div', { class: 'place-list' }, Object.entries(PLACES).map(([id, P]) => {
         const open = v.places.includes(id);
         const can = !open && total >= P.hearts;
@@ -55,7 +55,8 @@ export function openVillageMap(me, { onOpen, onPlace }) {
           el('div', { class: 'place-info' }, el('b', {}, P.name), el('small', {}, P.desc),
             open ? null : el('small', { class: 'cost' }, `💗 ${Math.min(total, P.hearts)} / ${P.hearts}`)),
           open ? el('button', { class: 'btn small green', onclick: () => { close(); onPlace(id); } }, '가기')
-            : el('button', { class: 'btn small primary', disabled: !can, onclick: () => { close(); onOpen(id); } }, '열기!'));
+            : can ? el('button', { class: 'btn small primary', onclick: () => { close(); onOpen(id); } }, '열기!')
+              : el('span', { class: 'place-lock' }, '💗가 모이면\n저절로 열려요'));
       }))),
     buttons: [{ label: '닫기' }],
   });

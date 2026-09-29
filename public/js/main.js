@@ -1137,6 +1137,18 @@ function mergeLevelUps(events) {
 }
 
 async function handleEvents(events = []) {
+  // 한꺼번에 여러 곳이 열리면 창 하나로 보여 줘요
+  const opens = events.filter((e) => e.type === 'placeOpen');
+  if (opens.length > 1) {
+    events = events.filter((e) => e.type !== 'placeOpen');
+    sfx.levelUp();
+    await waitModal({
+      title: '🗺️ 새로운 곳이 열렸어요!', className: 'celebrate',
+      body: el('div', { class: 'center' }, el('div', { class: 'place-big' }, opens.map((e) => e.emoji).join(' ')),
+        el('p', {}, `${opens.map((e) => e.name).join(', ')}이(가) 멍뭉 마을에 생겼어요!`), el('p', { class: 'hint' }, '우리집 화면의 멍뭉 마을 카드에서 가 볼 수 있어요.')),
+      buttons: [{ label: '신난다!' }],
+    });
+  }
   for (const ev of mergeLevelUps(events)) {
     if (ev.type === 'levelUp') await playLevelUp(state.me.dog, ev);
     if (ev.type === 'talentUp') await showTalentUp(ev);
