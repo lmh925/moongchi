@@ -11,6 +11,11 @@ test('무늬는 털색 부모에게서 물려받아요', () => {
   assert.equal(breedOf('mix:dachshund:dalmatian').pattern, undefined);
 });
 
+test('퀴즈를 건너뛰어도(답 없음) 스페셜 견종은 나오지 않아요', () => {
+  for (let i = 0; i < 200; i++) assert.ok(!BREEDS[quizResult([]).breed].special);
+  for (const r of [0, 0.5, 0.999]) assert.ok(!BREEDS[quizResult([], () => r).breed].special);
+});
+
 test('심리테스트로 모든 보통 견종을 만날 수 있어요', () => {
   const reach = new Set();
   const rec = (a) => {

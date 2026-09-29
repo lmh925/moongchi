@@ -207,7 +207,8 @@ export function applyAction(dog, action) {
 // 견종 점수가 같으면 그중에서 골고루(무작위) 골라요 (앞쪽 견종만 나오지 않게)
 export function quizResult(answers, rng = Math.random) {
   const p = Object.fromEntries(Object.keys(PERSONALITIES).map((k) => [k, 0]));
-  const b = Object.fromEntries(Object.keys(BREEDS).map((k) => [k, 0]));
+  // 스페셜 견종은 이름으로만 만나요 (퀴즈 결과로는 나오지 않아요)
+  const b = Object.fromEntries(Object.keys(BREEDS).filter((k) => !BREEDS[k].special).map((k) => [k, 0]));
   QUIZ.forEach((question, i) => {
     const opt = question.options[answers[i]];
     if (!opt) return;

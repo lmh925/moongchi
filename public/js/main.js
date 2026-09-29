@@ -329,7 +329,7 @@ function renderResult(picked) {
 // 🐾 직접 고르기: 견종과 성격을 마음대로 (퀴즈 결과가 마음에 안 들 때)
 function openBreedPicker() {
   const normal = Object.entries(BREEDS).filter(([, b]) => !b.special);
-  let breed = chosen?.breed ?? normal[0][0];
+  let breed = chosen?.breed && !BREEDS[chosen.breed]?.special ? chosen.breed : normal[0][0];
   let personality = chosen?.personality ?? 'sweet';
   const body = el('div', { class: 'breed-picker' });
   const render = () => {
