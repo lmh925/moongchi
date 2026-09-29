@@ -1100,7 +1100,7 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 /* 노즈워크 */
 .train-nose { height: 190px; background: linear-gradient(#fff1c9 60%, #e3b27a 60%); }
 .nose-table { position: absolute; left: 4%; right: 4%; top: 36px; height: 96px; --swap: 500ms; }
-.nose-cup { position: absolute; top: 0; width: 64px; height: 90px; margin-left: -32px; border: 0; background: none; padding: 0; transition: left var(--swap) ease-in-out; cursor: pointer; }
+.nose-cup { position: absolute; top: 0; width: var(--cupw, 64px); height: 90px; margin-left: calc(var(--cupw, 64px) / -2); border: 0; background: none; padding: 0; transition: left var(--swap) ease-in-out; cursor: pointer; }
 .nose-cup .cup { position: absolute; left: 4px; right: 4px; bottom: 6px; height: 64px; background: linear-gradient(90deg, #e84a5f, #ff8f9f 40%, #e84a5f); border: 3px solid var(--ink); border-radius: 10px 10px 26px 26px; transition: transform .25s ease-out; z-index: 2; }
 .nose-cup .cup::before { content: ''; position: absolute; left: 8px; right: 8px; top: 10px; height: 6px; background: #ffffff88; border-radius: 3px; }
 .nose-cup .treat { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 26px; opacity: 0; z-index: 1; }
@@ -1519,3 +1519,5 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .cal-emojis { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 .cal-emojis .emo { font-size: 18px; width: 34px; height: 34px; border: 2px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; }
 .cal-emojis .emo.on { border-color: var(--pink-d); background: var(--pink-l); }
+
+.nose-level { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 700; background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 1px 10px; z-index: 3; }

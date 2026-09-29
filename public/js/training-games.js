@@ -159,26 +159,39 @@ export function playAgility(dog, info) {
 }
 
 // ---------- 👃 노즈워크: 컵 섞기 ----------
+// 라운드가 갈수록 조금씩 어려워져요: 컵이 늘고(3→4→5), 더 많이, 더 빨리 섞어요.
+// 과목 레벨·시험이면 처음부터 한 단계 더 어려워요.
+export function noseRound(r, { level = 0, exam = null } = {}) {
+  const start = exam === 'master' || level >= 5 ? 4 : level >= 3 || exam ? 3.5 : 3;
+  const n = Math.min(6, Math.floor(start + r / 2)); // 1·2번째 3개, 3·4번째 4개, 5·6번째 5개
+  const swaps = 3 + Math.floor(level / 2) + r + (exam ? 1 : 0);
+  const swapMs = Math.max(230, 640 - level * 35 - r * 55 - (exam ? 40 : 0));
+  return { n, swaps, swapMs };
+}
+
 export function playNose(dog, info) {
   return new Promise((resolve) => {
-    const sh = trainShell('nose', info, { hint: '간식이 들어간 컵을 잘 보고 따라가요. 섞이고 나면 컵을 눌러요!' });
-    const n = info.exam === 'master' || info.level >= 5 ? 5 : info.level >= 3 || info.exam ? 4 : 3;
-    const swaps = 3 + info.level + (info.exam ? 2 : 0);
-    const swapMs = Math.max(260, 620 - info.level * 55 - (info.exam ? 60 : 0));
+    const sh = trainShell('nose', info, { hint: '간식이 들어간 컵을 잘 보고 따라가요. 섞이고 나면 컵을 눌러요! 갈수록 컵이 늘고 빨라져요.' });
     const table = el('div', { class: 'nose-table' });
     const sniff = el('img', { class: 'pixel nose-dog', src: dogPortrait(dog.breed, dog.stage, { equip: dog.equip, eyes: 'happy', mouth: 'tongue' }), alt: '' });
-    sh.stage.append(table, sniff);
-    const slots = Array.from({ length: n }, (_, i) => i); // slot → cup
-    const cups = slots.map((i) => {
-      const c = el('button', { class: 'nose-cup', type: 'button', disabled: true }, el('span', { class: 'cup' }), el('span', { class: 'treat' }, '🦴'));
-      c.style.left = `${((i + 0.5) / n) * 100}%`;
-      c.addEventListener('click', () => pick(i));
-      table.append(c);
-      return c;
-    });
+    const levelTag = el('div', { class: 'nose-level' });
+    sh.stage.append(levelTag, table, sniff);
+    let n = 0; let slots = []; let cups = [];
     let treat = 0; let round = 0; let waiting = null;
     const place = () => slots.forEach((cup, slot) => { cups[cup].style.left = `${((slot + 0.5) / n) * 100}%`; });
     const setAll = (dis) => cups.forEach((c) => { c.disabled = dis; });
+    const build = (count) => {
+      n = count;
+      slots = Array.from({ length: n }, (_, i) => i); // slot → cup
+      table.style.setProperty('--cupw', `${Math.min(64, Math.floor((table.clientWidth || 300) / n) - 6)}px`);
+      cups = slots.map((i) => {
+        const c = el('button', { class: 'nose-cup', type: 'button', disabled: true }, el('span', { class: 'cup' }), el('span', { class: 'treat' }, '🦴'));
+        c.addEventListener('click', () => pick(i));
+        return c;
+      });
+      table.replaceChildren(...cups);
+      place();
+    };
     const pick = (cup) => {
       if (!waiting) return;
       const ok = cup === treat;
@@ -190,26 +203,32 @@ export function playNose(dog, info) {
       setTimeout(w, 1300);
     };
     const play = async () => {
-      table.style.setProperty('--swap', `${swapMs}ms`);
+      let prev = null;
       while (round < sh.rounds && !sh.done) {
+        const R = noseRound(round, info);
         round += 1;
+        if (!prev || R.n !== prev.n) build(R.n);
+        table.style.setProperty('--swap', `${R.swapMs}ms`);
+        levelTag.textContent = `${round}단계 · 컵 ${R.n}개 · 섞기 ${R.swaps}번`;
         cups.forEach((c) => c.classList.remove('lift', 'show', 'has'));
         treat = Math.floor(Math.random() * n);
         cups[treat].classList.add('has');
-        sh.say(`${round}번째! 간식이 어디 있게요?`);
-        await wait(500);
+        const harder = prev && R.n > prev.n ? ' 컵이 하나 늘었어요!' : prev ? ' 조금 더 빨라져요!' : '';
+        sh.say(`${round}번째! 간식이 어디 있게요?${harder}`);
+        await wait(prev && R.n > prev.n ? 900 : 500);
         cups[treat].classList.add('lift', 'show');
         await wait(1100);
         cups[treat].classList.remove('lift');
         await wait(450);
         cups[treat].classList.remove('show');
         sh.say('섞는다~ 잘 봐요!');
-        for (let s = 0; s < swaps && !sh.done; s++) {
+        for (let s = 0; s < R.swaps && !sh.done; s++) {
           const a = Math.floor(Math.random() * n); let b = Math.floor(Math.random() * (n - 1)); if (b >= a) b += 1;
           [slots[a], slots[b]] = [slots[b], slots[a]];
           place(); sfx.tap();
-          await wait(swapMs + 60);
+          await wait(R.swapMs + 60);
         }
+        prev = R;
         if (sh.done) return;
         sh.say('어느 컵일까? 킁킁…');
         setAll(false);
