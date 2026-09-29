@@ -1,7 +1,7 @@
 // 매일 들어오고 싶은 이유 + 자랑거리: 오늘의 약속 · 도장판 · 배지 · 견종 도감 · 우편함(강아지 편지)
 // game.js의 트랜잭션 안에서도 불려서, 여기서는 tx()를 쓰지 않아요.
 import {
-  QUESTS, STAMP, BADGES, BADGE_COINS, SHOWCASE_MAX, LETTER, LETTERS, BREEDS, TRICKS, ITEMS, SCHOOL_BOOSTS, BOOST_RULES,
+  QUESTS, STAMP, BADGES, BADGE_COINS, SHOWCASE_MAX, LETTER, LETTERS, BREEDS, TRICKS, ITEMS, SCHOOL_BOOSTS, BOOST_RULES, ASK_RULES,
 } from '../shared/data.js';
 import { kstDate, levelFromExp, talentStage } from '../shared/rules.js';
 
@@ -78,12 +78,14 @@ export class Progress {
       if (q.progress[kind] >= QUESTS[kind].n) {
         q.done.push(kind);
         this.game.addCoins(userId, STAMP.questCoins);
-        events.push({ type: 'questDone', id: kind, text: QUESTS[kind].text, coins: STAMP.questCoins });
+        this.game.asks?.addHearts(userId, ASK_RULES.questHearts);
+        events.push({ type: 'questDone', id: kind, text: QUESTS[kind].text, coins: STAMP.questCoins, hearts: ASK_RULES.questHearts });
       }
     }
     if (!q.stamped && q.ids.every((id) => q.done.includes(id))) {
       q.stamped = true;
       p.stamps += 1;
+      this.game.asks?.addHearts(userId, ASK_RULES.stampHearts);
       let full = false;
       if (p.stamps >= STAMP.card) {
         full = true;
@@ -95,7 +97,7 @@ export class Progress {
           boost: 'hourglass',
         });
       }
-      events.push({ type: 'stamp', stamps: full ? STAMP.card : p.stamps, card: STAMP.card, full });
+      events.push({ type: 'stamp', stamps: full ? STAMP.card : p.stamps, card: STAMP.card, full, hearts: ASK_RULES.stampHearts });
     }
     this.save(userId, p);
     return [...events, ...this.checkBadges(userId)];

@@ -1110,20 +1110,22 @@ export const ASKS = {
   trick: { color: 'blue', emoji: '🎵', text: '개인기 보여 주고 싶어!', how: '우리집 → 개인기', go: 'home' },
 };
 export const ASK_RULES = {
-  gapMs: 12 * 60_000, // 소원을 들어준 뒤 다음 소원까지
+  gapMs: 8 * 60_000, // 소원을 들어준 뒤 다음 소원까지
   lifeMs: 3 * 3600_000, // 이 시간이 지나면 조용히 사라져요
-  dailyMax: 8,
+  dailyMax: 10,
   rainbowChance: 0.1, // 🌈 무지개 소원: 선물 3개 중 하나 고르기
-  hearts: 2, coins: 5, rainbowHearts: 5,
+  hearts: 3, coins: 5, rainbowHearts: 6,
+  dailyHearts: 2, // 출석하면 💗
+  questHearts: 1, stampHearts: 2, // 오늘의 약속 하나마다 💗, 셋 다 하면 💗 더
   luckyChance: 0.06, // 돌봄 대성공 ×2
 };
 
 // ---------- 🗺️ 멍뭉 마을: 💗를 모으면 새로운 곳이 열려요 (모은 💗 합계 기준, 써서 없어지지 않아요) ----------
 export const PLACES = {
-  yard: { name: '마당', emoji: '🌳', hearts: 20, desc: '땅을 파면 가끔 보물이 나와요! 하루 3번.' },
-  cafe: { name: '멍뭉 카페', emoji: '☕', hearts: 50, desc: '동물 손님들이 찾아오는 작은 카페를 운영해요.' },
-  spa: { name: '멍뭉 온천', emoji: '♨️', hearts: 90, desc: '따끈한 온천에서 쉬면 청결·애정이 쑥! 하루 한 번.' },
-  camp: { name: '캠핑장', emoji: '🏕️', hearts: 140, desc: '밤하늘 아래에서 잠든 강아지의 꿈을 살짝 엿봐요.' },
+  yard: { name: '마당', emoji: '🌳', hearts: 10, desc: '땅을 파면 가끔 보물이 나와요! 하루 3번.' },
+  cafe: { name: '멍뭉 카페', emoji: '☕', hearts: 25, desc: '동물 손님들이 찾아오는 작은 카페를 운영해요.' },
+  spa: { name: '멍뭉 온천', emoji: '♨️', hearts: 45, desc: '따끈한 온천에서 쉬면 청결·애정이 쑥! 하루 한 번.' },
+  camp: { name: '캠핑장', emoji: '🏕️', hearts: 70, desc: '밤하늘 아래에서 잠든 강아지의 꿈을 살짝 엿봐요.' },
 };
 export const YARD = {
   digsPerDay: 3,

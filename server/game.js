@@ -110,6 +110,7 @@ export class Game {
     const today = kstDate(this.now());
     const res = this.db.prepare('UPDATE users SET last_daily = ?, coins = coins + ? WHERE id = ? AND (last_daily IS NULL OR last_daily <> ?)')
       .run(today, RULES.dailyCoins, userId, today);
+    if (res.changes > 0) this.asks?.addHearts(userId, ASK_RULES.dailyHearts); // 출석하면 💗도
     return res.changes > 0 ? RULES.dailyCoins : 0;
   }
 

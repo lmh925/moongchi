@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, ASK_RULES, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps, daysUntilBirthday } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -737,7 +737,7 @@ function enterGame(me) {
   }
   setTab('home');
   playBgm('home');
-  if (me.dailyCoins) toast(`출석 보상! 뼈다귀 코인 ${me.dailyCoins}개를 받았어요`, 'good');
+  if (me.dailyCoins) toast(`출석 보상! 뼈다귀 코인 ${me.dailyCoins}개 · 💗 ${ASK_RULES.dailyHearts}개를 받았어요`, 'good');
   handleEvents(me.events).then(() => { if (state.me.asks?.gift) chooseAskGift(state.me.asks.gift); });
   handlePendingCode();
 }
@@ -1140,7 +1140,7 @@ async function handleEvents(events = []) {
   for (const ev of mergeLevelUps(events)) {
     if (ev.type === 'levelUp') await playLevelUp(state.me.dog, ev);
     if (ev.type === 'talentUp') await showTalentUp(ev);
-    if (ev.type === 'questDone') { sfx.coin(); toast(`약속 완료! "${ev.text}" · 코인 +${ev.coins}`, 'good'); }
+    if (ev.type === 'questDone') { sfx.coin(); toast(`약속 완료! "${ev.text}" · 코인 +${ev.coins}${ev.hearts ? ` · 💗+${ev.hearts}` : ''}`, 'good'); }
     if (ev.type === 'stamp') { sfx.levelUp(); await waitModal({ title: ev.full ? '도장판 완성!' : '도장 쾅!', className: 'celebrate', body: stampBody(ev) }); }
     if (ev.type === 'badge') { sfx.star(); await waitModal({ title: '새 배지를 얻었어요!', className: 'celebrate', body: badgeBody(ev) }); }
     if (ev.type === 'mail') { sfx.notify(); toast(`💌 ${ev.from}(이)가 편지를 남겼어요! 우편함을 열어 보세요.`, 'good'); }

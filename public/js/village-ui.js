@@ -46,6 +46,7 @@ export function openVillageMap(me, { onOpen, onPlace }) {
     className: 'village-map',
     body: el('div', {},
       el('p', { class: 'sub center' }, `지금까지 모은 💗 ${total}개`),
+      el('p', { class: 'hint center' }, '💗는 써도 없어지지 않아요! 모은 개수가 늘면 차례로 열려요. 💗는 소원 들어주기·출석·오늘의 약속으로 모아요.'),
       el('div', { class: 'place-list' }, Object.entries(PLACES).map(([id, P]) => {
         const open = v.places.includes(id);
         const can = !open && total >= P.hearts;
