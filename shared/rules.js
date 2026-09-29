@@ -2,7 +2,7 @@
 import {
   RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL,
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
-  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP, ZODIAC, BIRTH_FLOWERS,
 } from './data.js';
 
 export const MINUTE = 60_000;
@@ -284,4 +284,36 @@ export function examFor(train = {}, course) {
   if (!cert && level >= 3) return 'basic';
   if (cert === 'basic' && level >= 5) return 'master';
   return null;
+}
+
+// ---------- 🎂 생일 ----------
+export const kstMMDD = (now) => new Date(now + 9 * 3600_000).toISOString().slice(5, 10);
+export function validMMDD(s) {
+  const m = /^(\d{2})-(\d{2})$/.exec(String(s ?? ''));
+  if (!m) return false;
+  const mo = Number(m[1]); const d = Number(m[2]);
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+}
+export function zodiacOf(mmdd) {
+  if (!validMMDD(mmdd)) return null;
+  let z = ZODIAC[ZODIAC.length - 1]; // 1월 초는 염소자리
+  for (const row of ZODIAC) if (mmdd >= row[0]) z = row;
+  return { key: z[1], name: z[2], emoji: z[3], trait: z[4] };
+}
+export const birthFlower = (mmdd) => (validMMDD(mmdd) ? BIRTH_FLOWERS[Number(mmdd.slice(0, 2)) - 1] : null);
+// 다음 생일까지 남은 날 (오늘이면 0). 2월 29일은 평년엔 2월 28일에 축하해요
+export function daysUntilBirthday(mmdd, now) {
+  if (!validMMDD(mmdd)) return null;
+  const today = new Date(now + 9 * 3600_000);
+  const y = today.getUTCFullYear();
+  const t0 = Date.UTC(y, today.getUTCMonth(), today.getUTCDate());
+  const at = (yy) => {
+    let [mo, d] = mmdd.split('-').map(Number);
+    const leap = (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
+    if (mo === 2 && d === 29 && !leap) d = 28;
+    return Date.UTC(yy, mo - 1, d);
+  };
+  let next = at(y);
+  if (next < t0) next = at(y + 1);
+  return Math.round((next - t0) / 86_400_000);
 }

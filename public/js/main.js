@@ -1,9 +1,9 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
-import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps } from '../shared/rules.js';
+import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps, daysUntilBirthday } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
 import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.js';
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
@@ -14,6 +14,7 @@ import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
 import { trainingSection, openTrainingBook, trainResultBody, certBody } from './train-ui.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
+import { askBirthday, birthdayParty, birthdayLine, calendarPanel, datePicker, kstToday } from './birthday-ui.js';
 import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
 import { openDogCardMaker } from './dogcard.js';
@@ -311,7 +312,9 @@ function showResult() {
   renderResult(false);
 }
 
+let resultBday = null;
 function renderResult(picked) {
+  if (!resultBday) { resultBday = datePicker(kstToday().slice(5)); $('#result-bday').replaceChildren(resultBday.node); }
   $('#result-kicker').textContent = picked ? '내가 고른 강아지예요!' : '두근두근… 운명의 강아지를 만났어요!';
   const b = BREEDS[chosen.breed];
   const p = PERSONALITIES[chosen.personality];
@@ -361,7 +364,7 @@ $('#result-submit').addEventListener('click', async () => {
   const name = $('#result-name').value.trim();
   if (!name) { $('#result-error').textContent = '이름을 지어 주세요!'; return; }
   try {
-    const me = await post('/dog', { name, ...chosen });
+    const me = await post('/dog', { name, ...chosen, birthday: resultBday?.value() });
     applyMe(me);
     if (state.adopting) {
       state.adopting = false;
@@ -423,6 +426,68 @@ function applyMe(me) {
   syncPoops(me.dog);
   scheduleSchool();
   updateAskBubble();
+  maybeAskBirthday();
+}
+
+// 🎂 생일이 아직 없는 강아지가 있으면 물어봐요 (접속 중에도, 한 번 접속에 한 번씩)
+function maybeAskBirthday() {
+  const dog = state.me?.dog;
+  if (!dog || dog.birthday || state.bdayAsked?.has(dog.id)) return;
+  (state.bdayAsked ??= new Set()).add(dog.id);
+  const tryAsk = (n = 0) => {
+    if (!$('#screen-game')?.classList.contains('active') || $('#modal-root').children.length || state.plaza || document.querySelector('.runner-screen')) {
+      if (n < 60) setTimeout(() => tryAsk(n + 1), 2000);
+      return;
+    }
+    askBirthday(dog, { post, onDone: async (res) => { applyMe(res); await handleEvents(res.events); renderPanel(); } });
+  };
+  setTimeout(tryAsk, 1500);
+}
+
+function birthdayRow(dog) {
+  const info = dog.birthdayInfo;
+  if (!info) return el('button', { class: 'bday-row-home unset', type: 'button', onclick: () => openBirthdayEdit(dog) }, `🎂 ${dog.name}의 생일을 정해 주세요!`);
+  const d = info.daysLeft === 0 && !info.party ? null : info.daysLeft; // 오늘 처음 만났으면 첫 파티는 내년에
+  return el('button', {
+    class: `bday-row-home ${d === 0 ? 'today' : ''}`, type: 'button',
+    onclick: () => modal({
+      title: `🎂 ${dog.name}의 생일`,
+      body: el('div', { class: 'center' },
+        el('p', { class: 'big' }, birthdayLine(info.date)),
+        el('p', {}, `${info.zodiac.emoji} ${info.zodiac.name}: ${info.zodiac.trait}`),
+        el('p', { class: 'hint' }, d === 0 ? '오늘이 바로 생일이에요! 🎉' : d === null ? '오늘 처음 만났으니 첫 생일 파티는 내년에 해요! 🎈' : `생일까지 ${d}일 남았어요.`)),
+      buttons: [{ label: '생일 바꾸기', kind: 'secondary', onClick: () => setTimeout(() => openBirthdayEdit(dog), 200) }, { label: '좋아요!' }],
+    }),
+  }, d === 0 ? `🎉 오늘은 ${dog.name}의 생일! ${birthdayLine(info.date)}` : `${birthdayLine(info.date)}${d !== null && d <= BIRTHDAY.soonDays ? ` · D-${d}` : ''}`);
+}
+
+// 🎈 생일날 우리 집: 친구 강아지들이 고깔모자를 쓰고 축하하러 와요
+async function startBirthdayGuests() {
+  const dog = state.me?.dog;
+  const banner = $('#bday-banner');
+  if (!state.scene || !atHome() || !dog?.birthdayInfo?.party) { banner?.remove(); return; }
+  if (!banner) $('.stage').append(el('div', { id: 'bday-banner', class: 'bday-banner' }, `🎂 HAPPY BIRTHDAY ${dog.name} 🎂`));
+  const key = `${kstToday()}:${dog.id}`;
+  if (state.bdayFriendsKey !== key) {
+    state.bdayFriendsKey = key;
+    state.bdayFriends = ((await api('/friends').catch(() => ({ friends: [] }))).friends ?? []).filter((f) => f.dog && !f.dog.atSchool).slice(0, 4);
+  }
+  const lines = ['생일 축하해!', '🎂 해피 버스데이!', '축하축하~!', '선물 가져왔어!'];
+  (state.bdayFriends ?? []).forEach((f, i) => {
+    const id = `dog:bday:${f.id}`;
+    if (state.scene.entities.has(id)) return;
+    state.scene.upsert(id, { dog: { ...f.dog, equip: { ...(f.dog.equip ?? {}), head: 'bd_party_hat' } }, nickname: `${f.nickname}네 ${f.dog.name}`, auto: true, x: 0.95, y: 0.2 + i * 0.2 });
+    setTimeout(() => {
+      if (!state.scene.entities.has(id)) return;
+      state.scene.moveTo(id, 0.25 + i * 0.15, 0.3 + (i % 2) * 0.4);
+      state.scene.bubble(id, 'text', lines[i % lines.length]);
+      state.scene.burst(state.scene.entities.get(id), 'heart', 2);
+    }, 600 + i * 900);
+  });
+}
+
+function openBirthdayEdit(dog) {
+  askBirthday(dog, { post, onDone: async (res) => { applyMe(res); await handleEvents(res.events); renderPanel(); } });
 }
 
 // ---------- ✨ 숫자 팝업: 무엇이 얼마나 올랐는지 톡톡 ----------
@@ -841,6 +906,17 @@ function connectSocket() {
     if (state.tab === 'friends') renderPanel();
   });
   socket.on('trade:cancelled', () => { if (state.tab === 'friends') renderPanel(); });
+  socket.on('friend:birthday', ({ owner, dogName }) => {
+    sfx.notify();
+    toast(`🎂 오늘은 ${owner}네 ${dogName}의 생일이에요! 친구 탭에서 축하해 줘요!`, 'good');
+    if (state.tab === 'friends') renderPanel();
+  });
+  socket.on('birthday:cheer', async ({ from, dogName }) => {
+    sfx.love();
+    toast(`🎉 ${from}(이)가 ${dogName}의 생일을 축하해 줬어요! 우편함에 축하 카드가 왔어요.`, 'good');
+    state.scene?.effectAt?.(myId(), 'heart', 4);
+    try { applyMe(await api('/me')); } catch { /* 다음에 */ }
+  });
   socket.on('friends:changed', async () => {
     if (state.tab === 'friends') renderPanel();
     try {
@@ -901,6 +977,7 @@ function addExtras(extras = []) {
   const scene = state.scene;
   for (const id of [...scene.entities.keys()]) if (String(id).startsWith('dog:')) scene.remove(id);
   for (const x of extras) scene.upsert(`dog:${x.id}`, { dog: x.dog, nickname: x.dog.name, auto: true });
+  startBirthdayGuests();
 }
 
 function updateAway() {
@@ -1072,6 +1149,11 @@ async function handleEvents(events = []) {
     if (ev.type === 'specialGift') { sfx.levelUp(); await waitModal({ title: '🎁 스페셜 친구 선물!', className: 'celebrate', body: specialGiftBody(ev) }); }
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);
+    if (ev.type === 'birthday') {
+      const dog = (state.me.dogs ?? []).find((d) => d.id === ev.dogId) ?? state.me.dog;
+      await birthdayParty(ev, dog, { post });
+      startBirthdayGuests();
+    }
     if (ev.type === 'schoolDone') await showReport(ev.report, true);
     if (ev.type === 'taste') { const t = tasteToast(ev); if (t) toast(t, 'good'); }
     if (ev.type === 'placeOpen') { sfx.levelUp(); await waitModal({ title: '🗺️ 새로운 곳!', className: 'celebrate', body: placeOpenBody(ev), buttons: [{ label: '가 보자!', onClick: () => setTimeout(() => visitPlace(ev.id), 200) }] }); }
@@ -1379,6 +1461,7 @@ function homePanel() {
       dog.special ? el('button', { class: 'chip special-chip', onclick: () => modal({ title: `✨ ${SPECIALS[dog.special].name}의 스페셜 능력`, body: specialPerkList(dog.special), buttons: [{ label: '멋져!' }] }) }, '✨ 스페셜 능력') : null,
       g ? `다음 성장: ${g.next} (${[g.level < g.needLevel ? `Lv ${g.needLevel}까지` : null, g.days < g.needDays ? `함께한 날 ${g.days}/${g.needDays}일` : null].filter(Boolean).join(' · ') || '곧 자라요!'})`
         : '늠름한 강아지로 다 자랐어요! 레벨은 앞으로도 계속 올라요.'),
+    birthdayRow(dog),
     away ? el('div', { class: 'school-board' }, `${dog.name}(은)는 학교에서 공부 중이에요`, el('div', { class: 'big', id: 'school-left' }, ''), '돌아오면 알림장을 받을 수 있어요!',
       el('div', { class: 'row' },
         el('button', { class: 'btn small', onclick: leaveSchool }, '조퇴하고 데려오기'),
@@ -2046,14 +2129,33 @@ async function friendsPanel() {
       el('div', {},
         el('div', { class: 'title' }, el('span', {}, el('i', { class: `online ${f.online ? 'on' : ''}` }), f.nickname)),
         el('div', { class: 'meta' }, f.dog ? `${f.dog.name} · ${breedOf(f.dog.breed)?.name ?? ''}${f.dog.atSchool ? ' · 학교 가는 중' : ''}` : ''),
-        f.bond ? el('div', { class: 'meta' }, el('span', { class: 'hearts' }, '♥'.repeat(f.bond.level + 1)), ` ${f.bond.name}`) : null),
+        f.bond ? el('div', { class: 'meta' }, el('span', { class: 'hearts' }, '♥'.repeat(f.bond.level + 1)), ` ${f.bond.name}`) : null,
+        bdayChip(f)),
       el('div', { class: 'btns' },
+        bdayDays(f) === 0 ? el('button', {
+          class: 'btn small primary', disabled: data.cheered?.includes(f.id),
+          onclick: async (e) => {
+            try { const r = await post('/birthday/cheer', { friendId: f.id }); sfx.levelUp(); $('#top-coins').textContent = r.coinsLeft; toast(`🎉 ${r.names.join('·')}의 생일을 축하해 줬어요! 코인 +${r.coins}`, 'good'); e.target.disabled = true; e.target.textContent = '축하했어요!'; } catch (err) { toast(err.message, 'bad'); }
+          },
+        }, data.cheered?.includes(f.id) ? '축하했어요!' : '🎉 축하하기') : null,
         el('button', { class: 'btn small green', onclick: () => enterRoom(f.id) }, '놀러 가기'),
         el('button', { class: 'btn small', onclick: () => tradeWith(f) }, '거래'),
         canWish(f) ? el('button', { class: 'btn small primary', onclick: () => askWish(f) }, '🎁 아기 소원') : null,
         f.online && atHome() ? el('button', { class: 'btn small secondary', onclick: () => invite(f) }, '초대') : null,
         el('button', { class: 'btn small', title: '친구 끊기', 'aria-label': '친구 끊기', onclick: () => unfriend(f) }, '…'))))) : el('p', { class: 'help' }, '아직 친구가 없어요. 친구 코드를 주고받아 보세요!'),
     data.outgoing.length ? el('p', { class: 'hint' }, `수락을 기다리는 신청: ${data.outgoing.map((o) => o.nickname).join(', ')}`) : null);
+}
+
+// 🎂 친구 강아지 생일: 오늘이면 "오늘 생일!", 일주일 안이면 D-day
+function bdayDays(f) {
+  if (!f.dog?.birthday) return null;
+  const n = daysUntilBirthday(f.dog.birthday, serverNow());
+  return n === 0 && serverNow() - (f.dog.bornAt ?? 0) < 2 * 86_400_000 ? 365 : n; // 오늘 막 만난 친구는 내년에!
+}
+function bdayChip(f) {
+  const n = bdayDays(f);
+  if (n === null || n > BIRTHDAY.soonDays) return null;
+  return el('div', { class: `meta bday-chip ${n === 0 ? 'today' : ''}` }, n === 0 ? `🎂 오늘 ${f.dog.name} 생일!` : `🎁 ${f.dog.name} 생일 D-${n}`);
 }
 
 // ---------- 아기 강아지 소원 ----------
@@ -2849,9 +2951,14 @@ async function startGame(type, { map = 'meadow', boosters = [] } = {}) {
 async function notebookPanel() {
   const sub = state.notebookTab ?? 'reports';
   const tabs = el('div', { class: 'segmented' },
-    [['reports', '알림장'], ['badges', '배지'], ['dex', '도감']].map(([k, label]) => el('button', {
+    [['reports', '알림장'], ['calendar', '📅 달력'], ['badges', '배지'], ['dex', '도감']].map(([k, label]) => el('button', {
       class: sub === k ? 'on' : '', onclick: () => { state.notebookTab = k; renderPanel(); },
     }, label)));
+  if (sub === 'calendar') {
+    const cal = await calendarPanel({ api, post, state, rerender: () => { if (state.tab === 'notebook') renderPanel(); } });
+    if (state.tab !== 'notebook') return null;
+    return el('div', {}, tabs, cal);
+  }
   if (sub === 'badges' || sub === 'dex') {
     const me = await api('/me');
     if (state.tab !== 'notebook') return null;

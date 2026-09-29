@@ -2,7 +2,7 @@
 // 속성(가장 높은 재능) · HP(레벨) · 기술 2개(배운 개인기) · 희귀도(레벨/스페셜) · 반짝이(홀로)
 // 그림 칸에는 "지금 화면"(우리 집 장면)이나 속성 배경 위의 강아지를 그려요.
 import { BREEDS, TALENTS, TRICKS, SPECIALS, SPECIAL_TRICKS, PERSONALITIES, STAGES, TALENT_PERSONALITY } from '../shared/data.js';
-import { breedOf, ageDays } from '../shared/rules.js';
+import { breedOf, ageDays, zodiacOf } from '../shared/rules.js';
 import { dogSprite, DOG_W, DOG_H } from './sprites.js';
 import { el, modal } from './ui.js';
 import { sfx } from './audio.js';
@@ -170,7 +170,9 @@ export async function makeDogCard(dog, user, { scene = null } = {}) {
     ['칭호', dog.titleName ?? '-'],
     ['함께한 날', `${days + 1}일째`],
   ];
-  const cw = (W - 88) / 3;
+  const z = zodiacOf(dog.birthday);
+  if (z) cells.push(['생일', `${Number(dog.birthday.slice(0, 2))}/${Number(dog.birthday.slice(3))} ${z.emoji}`]);
+  const cw = (W - 88) / cells.length;
   cells.forEach(([k, v], i) => {
     const cx = 44 + cw * i + cw / 2;
     ctx.textAlign = 'center'; ctx.font = font(13, true); ctx.fillStyle = '#5a4540'; ctx.fillText(k, cx, y + 4);

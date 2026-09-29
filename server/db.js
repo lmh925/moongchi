@@ -206,6 +206,10 @@ export function openDb(file) {
   CREATE INDEX IF NOT EXISTS trades_from ON trades(from_id, status);`);
   ensure('users', 'boost_day', "TEXT NOT NULL DEFAULT '{}'");
   ensure('minigames', 'revives', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('dogs', 'birthday', 'TEXT'); // 'MM-DD'
+  ensure('dogs', 'bday_year', 'INTEGER NOT NULL DEFAULT 0'); // 마지막으로 생일을 축하한 해
+  ensure('dogs', 'bday_count', 'INTEGER NOT NULL DEFAULT 0');
+  ensure('dogs', 'bday_changed', 'INTEGER');
   ensure('minigames', 'boosters', "TEXT NOT NULL DEFAULT '[]'");
   db.exec(`CREATE TABLE IF NOT EXISTS mail (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

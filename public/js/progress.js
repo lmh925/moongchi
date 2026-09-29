@@ -128,9 +128,10 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName, 
     type: 'button', class: `mail-item ${m.opened ? '' : 'new'} ${m.kind}`,
     onclick: () => openOne(m),
   },
-  el('img', { class: 'pixel', src: iconURL(m.kind === 'capsule' ? 'star' : m.kind === 'baby' ? 'heart' : 'mail', 3), alt: '' }),
+  m.kind === 'bdayNotice' || m.kind === 'bdayCheer' ? el('span', { class: 'mail-emoji' }, m.kind === 'bdayNotice' ? '🎂' : '🎉')
+    : el('img', { class: 'pixel', src: iconURL(m.kind === 'capsule' ? 'star' : m.kind === 'baby' ? 'heart' : 'mail', 3), alt: '' }),
   el('span', { class: 'mail-meta' }, el('b', {}, m.title), el('small', {}, `${m.from} · ${fmtDate(m.createdAt)}`)),
-  !m.opened ? el('span', { class: 'chip' }, 'NEW') : (m.coins || m.item) ? el('span', { class: 'meta' }, '받음') : null))
+  !m.opened ? el('span', { class: 'chip' }, 'NEW') : (m.coins || m.item || m.hearts) ? el('span', { class: 'meta' }, '받음') : null))
     : [el('p', { class: 'help center' }, '아직 편지가 없어요. 강아지가 곧 편지를 쓸 거예요!')]));
   renderList();
   const box = modal({ title: '우편함', className: 'mailbox', body: list, buttons: [{ label: '닫기', kind: 'secondary' }] });
@@ -153,13 +154,14 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName, 
       m.coins ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('coin', 2), alt: '' }), `코인 ${m.coins}`) : null,
       m.item ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('sparkle', 2), alt: '' }), itemName(m.item)) : null,
       m.boost && SCHOOL_BOOSTS[m.boost] ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL(SCHOOL_BOOSTS[m.boost].icon, 2), alt: '' }), SCHOOL_BOOSTS[m.boost].name) : null,
+      m.hearts ? el('span', { class: 'reward-chip' }, el('img', { class: 'pixel', src: iconURL('heart', 2), alt: '' }), `💗 ${m.hearts}`) : null,
     ].filter(Boolean);
     if (res.result.first && gifts.length) setTimeout(() => sfx.coin(), 400);
     modal({
       title: m.title,
       className: 'letter-modal',
       body: el('div', { class: 'letter' },
-        m.breed ? el('img', { class: 'pixel letter-dog', src: dogPortrait(m.breed, m.stage ?? 0), alt: '' }) : null,
+        m.breed ? el('img', { class: 'pixel letter-dog', src: dogPortrait(m.breed, m.stage ?? 0, { equip: m.equip ?? {} }), alt: '' }) : m.kind === 'bdayNotice' ? el('div', { class: 'letter-emoji' }, '🎂🎈') : null,
         el('p', { class: 'letter-body' }, m.body),
         el('p', { class: 'letter-sign' }, `- ${m.from} 🐾 (${fmtDate(m.createdAt)})`),
         gifts.length ? el('div', { class: 'letter-gifts' }, el('small', {}, res.result.first ? '편지에 선물이 들어 있었어요!' : '받은 선물'), ...gifts) : null),

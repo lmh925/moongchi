@@ -137,6 +137,8 @@ const ACCESSORIES = {
     map: ['........oo..', '.......ovo..', '......ovvo..', '.....ovyvo..', '....ovvvvo..', '...ovvvyvvo.', '...ovvvvvvo.', '..ovyvvvvvvo', '..ovvvvvyvvo', 'oddddddddddddo', 'oooooooooooooo'] },
   crown: { anchor: 'head', dx: -5, dy: -6, colors: { o: '#4a3330', y: '#ffd23f', d: '#e0a800', r: '#ff4d6d', b: '#5bc0ff' },
     map: ['o...o...o', 'oyooyooyo', 'oyyyyyyyo', 'oyryybyro', 'oddddddd o', 'ooooooooo'] },
+  bd_party_hat: { anchor: 'head', dx: -4, dy: -9, colors: { o: '#4a3330', p: '#ff6f91', y: '#ffe066', b: '#5bc0ff', w: '#ffffff' },
+    map: ['....w....', '...ooo...', '...oyo...', '..opppo..', '..obbbo..', '.oyyyyyo.', '.oppppp o', 'ooooooooo'] },
   bib: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', w: '#ffffff', p: '#ffc2d6', l: '#e8e8f0' },
     map: ['owwwwo', 'owpwpwo', 'owwwwwo', '.owpwo.', '..ooo..'] },
   bandana: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', r: '#e84a5f', w: '#ffffff' },

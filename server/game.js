@@ -8,6 +8,7 @@ import {
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
   specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor, trainLevel, recommendedCourse, examFor,
+  zodiacOf, birthFlower, daysUntilBirthday,
 } from '../shared/rules.js';
 import { tx } from './db.js';
 import { tasteOf } from './village.js';
@@ -52,6 +53,9 @@ function rowToDog(row) {
     kids: row.kids ?? 0,
     train: { xp: {}, certs: {}, perfect: {}, ...JSON.parse(row.train ?? '{}') },
     tastes: JSON.parse(row.tastes ?? '{}'),
+    birthday: row.birthday ?? null,
+    bdayCount: row.bday_count ?? 0,
+    bdayYear: row.bday_year ?? 0,
   };
 }
 
@@ -136,7 +140,7 @@ export class Game {
   dogList(userId) {
     const active = this.loadDog(userId)?.id;
     return this.loadDogs(userId).map((d) => ({
-      id: d.id, name: d.name, breed: d.breed, stage: d.stage, equip: d.equip, level: levelFromExp(d.exp),
+      id: d.id, name: d.name, breed: d.breed, stage: d.stage, equip: d.equip, level: levelFromExp(d.exp), birthday: d.birthday, bornAt: d.bornAt,
       special: d.special, original: d.original, active: d.id === active, atSchool: !!d.school,
     }));
   }
@@ -386,6 +390,7 @@ export class Game {
 
   // 오늘의 약속·배지 기록 (server/progress.js). push면 소켓으로 그 친구 화면에 바로 알려요.
   track(userId, kind, n = 1, { push = false, ...extra } = {}) {
+    this.memories?.onTrack(userId, kind);
     const events = this.progress?.track(userId, kind, n, extra) ?? [];
     events.push(...(this.asks?.onTrack(userId, kind, extra) ?? []));
     if (push && events.length) this.onGrowth?.(userId, events);
@@ -1043,6 +1048,10 @@ export class Game {
       effects: talentEffects(dog.talents, dog.special),
       titles: unlockedTitles(levelFromExp(dog.exp), dog.talents, dog.special, dog.kids, dog.train?.certs),
       emotes: unlockedEmotes(levelFromExp(dog.exp)),
+      birthdayInfo: dog.birthday ? {
+        date: dog.birthday, zodiac: zodiacOf(dog.birthday), flower: birthFlower(dog.birthday), daysLeft: daysUntilBirthday(dog.birthday, now),
+        party: daysUntilBirthday(dog.birthday, now) === 0 && dog.bdayYear === Number(kstDate(now).slice(0, 4)), // 오늘 생일 파티 중!
+      } : null,
     };
   }
 
@@ -1069,6 +1078,8 @@ export class Game {
       special: dog.special ?? null,
       original: !!dog.original,
       parents: dog.parents ?? null,
+      birthday: dog.birthday ?? null,
+      bornAt: dog.bornAt,
     };
   }
 

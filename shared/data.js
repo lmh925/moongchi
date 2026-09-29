@@ -496,6 +496,7 @@ export const ITEMS = {
   tr_star_shades: { name: '런웨이 별 선글라스', slot: 'face', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
   tr_heart_scarf: { name: '마음 하트 스카프', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
   tr_rainbow_medal: { name: '무지개 만능 메달', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
+  bd_party_hat: { name: '생일 고깔모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true },
   // 스페셜 친구 전용 소품 (스페셜이 되면 선물로 받아요, 상점·뽑기·거래 없음)
   sp_cloud_pin: { name: '뭉치의 구름 머리핀', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'mungchi' },
   sp_heart_locket: { name: '뽀식이의 왕하트 목걸이', slot: 'neck', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'bbosik' },
@@ -1253,4 +1254,56 @@ export const RUN_CHESTS = {
     { kind: 'boost', boost: 'bus', weight: 10 },
     { kind: 'hearts', n: 1, weight: 5 },
   ],
+};
+
+// ---------- 🎂 강아지 생일 · 별자리 · 탄생화 ----------
+// [시작 날짜(MM-DD), 키, 이름, 이모지, 성격 한마디]
+export const ZODIAC = [
+  ['01-20', 'aquarius', '물병자리', '🏺', '친구가 많은 인기쟁이 멍뭉이'],
+  ['02-19', 'pisces', '물고기자리', '🐟', '마음이 따뜻한 꿈나라 멍뭉이'],
+  ['03-21', 'aries', '양자리', '🐏', '언제나 1등으로 달려가는 용감한 멍뭉이'],
+  ['04-20', 'taurus', '황소자리', '🐂', '맛있는 간식을 제일 잘 아는 미식가 멍뭉이'],
+  ['05-21', 'gemini', '쌍둥이자리', '👯', '궁금한 게 많은 호기심 대장 멍뭉이'],
+  ['06-22', 'cancer', '게자리', '🦀', '가족을 제일 아끼는 다정한 멍뭉이'],
+  ['07-23', 'leo', '사자자리', '🦁', '무대에 서면 반짝이는 스타 멍뭉이'],
+  ['08-23', 'virgo', '처녀자리', '🌾', '장난감 정리를 잘하는 꼼꼼 멍뭉이'],
+  ['09-23', 'libra', '천칭자리', '⚖️', '간식도 사이좋게 나누는 평화 멍뭉이'],
+  ['10-23', 'scorpio', '전갈자리', '🦂', '숨은 보물을 척척 찾는 탐정 멍뭉이'],
+  ['11-23', 'sagittarius', '사수자리', '🏹', '새로운 곳을 좋아하는 모험가 멍뭉이'],
+  ['12-22', 'capricorn', '염소자리', '🐐', '끝까지 해내는 노력파 멍뭉이'],
+];
+export const BIRTH_FLOWERS = ['스노드롭', '제비꽃', '수선화', '데이지', '은방울꽃', '장미', '연꽃', '해바라기', '코스모스', '금잔화', '국화', '포인세티아'];
+export const BIRTHDAY = {
+  coins: 50, hearts: 5, item: 'bd_party_hat', treat: 'cake', // 생일 선물
+  cheerCoins: 5, // 친구 생일을 축하해 주면 나도 코인
+  cheerHearts: 1, maxCheerHearts: 10, // 축하 한 번에 생일 주인에게 💗
+  changeDays: 60, // 생일을 다시 바꾸려면 이만큼 기다려요
+  soonDays: 7, // 이만큼 남으면 "곧 생일!"
+  wishes: ['친구가 더 많아지게 해 주세요', '간식을 배 터지게 먹게 해 주세요', '멍뭉런 1등 하게 해 주세요', '우리 가족 모두 건강하게 해 주세요', '매일매일 산책 가게 해 주세요'],
+};
+
+// ---------- 📅 멍뭉달력: 처음 한 날들 (자동으로 적혀요) ----------
+export const FIRSTS = {
+  feed: ['🍚', '처음으로 밥을 먹여 준 날'],
+  train: ['🎓', '처음으로 훈련 수업을 들은 날'],
+  school: ['🏫', '처음 학교에 간 날'],
+  run: ['🏃', '처음 멍뭉런을 달린 날'],
+  catch: ['🍖', '처음 간식 받기 놀이를 한 날'],
+  visit: ['🏠', '처음 친구 집에 놀러 간 날'],
+  trade: ['🔄', '처음 친구와 선물을 바꾼 날'],
+  gacha: ['🎁', '처음 캡슐 뽑기를 한 날'],
+  coop: ['🤝', '처음 친구와 협동 놀이를 한 날'],
+  tag: ['🏃', '처음 술래잡기를 한 날'],
+  treasure: ['💎', '처음 보물을 찾은 날'],
+  goal: ['⚽', '처음 골을 넣은 날'],
+  champion: ['🏆', '패션쇼에서 처음 1등 한 날'],
+  trick: ['🎵', '처음 개인기를 보여 준 날'],
+  cafe: ['☕', '처음 카페 문을 연 날'],
+  plaza: ['🌳', '처음 놀이터에 간 날'],
+  dig: ['⛏️', '처음 마당을 파 본 날'],
+  spa: ['♨️', '처음 온천에 간 날'],
+  dream: ['🌙', '처음 꿈을 엿본 날'],
+  letter: ['💌', '처음 편지를 받은 날'],
+  certBasic: ['📜', '처음 자격증을 딴 날'],
+  equip: ['🎀', '처음 꾸며 준 날'],
 };

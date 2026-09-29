@@ -22,6 +22,7 @@ import { Asks } from './asks.js';
 import { Village } from './village.js';
 import { Cafe } from './cafe.js';
 import { Extras } from './extras.js';
+import { Memories } from './memories.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -53,6 +54,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   game.village = village;
   const cafe = new Cafe(db, { game, friends, asks, village });
   const extras = new Extras(db, { game, friends, asks, village });
+  const memories = new Memories(db, { game, friends, progress, asks, notify: (id, ev, data) => hub?.emitToUser(id, ev, data) });
+  game.memories = memories;
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -158,10 +161,12 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     events.push(...babies.deliver(userId));
     const others = game.refreshOthers(userId);
     if (others.length) { events.push(...others); hub.dogsChanged(userId); }
+    if (dog) events.push(...memories.checkBirthdays(userId));
     const user = game.getUser(userId);
     const { events: extraEvents = [], ...rest } = extra;
     const allEvents = [...extraEvents, ...events];
     extras.noteEvents(userId, allEvents);
+    memories.noteEvents(userId, allEvents);
     return {
       user,
       dog: game.dogView(dog),
@@ -225,8 +230,24 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     const first = !game.loadDog(req.userId);
     const dog = game.createDog(req.userId, { name: name.name, breed: req.body?.breed, personality: req.body?.personality });
     if (!first) hub.dogsChanged(req.userId);
+    const newDog = game.loadDog(req.userId);
+    memories.record(req.userId, newDog.id, 'adopt', 'adopt', '🐶', `${newDog.name}(와)과 처음 만난 날`);
+    if (req.body?.birthday) { try { memories.setBirthday(req.userId, newDog.id, req.body.birthday); } catch { /* 생일은 나중에 정해도 돼요 */ } }
     return me(req.userId, { visit: true, events: dog.special ? [{ type: 'special', key: dog.special, from: dog.baseBreed }] : [] });
   }));
+
+  // 🎂 생일 · 📅 멍뭉달력
+  api.post('/dog/birthday', authed, wrap((req) => {
+    const dogId = req.body?.dogId ?? game.loadDog(req.userId)?.id;
+    const res = memories.setBirthday(req.userId, dogId, req.body?.date);
+    hub.dogChanged(req.userId);
+    return { ...me(req.userId, { events: res.events }), birthday: res.birthday };
+  }));
+  api.post('/birthday/cheer', authed, wrap((req) => ({ ...memories.cheer(req.userId, req.body?.friendId), coinsLeft: game.getUser(req.userId).coins })));
+  api.get('/diary', authed, wrap((req) => memories.month(req.userId, req.query?.month)));
+  api.post('/diary/comment', authed, wrap((req) => memories.comment(req.userId, req.body?.id, req.body?.text)));
+  api.post('/diary/note', authed, wrap((req) => memories.addNote(req.userId, req.body?.day, req.body?.emoji, req.body?.text)));
+  api.post('/diary/delete', authed, wrap((req) => memories.deleteNote(req.userId, req.body?.id)));
 
   api.post('/dog/action', authed, wrap((req) => {
     const res = game.act(req.userId, req.body?.action);
@@ -463,6 +484,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   api.get('/friends', authed, wrap((req) => {
     const list = friends.list(req.userId);
     list.friends = list.friends.map((f) => ({ ...f, online: hub.online(f.id), bond: bonds.get(req.userId, f.id) }));
+    list.cheered = memories.cheeredToday(req.userId);
     return list;
   }));
   api.get('/friends/lookup/:code', authed, wrap((req) => {

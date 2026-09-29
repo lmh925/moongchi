@@ -1450,3 +1450,72 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .patience-meter { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; font-size: 13px; color: var(--ink-soft); }
 .patience-meter[hidden] { display: none; }
 .patience-meter .pips { letter-spacing: 1px; }
+.mail-emoji { font-size: 26px; width: 36px; text-align: center; }
+.letter-emoji { font-size: 40px; text-align: center; }
+
+/* 🎂 생일 */
+.bday-picker { margin: 6px auto; }
+.bday-row { display: flex; gap: 8px; justify-content: center; }
+.bday-select { font: inherit; font-size: 16px; padding: 6px 8px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; color: var(--ink); }
+.bday-preview { margin-top: 6px; text-align: center; }
+.bday-preview .z { display: block; font-weight: 700; }
+.bday-preview small { display: block; font-size: 12px; color: var(--ink-soft); }
+.bday-field { text-align: center; }
+.bday-dog { width: 96px; height: 88px; }
+.bday-adopt { margin: 6px auto; display: block; }
+.bday-row-home { display: block; width: 100%; margin-top: 8px; padding: 8px 10px; border: 2px dashed var(--pink); border-radius: 10px; background: #fff7fa; color: var(--ink); font: inherit; font-size: 13px; text-align: center; cursor: pointer; }
+.bday-row-home.unset { border-style: solid; background: var(--pink-l); font-weight: 700; animation: pop .6s ease-out; }
+.bday-row-home.today { border: 3px solid var(--pink-d); background: linear-gradient(90deg, #ffe3ef, #fff6c4, #e3f3ff); font-weight: 700; }
+.bday-chip { color: var(--pink-d); font-weight: 700; }
+.bday-chip.today { animation: pop .5s ease-out infinite alternate; }
+.bday-banner { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3; white-space: nowrap; background: #fff; border: 3px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 13px; color: var(--pink-d); box-shadow: 0 3px 0 rgba(74, 51, 48, .3); pointer-events: none; animation: pop .6s ease-out infinite alternate; }
+.bday-stage { text-align: center; }
+.bday-cake { position: relative; width: 180px; margin: 10px auto 4px; }
+.bday-cake .candles { display: flex; justify-content: center; gap: 10px; height: 44px; align-items: flex-end; }
+.bday-cake .candle { position: relative; width: 12px; height: 30px; border: 2px solid var(--ink); border-radius: 3px; background: repeating-linear-gradient(45deg, #fff 0 4px, #ff9fc4 4px 8px); cursor: pointer; padding: 0; }
+.bday-cake .flame { position: absolute; left: 50%; bottom: 100%; width: 10px; height: 14px; margin-left: -5px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff6a8, #ffb000); animation: flicker .3s infinite alternate; }
+.bday-cake .candle.out .flame { display: none; }
+.bday-cake .candle.out::after { content: '💨'; position: absolute; bottom: 100%; left: -4px; font-size: 14px; animation: fadeUp 1s forwards; }
+@keyframes flicker { from { transform: scale(1) rotate(-3deg); } to { transform: scale(1.12) rotate(3deg); } }
+@keyframes fadeUp { to { transform: translateY(-14px); opacity: 0; } }
+.bday-cake .cake-top { height: 14px; margin: 0 10px; border: 3px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0; background: #fff; }
+.bday-cake .cake-body { height: 50px; border: 3px solid var(--ink); border-radius: 0 0 8px 8px; background: repeating-linear-gradient(90deg, #ffc2d3 0 16px, #ffd9e3 16px 32px); display: grid; place-items: center; font-weight: 700; font-size: 22px; color: var(--pink-d); }
+.bday-wishes { display: grid; gap: 8px; margin-top: 8px; }
+.bday-gifts { justify-content: center; margin: 8px 0; }
+.bday-zodiac { background: #f3ecff; border: 2px solid #c7a8ff; border-radius: 10px; padding: 6px; margin: 6px 0; }
+.bday-zodiac b { display: block; }
+.bday-zodiac small { font-size: 12px; }
+
+/* 📅 멍뭉달력 */
+.calendar { margin-top: 6px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head b { font-size: 18px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cal-w { text-align: center; font-size: 12px; color: var(--ink-soft); }
+.cal-grid.week .cal-w:first-child { color: #e84a5f; }
+.cal-cell { aspect-ratio: 1 / 1.1; border: 2px solid var(--line); border-radius: 8px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2px 0; font: inherit; color: var(--ink); cursor: pointer; min-width: 0; overflow: hidden; }
+.cal-cell.empty { border: 0; background: transparent; cursor: default; }
+.cal-cell .n { font-size: 12px; }
+.cal-cell .ic { font-size: 14px; line-height: 1.1; }
+.cal-cell small { font-size: 9px; color: var(--ink-soft); }
+.cal-cell.has { background: #fff7fa; border-color: var(--pink); }
+.cal-cell.today { border: 3px solid var(--pink-d); }
+.cal-cell.future { opacity: .55; }
+.cal-list { display: grid; gap: 6px; }
+.cal-item { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; border: 2px solid var(--line); border-radius: 10px; background: #fff; font: inherit; color: var(--ink); cursor: pointer; }
+.cal-item .emo { font-size: 20px; flex: none; }
+.cal-item .txt { flex: 1; min-width: 0; }
+.cal-item .txt b { display: block; font-size: 13px; }
+.cal-item .txt small { display: block; font-size: 12px; color: var(--ink-soft); }
+.cal-item .d { flex: none; font-size: 12px; color: var(--ink-soft); }
+.cal-entries { display: grid; gap: 8px; }
+.cal-entry { border: 2px solid var(--line); border-radius: 10px; padding: 6px 8px; background: #fff; }
+.cal-entry.bday { background: #fff7fa; border-color: var(--pink); display: flex; gap: 6px; align-items: center; }
+.cal-entry .row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.cal-entry .row:first-child { margin-top: 0; }
+.cal-entry .emo { font-size: 18px; }
+.cal-entry b { flex: 1; font-size: 13px; }
+.cal-entry .chat-input.small { flex: 1; min-width: 0; font-size: 13px; padding: 6px 8px; }
+.cal-emojis { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.cal-emojis .emo { font-size: 18px; width: 34px; height: 34px; border: 2px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; }
+.cal-emojis .emo.on { border-color: var(--pink-d); background: var(--pink-l); }

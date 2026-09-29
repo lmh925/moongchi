@@ -193,6 +193,7 @@ export class Progress {
       } else { this.game.addCoins(userId, 10); result.duplicate = true; }
     }
     if (data.boost && SCHOOL_BOOSTS[data.boost]) result.boostAdded = this.game.addBoost(userId, data.boost, 1);
+    if (data.hearts) this.game.asks?.addHearts(userId, data.hearts);
     if (m.kind === 'capsule') result.capsule = this.game.gacha(userId, { special: true });
     if (m.kind === 'letter') result.events.push(...this.track(userId, 'letter'));
     return result;
