@@ -23,6 +23,7 @@ import { Village } from './village.js';
 import { Cafe } from './cafe.js';
 import { Extras } from './extras.js';
 import { Memories } from './memories.js';
+import { Journal } from './journal.js';
 import { startBackups } from './backup.js';
 import QRCode from 'qrcode';
 import { checkDogName } from './filter.js';
@@ -56,6 +57,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   const extras = new Extras(db, { game, friends, asks, village });
   const memories = new Memories(db, { game, friends, progress, asks, notify: (id, ev, data) => hub?.emitToUser(id, ev, data) });
   game.memories = memories;
+  const journal = new Journal(db, { game, friends, safety, asks, memories, notify: (id, ev, data) => hub?.emitToUser(id, ev, data) });
   const plaza = new PlazaHub(io, { game, friends, safety, bonds });
   const coop = new CoopHub(io, { game, bonds, safety, plaza, now });
   // 여럿이 하는 놀이에서 레벨업·재능이 오르면 그 친구 화면에 바로 알려요
@@ -180,6 +182,7 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
       spaToday: extras.spaToday(userId),
       dreams: extras.dreamView(userId),
       news: extras.news(userId),
+      journal: journal.summary(userId),
       progress: dog ? progress.view(userId) : null,
       unreadReports: game.unreadReports(userId),
       pendingFriends: friends.list(userId).incoming.length,
@@ -244,6 +247,16 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
     return { ...me(req.userId, { events: res.events }), birthday: res.birthday };
   }));
   api.post('/birthday/cheer', authed, wrap((req) => ({ ...memories.cheer(req.userId, req.body?.friendId), coinsLeft: game.getUser(req.userId).coins })));
+  // 📔 일기장
+  api.get('/journal', authed, wrap((req) => journal.mine(req.userId)));
+  api.get('/journal/feed', authed, wrap((req) => journal.feed(req.userId)));
+  api.post('/journal', authed, wrap((req) => {
+    const res = journal.write(req.userId, { weather: req.body?.weather, mood: req.body?.mood, title: req.body?.title, body: req.body?.body, isPublic: !!req.body?.isPublic });
+    return { ...me(req.userId, { events: res.events }), result: res };
+  }));
+  api.post('/journal/:id/react', authed, wrap((req) => journal.react(req.userId, req.params.id, req.body?.emoji)));
+  api.post('/journal/:id/report', authed, wrap((req) => journal.report(req.userId, req.params.id, req.body?.reason)));
+  api.post('/journal/:id/delete', authed, wrap((req) => journal.remove(req.userId, req.params.id)));
   api.get('/diary', authed, wrap((req) => memories.month(req.userId, req.query?.month)));
   api.post('/diary/comment', authed, wrap((req) => memories.comment(req.userId, req.body?.id, req.body?.text)));
   api.post('/diary/note', authed, wrap((req) => memories.addNote(req.userId, req.body?.day, req.body?.emoji, req.body?.text)));

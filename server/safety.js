@@ -6,6 +6,8 @@ export const REPORT_REASONS = {
   mean: '나쁜 말이나 행동을 해요',
   follow: '자꾸 따라다녀요',
   spam: '스티커를 너무 많이 보내요',
+  diary_bad: '일기에 나쁜 말이 있어요',
+  diary_private: '일기에 비밀 정보가 적혀 있어요',
   other: '기타',
 };
 

@@ -1,7 +1,7 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, ASK_RULES, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, ASK_RULES, JOURNAL, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
 import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps, daysUntilBirthday } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
@@ -14,6 +14,7 @@ import { playGacha } from './gacha.js';
 import { playTraining } from './training.js';
 import { trainingSection, openTrainingBook, trainResultBody, certBody } from './train-ui.js';
 import { playPhotobooth, loadAlbum, removeFromAlbum, downloadPhoto } from './photobooth.js';
+import { journalPanel, openJournalEditor } from './journal-ui.js';
 import { askBirthday, birthdayParty, birthdayLine, calendarPanel, datePicker, kstToday } from './birthday-ui.js';
 import { playJumpRope } from './jumprope.js';
 import { openLeaderboard, lbToast } from './leaderboard.js';
@@ -413,7 +414,7 @@ function applyMe(me) {
   $('#top-level').className = `chip lv-badge frame-${me.dog.frame ?? 0}`;
   $('#top-coins').textContent = me.user.coins;
   $('#top-hearts').textContent = me.asks?.hearts ?? 0;
-  $('#badge-notebook').hidden = !me.unreadReports;
+  $('#badge-notebook').hidden = !me.unreadReports && !me.journal?.unread;
   $('#badge-friends').hidden = !me.pendingFriends && !me.pendingTrades;
   $('#badge-mail').hidden = !me.progress?.unreadMail;
   if (me.progress?.unreadMail) $('#badge-mail').textContent = me.progress.unreadMail;
@@ -906,6 +907,15 @@ function connectSocket() {
     if (state.tab === 'friends') renderPanel();
   });
   socket.on('trade:cancelled', () => { if (state.tab === 'friends') renderPanel(); });
+  socket.on('journal:new', ({ owner }) => {
+    sfx.notify();
+    toast(`📔 ${owner}(이)가 일기를 공개했어요! 알림장 → 일기에서 볼 수 있어요.`, 'good');
+    if (state.me?.journal) { state.me.journal.unread = (state.me.journal.unread ?? 0) + 1; $('#badge-notebook').hidden = false; }
+  });
+  socket.on('journal:react', ({ from, emoji, title }) => {
+    sfx.love();
+    toast(`${emoji} ${from}(이)가 "${title}" 일기에 반응을 남겼어요!`, 'good');
+  });
   socket.on('friend:birthday', ({ owner, dogName }) => {
     sfx.notify();
     toast(`🎂 오늘은 ${owner}네 ${dogName}의 생일이에요! 친구 탭에서 축하해 줘요!`, 'good');
@@ -1485,6 +1495,10 @@ function homePanel() {
       actionBtn('개인기', 'star', openTricks, away)),
     el('div', { id: 'patience-meter', class: 'patience-meter' }),
     newsTicker(state.me.news),
+    state.me.journal && !state.me.journal.written ? el('button', {
+      class: 'journal-nudge', type: 'button',
+      onclick: () => openJournalEditor({ post, dog: state.me.dog, onSaved: async (res) => { applyMe(res); await handleEvents(res.events); renderPanel(); } }),
+    }, '📔 오늘의 일기를 써 볼까요? ', el('small', {}, `코인 +${JOURNAL.coins} · 💗+${JOURNAL.hearts}`)) : null,
     villageCard(state.me, { onMap: openMap, onPlace: visitPlace }),
     questCard(state.me.progress),
     dogsRow(),
@@ -2963,9 +2977,16 @@ async function startGame(type, { map = 'meadow', boosters = [] } = {}) {
 async function notebookPanel() {
   const sub = state.notebookTab ?? 'reports';
   const tabs = el('div', { class: 'segmented' },
-    [['reports', '알림장'], ['calendar', '📅 달력'], ['badges', '배지'], ['dex', '도감']].map(([k, label]) => el('button', {
+    [['reports', '알림장'], ['journal', `일기${state.me.journal?.unread ? ` ${state.me.journal.unread}` : ''}`], ['calendar', '달력'], ['badges', '배지'], ['dex', '도감']].map(([k, label]) => el('button', {
       class: sub === k ? 'on' : '', onclick: () => { state.notebookTab = k; renderPanel(); },
     }, label)));
+  if (sub === 'journal') {
+    const rerender = () => { if (state.tab === 'notebook') renderPanel(); };
+    const panel = await journalPanel({ api, post, state, rerender, onSaved: async (res) => { applyMe(res); await handleEvents(res.events); rerender(); } });
+    if (state.tab !== 'notebook') return null;
+    $('#badge-notebook').hidden = !state.me.unreadReports;
+    return el('div', {}, tabs, panel);
+  }
   if (sub === 'calendar') {
     const cal = await calendarPanel({ api, post, state, rerender: () => { if (state.tab === 'notebook') renderPanel(); } });
     if (state.tab !== 'notebook') return null;
