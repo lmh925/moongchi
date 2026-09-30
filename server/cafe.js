@@ -1,5 +1,5 @@
 // ☕ 멍뭉 카페: 메뉴를 고르고 문을 열어 두면, 시간이 지나 동물 손님이 다녀가요.
-// 점장 = 대표 강아지, 직원 = 다른 우리 강아지(재능에 따라 요리·서빙·접객), 손님 도감 · 단짝 소개
+// 점장 = 대표 강아지, 직원 = 우리 강아지나 친구 강아지 알바(재능에 따라 요리사·서빙·손님 맞이), 손님 도감 · 단짝 소개
 import { CAFE, CAFE_MENU, CAFE_GUESTS } from '../shared/data.js';
 import { talentStages } from '../shared/rules.js';
 import { GameError } from './game.js';
@@ -29,19 +29,43 @@ export class Cafe {
   need(userId) { if (!this.village.has(userId, 'cafe')) throw new GameError('아직 카페가 열리지 않았어요. 💗를 모아 마을 지도에서 열어요!'); }
 
   // 직원 정하기 (dogId가 null이면 비우기). 한 강아지는 한 가지 일만 해요
+  // 우리 강아지는 숫자 id, 친구 알바는 'f:친구id' (친구의 대표 강아지가 와요)
   setStaff(userId, role, dogId) {
     this.need(userId);
     if (!CAFE.roles[role]) throw new GameError('그런 일은 없어요.');
     const c = this.get(userId);
     if (c.open) throw new GameError('영업 중에는 직원을 바꿀 수 없어요.');
-    if (dogId !== null) {
+    let value = null;
+    if (typeof dogId === 'string' && dogId.startsWith('f:')) {
+      const fid = Number(dogId.slice(2));
+      if (!fid || !this.friends.areFriends(userId, fid)) throw new GameError('친구만 알바로 부를 수 있어요.');
+      if (!this.game.loadDog(fid)) throw new GameError('그 친구는 아직 강아지가 없어요.');
+      value = `f:${fid}`;
+    } else if (dogId !== null && dogId !== '') {
       const dog = this.game.loadDogById(Number(dogId));
       if (!dog || dog.userId !== userId) throw new GameError('우리 강아지만 일할 수 있어요.');
-      for (const r of Object.keys(c.staff)) if (c.staff[r] === dog.id) delete c.staff[r];
-      c.staff[role] = dog.id;
+      value = dog.id;
+    }
+    if (value !== null) {
+      for (const r of Object.keys(c.staff)) if (c.staff[r] === value) delete c.staff[r];
+      c.staff[role] = value;
     } else delete c.staff[role];
     this.save(userId, c);
     return this.view(userId);
+  }
+
+  // 직원 강아지 (친구 알바면 친구 id도 같이)
+  staffDog(userId, c, role) {
+    const id = c.staff[role];
+    if (!id) return null;
+    if (typeof id === 'string' && id.startsWith('f:')) {
+      const fid = Number(id.slice(2));
+      if (!this.friends.areFriends(userId, fid)) return null;
+      const dog = this.game.loadDog(fid);
+      return dog ? { dog, friendId: fid } : null;
+    }
+    const dog = this.game.loadDogById(id);
+    return dog && dog.userId === userId ? { dog } : null;
   }
 
   open(userId, menu, duration) {
@@ -61,11 +85,9 @@ export class Cafe {
   }
 
   staffStage(userId, c, role) {
-    const id = c.staff[role];
-    if (!id) return 0;
-    const dog = this.game.loadDogById(id);
-    if (!dog || dog.userId !== userId) return 0;
-    const st = talentStages(dog.talents);
+    const s = this.staffDog(userId, c, role);
+    if (!s) return 0;
+    const st = talentStages(s.dog.talents);
     return Math.max(...CAFE.roles[role].talents.map((t) => st[t] ?? 0));
   }
 
@@ -119,9 +141,25 @@ export class Cafe {
     const after = cafeLevel(c.xp);
     const report = { at: now, guests, coins, hearts, stars: guests.length ? Math.round((starSum / guests.length) * 10) / 10 : 0, early: ratio < 1, levelUp: after.level > before ? after.level : null };
     c.last = report;
-    this.save(userId, c);
     this.game.addCoins(userId, coins);
     if (hearts) this.asks.addHearts(userId, hearts);
+    // 끝까지 도와준 친구 알바에게 알바비 편지 (친구마다 하루 한 번)
+    if (ratio >= 1) {
+      const me = this.game.getUser(userId);
+      const day = new Date(now + 9 * 3600_000).toISOString().slice(0, 10);
+      if (c.paid?.day !== day) c.paid = { day, ids: [] };
+      for (const role of Object.keys(CAFE.roles)) {
+        const s = this.staffDog(userId, c, role);
+        if (!s?.friendId || c.paid.ids.includes(s.friendId)) continue;
+        c.paid.ids.push(s.friendId);
+        this.game.progress?.sendMail(s.friendId, 'cafeHelp', {
+          from: me.nickname, coins: CAFE.helperPay, title: `${me.nickname}네 카페 알바비`,
+          breed: s.dog.breed, stage: s.dog.stage, equip: s.dog.equip,
+          body: `${s.dog.name}(이)가 ${me.nickname}네 멍뭉 카페에서 ${CAFE.roles[role].name} 일을 도와줬어요! 고마워서 알바비를 보내요. 🦴+${CAFE.helperPay}`,
+        });
+      }
+    }
+    this.save(userId, c);
     const events = this.game.track(userId, 'cafe');
     if (report.levelUp) events.push({ type: 'cafeLevel', level: after.level });
     return { report, events };
@@ -143,6 +181,12 @@ export class Cafe {
 
   view(userId) {
     const c = this.get(userId);
-    return { ...cafeLevel(c.xp), xp: c.xp, open: c.open, dex: c.dex, pairs: c.pairs, staff: c.staff, last: c.last, served: c.served };
+    // 알바로 부를 수 있는 친구들 (대표 강아지가 있는 친구만)
+    const helpers = !this.village.has(userId, 'cafe') ? [] : this.friends.friendIds(userId).map((fid) => {
+      const dog = this.game.loadDog(fid);
+      const u = dog && this.game.getUser(fid);
+      return u ? { id: `f:${fid}`, nickname: u.nickname, dog: { name: dog.name, breed: dog.breed, stage: dog.stage, equip: dog.equip } } : null;
+    }).filter(Boolean);
+    return { ...cafeLevel(c.xp), xp: c.xp, open: c.open, dex: c.dex, pairs: c.pairs, staff: c.staff, last: c.last, served: c.served, helpers };
   }
 }

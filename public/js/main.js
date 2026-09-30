@@ -782,7 +782,7 @@ function connectSocket() {
       const e = scene.entities.get(m.userId);
       if (e) { e.auto = false; scene.moveTo(m.userId, m.x, m.y); }
     } else {
-      scene.upsert(m.userId, { dog: m.dog, nickname: m.nickname, x: m.x, y: m.y });
+      scene.upsert(m.userId, { dog: m.dog, nickname: dogTag(m.nickname, m.dog), x: m.x, y: m.y });
     }
     state.room.members.push(m);
     scene.showNames = true;
@@ -957,7 +957,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   const ownerMember = room.members.find((m) => m.userId === ownerId);
   scene.upsert(ownerId, {
     dog: ownerId === me ? publicDog(state.me.dog) : room.homeDog,
-    nickname: room.owner.nickname,
+    nickname: (ownerId === me ? state.me.dog?.name : room.homeDog?.name) ?? room.owner.nickname, // 이름표는 강아지 이름
     x: ownerMember?.x, y: ownerMember?.y,
     mine: ownerId === me, home: true, auto: ownerId === me || !ownerMember,
   });
@@ -966,7 +966,7 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   for (const m of room.members) {
     if (m.userId === ownerId) continue;
     scene.upsert(m.userId, {
-      dog: m.userId === me ? publicDog(state.me.dog) : m.dog, nickname: m.nickname, x: m.x, y: m.y,
+      dog: m.userId === me ? publicDog(state.me.dog) : m.dog, nickname: m.userId === me ? state.me.dog?.name ?? m.nickname : dogTag(m.nickname, m.dog), x: m.x, y: m.y,
       mine: m.userId === me, auto: m.userId === me,
     });
   }
@@ -981,6 +981,9 @@ async function enterRoom(ownerId, { quiet = false } = {}) {
   if (state.tab === 'home' || ownerId !== me) setTab('home');
   return true;
 }
+
+// 놀러 온 친구 강아지 이름표: "뚱랑이네 콩"
+function dogTag(nick, dog) { return dog?.name ? `${nick}네 ${dog.name}` : nick; }
 
 // 집에서 함께 지내는 대표가 아닌 강아지들 (알아서 돌아다녀요)
 function addExtras(extras = []) {
@@ -1180,7 +1183,7 @@ async function handleEvents(events = []) {
     if (ev.type === 'taste') { const t = tasteToast(ev); if (t) toast(t, 'good'); }
     if (ev.type === 'placeOpen') { sfx.levelUp(); await waitModal({ title: '🗺️ 새로운 곳!', className: 'celebrate', body: placeOpenBody(ev), buttons: [{ label: '가 보자!', onClick: () => setTimeout(() => visitPlace(ev.id), 200) }] }); }
     if (ev.type === 'cafeLevel') { sfx.levelUp(); toast(`☕ 카페 Lv ${ev.level}! 새 메뉴와 새 손님이 생겼어요!`, 'good'); }
-    if (ev.type === 'cafePair') { sfx.love(); toast(`🤝 ${CAFE_GUESTS[ev.a].emoji}${CAFE_GUESTS[ev.b].emoji} 단짝이 됐어요! 💗+${ev.hearts}`, 'good'); }
+    if (ev.type === 'cafePair') { sfx.love(); toast(`🤝 ${CAFE_GUESTS[ev.a].name} 💕 ${CAFE_GUESTS[ev.b].name} 단짝이 됐어요! 💗+${ev.hearts}`, 'good'); }
     if (ev.type === 'setDone') { sfx.levelUp(); await waitModal({ title: '가구 세트 완성!', className: 'celebrate', body: setDoneBody(ev), buttons: [{ label: '멋지다!' }] }); }
     if (ev.type === 'askDone') {
       sfx.love();

@@ -1176,10 +1176,11 @@ export const CAFE = {
   friendChance: 0.2, // 친구 강아지가 손님으로 올 확률 (한 손님마다)
   pairMin: 3, // 손님 소개: 둘 다 3번 이상 온 단골이어야 해요
   pairHearts: 2,
+  helperPay: 10, // 친구 알바: 영업을 끝까지 마치면 친구에게 알바비 편지 (코인)
   roles: {
-    cook: { name: '요리', emoji: '🍳', talents: ['smart'], desc: '팁이 늘어요' },
-    serve: { name: '서빙', emoji: '🏃', talents: ['strong'], desc: '손님이 늘어요' },
-    host: { name: '접객', emoji: '💗', talents: ['kind', 'charm'], desc: '별점과 💗가 늘어요' },
+    cook: { name: '요리사', emoji: '🍳', talents: ['smart'], desc: '팁이 늘어요' },
+    serve: { name: '서빙', emoji: '🏃', talents: ['strong'], desc: '손님이 더 와요' },
+    host: { name: '손님 맞이', emoji: '💗', talents: ['kind', 'charm'], desc: '별점·💗가 늘어요' },
   },
 };
 export const CAFE_MENU = {

@@ -128,7 +128,7 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName, 
     type: 'button', class: `mail-item ${m.opened ? '' : 'new'} ${m.kind}`,
     onclick: () => openOne(m),
   },
-  m.kind === 'bdayNotice' || m.kind === 'bdayCheer' ? el('span', { class: 'mail-emoji' }, m.kind === 'bdayNotice' ? '🎂' : '🎉')
+  m.kind === 'bdayNotice' || m.kind === 'bdayCheer' || m.kind === 'cafeHelp' ? el('span', { class: 'mail-emoji' }, m.kind === 'bdayNotice' ? '🎂' : m.kind === 'cafeHelp' ? '☕' : '🎉')
     : el('img', { class: 'pixel', src: iconURL(m.kind === 'capsule' ? 'star' : m.kind === 'baby' ? 'heart' : 'mail', 3), alt: '' }),
   el('span', { class: 'mail-meta' }, el('b', {}, m.title), el('small', {}, `${m.from} · ${fmtDate(m.createdAt)}`)),
   !m.opened ? el('span', { class: 'chip' }, 'NEW') : (m.coins || m.item || m.hearts) ? el('span', { class: 'meta' }, '받음') : null))

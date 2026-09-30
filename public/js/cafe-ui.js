@@ -1,6 +1,7 @@
 // ☕ 멍뭉 카페 화면: 영업(메뉴·직원·시간) · 손님 도감 · 단짝 소개 · 영업 보고서
 import { CAFE, CAFE_MENU, CAFE_GUESTS } from '../shared/data.js';
 import { dogPortrait } from './sprites.js';
+import { critterImg } from './critters.js';
 import { el, modal, toast } from './ui.js';
 import { sfx } from './audio.js';
 
@@ -50,7 +51,7 @@ export function openCafe(ctx) {
   // 문 열기 전: 메뉴 · 직원 · 영업 시간
   const shopPane = (me, c) => {
     for (const m of [...pick]) if (!CAFE_MENU[m] || CAFE_MENU[m].level > c.level) pick.delete(m);
-    const likers = (menuId) => Object.entries(CAFE_GUESTS).filter(([gid, g]) => g.fav === menuId && favKnown(c, gid)).map(([, g]) => g.emoji).join('');
+    const likers = (menuId) => Object.entries(CAFE_GUESTS).filter(([gid, g]) => g.fav === menuId && favKnown(c, gid)).map(([gid]) => gid);
     return el('div', {},
       el('div', { class: 'section-title' }, `메뉴 고르기 (${pick.size}/${c.slots})`),
       el('div', { class: 'menu-grid' }, Object.entries(CAFE_MENU).map(([id, m]) => {
@@ -63,20 +64,31 @@ export function openCafe(ctx) {
             sfx.tap(); render();
           },
         }, el('span', { class: 'big' }, locked ? '🔒' : m.emoji), el('b', {}, m.name),
-        el('small', {}, locked ? `카페 Lv ${m.level}` : likers(id) ? `${likers(id)} 최애!` : '누가 좋아할까?'));
+        el('small', {}, locked ? `카페 Lv ${m.level}` : likers(id).length ? [...likers(id).map((gid) => critterImg(gid, { cls: 'mini' })), ' 최애!'] : '누가 좋아할까?'));
       })),
       el('p', { class: 'hint' }, '손님이 두 번 오면 최애 메뉴를 알려 줘요. 최애 메뉴를 걸어 두면 팁 ×2, ⭐5!'),
-      el('div', { class: 'section-title' }, '직원 (우리 강아지들)'),
+      el('div', { class: 'section-title' }, '직원'),
       el('div', { class: 'staff-list' }, Object.entries(CAFE.roles).map(([role, R]) => el('label', { class: 'staff-row' },
         el('span', {}, `${R.emoji} ${R.name}`, el('small', {}, ` ${R.desc}`)),
         el('select', {
-          onchange: async (e) => { if (await act('/cafe/staff', { role, dogId: e.target.value ? Number(e.target.value) : null })) render(); },
-        }, el('option', { value: '' }, '비어 있음'), me.dogs.map((d) => {
+          onchange: async (e) => {
+            const v = e.target.value;
+            if (await act('/cafe/staff', { role, dogId: !v ? null : v.startsWith('f:') ? v : Number(v) })) render();
+          },
+        }, el('option', { value: '' }, '비어 있음'),
+        el('optgroup', { label: '🐶 우리 강아지' }, me.dogs.map((d) => {
           const o = el('option', { value: String(d.id) }, `${d.name}${d.active ? ' (점장)' : ''}`);
           if (c.staff?.[role] === d.id) o.selected = true;
           return o;
-        }))))),
-      me.dogs.length < 2 ? el('p', { class: 'hint' }, '둘째를 입양하면 더 든든한 직원이 돼요! 재능이 높을수록 잘해요.') : null,
+        })),
+        c.helpers?.length ? el('optgroup', { label: '👫 친구 알바' }, c.helpers.map((h) => {
+          const o = el('option', { value: h.id }, `${h.nickname}네 ${h.dog.name}`);
+          if (c.staff?.[role] === h.id) o.selected = true;
+          return o;
+        })) : null)))),
+      el('p', { class: 'hint' }, '한 강아지는 한 가지 일만 할 수 있어요. 다른 일에 넣으면 그쪽으로 옮겨 가요.'),
+      c.helpers?.length ? el('p', { class: 'hint staff-friend' }, `👫 친구 강아지를 알바로 부를 수 있어요! 끝까지 영업하면 친구에게 알바비 🦴${CAFE.helperPay}을 보내 줘요.`)
+        : el('p', { class: 'hint' }, '친구를 사귀면 친구 강아지를 알바로 부를 수 있어요!'),
       el('div', { class: 'section-title' }, '영업 시간'),
       el('div', { class: 'segmented small' }, Object.entries(CAFE.durations).map(([k, D]) => el('button', {
         class: duration === k ? 'on' : '', onclick: () => { duration = k; sfx.tap(); render(); },
@@ -86,6 +98,9 @@ export function openCafe(ctx) {
         onclick: async () => { if (await act('/cafe/open', { menu: [...pick], duration })) { sfx.bell(); render(); } },
       }, '☕ 문 열기!'));
   };
+
+  // 일하는 직원들 (점장 빼고)
+  const crew = (me, c) => Object.values(c.staff ?? {}).map((v) => (typeof v === 'string' ? c.helpers?.find((h) => h.id === v)?.dog : me.dogs.find((d) => d.id === v && !d.active))).filter(Boolean);
 
   // 영업 중: 손님들이 오가는 모습 + 남은 시간
   const openPane = (me, c) => {
@@ -115,8 +130,9 @@ export function openCafe(ctx) {
     return el('div', { class: 'cafe-live' },
       el('div', { class: 'cafe-room' },
         el('div', { class: 'cafe-sign' }, 'OPEN'),
-        pool.slice(0, 5).map(([, g], i) => el('span', { class: 'walker', style: { animationDelay: `${i * 1.3}s` } }, g.emoji)),
-        el('img', { class: 'pixel cafe-dog', src: dogPortrait(me.dog.breed, me.dog.stage, { equip: me.dog.equip, eyes: 'happy', mouth: 'open' }), alt: '' })),
+        pool.slice(0, 5).map(([gid], i) => el('span', { class: 'walker', style: { animationDelay: `${i * 1.3}s` } }, critterImg(gid))),
+        el('img', { class: 'pixel cafe-dog', src: dogPortrait(me.dog.breed, me.dog.stage, { equip: me.dog.equip, eyes: 'happy', mouth: 'open' }), alt: '' }),
+        el('div', { class: 'cafe-crew' }, crew(me, c).map((d) => el('img', { class: 'pixel', src: dogPortrait(d.breed, d.stage, { equip: d.equip ?? {}, eyes: 'happy' }), alt: d.name, title: d.name })))),
       el('p', { class: 'center' }, left),
       el('p', { class: 'center meta' }, '메뉴: ', c.open.menu.map((m) => `${CAFE_MENU[m].emoji} ${CAFE_MENU[m].name}`).join(' · ')),
       btn,
@@ -127,7 +143,7 @@ export function openCafe(ctx) {
     el('div', { class: 'dex-grid cafe-dex' }, Object.entries(CAFE_GUESTS).map(([id, g]) => {
       const n = c.dex?.[id] ?? 0;
       return el('div', { class: `dex-cell ${n ? 'got' : ''}` },
-        el('span', { class: 'big' }, n ? g.emoji : '❔'),
+        n ? critterImg(id, { cls: 'big', alt: g.name }) : el('span', { class: 'big' }, '❔'),
         el('b', {}, n ? g.name : '???'),
         el('small', {}, n ? `${n}번 왔어요` : `카페 Lv ${g.level}부터`),
         n ? el('small', {}, favKnown(c, id) ? `최애 ${CAFE_MENU[g.fav].emoji}` : '최애: ❔') : null);
@@ -141,7 +157,7 @@ export function openCafe(ctx) {
       regulars.length >= 2 ? el('div', { class: 'dex-grid' }, regulars.map(([id, g]) => el('button', {
         type: 'button', class: `dex-cell got ${pairSel.includes(id) ? 'on' : ''}`,
         onclick: () => { pairSel = pairSel.includes(id) ? pairSel.filter((x) => x !== id) : [...pairSel, id].slice(-2); sfx.tap(); render(); },
-      }, el('span', { class: 'big' }, g.emoji), el('b', {}, g.name)))) : el('p', { class: 'help center' }, '아직 단골 손님이 부족해요. 카페를 더 열어 봐요!'),
+      }, critterImg(id, { cls: 'big', alt: g.name }), el('b', {}, g.name)))) : el('p', { class: 'help center' }, '아직 단골 손님이 부족해요. 카페를 더 열어 봐요!'),
       el('button', {
         class: 'btn primary', disabled: pairSel.length < 2,
         onclick: async () => {
@@ -153,7 +169,7 @@ export function openCafe(ctx) {
         },
       }, '🤝 소개하기'),
       el('div', { class: 'section-title' }, `단짝 손님 (${c.pairs?.length ?? 0})`),
-      c.pairs?.length ? el('div', { class: 'pair-list' }, c.pairs.map((k) => el('span', { class: 'chip' }, k.split('+').map((id) => CAFE_GUESTS[id]?.emoji ?? '').join(' 💕 ')))) : el('p', { class: 'hint' }, '아직 단짝이 없어요.'));
+      c.pairs?.length ? el('div', { class: 'pair-list' }, c.pairs.map((k) => el('span', { class: 'chip pair-chip' }, ...k.split('+').flatMap((id, i) => [i ? ' 💕 ' : null, critterImg(id, { cls: 'mini', alt: CAFE_GUESTS[id]?.name ?? '' })])))) : el('p', { class: 'hint' }, '아직 단짝이 없어요.'));
   };
 
   const { close } = modal({ title: '☕ 멍뭉 카페', className: 'cafe-modal', body, buttons: [{ label: '나가기', onClick: () => clearInterval(timer) }] });
@@ -174,7 +190,7 @@ export function showReport(r) {
       el('div', { class: 'report-guests' }, r.guests.map((g) => el('div', { class: `report-guest ${g.fav ? 'fav' : ''}` },
         g.friend
           ? el('img', { class: 'pixel', src: dogPortrait(g.dog.breed, g.dog.stage, { equip: g.dog.equip, eyes: 'happy' }), alt: '' })
-          : el('span', { class: 'big' }, CAFE_GUESTS[g.id]?.emoji ?? '❔'),
+          : critterImg(g.id, { cls: 'big', alt: CAFE_GUESTS[g.id]?.name ?? '' }),
         el('small', {}, g.friend ? `${g.nickname}네 ${g.dog.name}` : CAFE_GUESTS[g.id]?.name),
         el('small', { class: 'stars' }, '⭐'.repeat(g.stars)),
         g.isNew ? el('span', { class: 'new' }, 'NEW') : null)))),

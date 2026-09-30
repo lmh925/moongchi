@@ -1,5 +1,5 @@
 // 레벨 · 재능 능력치 화면: 레벨 바, 강아지 카드(오각형 그래프), 레벨업 연출
-import { TALENTS, TALENT_STEPS, TALENT_PERKS, TITLES, EMOTES, BREEDS, PERSONALITIES, STAGES, SPECIALS } from '../shared/data.js';
+import { TALENTS, TALENT_STEPS, TALENT_PERKS, TITLES, EMOTES, BREEDS, PERSONALITIES, STAGES, SPECIALS, TRAIN_COURSES } from '../shared/data.js';
 import { levelRewards, breedOf } from '../shared/rules.js';
 import { dogSprite, dogPortrait, iconURL, DOG_W, DOG_H } from './sprites.js';
 import { el, modal } from './ui.js';
@@ -130,7 +130,10 @@ function titlePicker(dog, onTitle) {
     wrap.replaceChildren(...Object.entries(TITLES).filter(([id, t]) => !t.special || dog.titles?.includes(id)).map(([id, t]) => {
       const has = dog.titles?.includes(id);
       const on = dog.titleName === t.name;
-      const need = t.talent ? `${TALENTS[t.talent].name} ${t.stage}단계` : `Lv ${t.level}`;
+      const need = t.talent ? `${TALENTS[t.talent].name} ${t.stage}단계`
+        : t.cert ? `${TRAIN_COURSES[t.cert]?.name ?? ''} 마스터 자격증`
+          : t.parent ? '아기 강아지 선물하기'
+            : t.special ? '스페셜 친구' : `Lv ${t.level}`;
       return el('button', {
         type: 'button', class: `title-opt ${on ? 'on' : ''}`, disabled: !has,
         onclick: async () => {

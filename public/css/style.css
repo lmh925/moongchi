@@ -1304,6 +1304,14 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .cafe-room { position: relative; height: 130px; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; background: linear-gradient(#ffe8cc 62%, #c98a4b 62%); }
 .cafe-sign { position: absolute; left: 10px; top: 8px; padding: 1px 8px; background: #3fb58a; color: #fff; font-weight: 800; border: 2px solid var(--ink); border-radius: 6px; }
 .cafe-room .walker { position: absolute; bottom: 30px; left: -30px; font-size: 26px; animation: cafeWalk 6.5s linear infinite; }
+.cafe-room .walker img { width: 40px; height: auto; display: block; animation: hop .5s steps(2) infinite; }
+.critter { image-rendering: pixelated; }
+.critter.big { width: 44px; height: auto; }
+.critter.mini { width: 18px; height: auto; vertical-align: middle; }
+.pair-chip { display: inline-flex; align-items: center; gap: 2px; }
+.cafe-crew { position: absolute; right: 86px; bottom: 26px; display: flex; gap: 2px; }
+.cafe-crew img { width: 44px; height: auto; }
+.staff-friend { font-size: 11px; color: var(--pink-d); }
 @keyframes cafeWalk { 0% { left: -30px; } 45% { left: 42%; } 55% { left: 42%; } 100% { left: 105%; } }
 .cafe-dog { position: absolute; right: 12px; bottom: 26px; width: 70px; height: auto; }
 .cafe-modal .dex-cell .big { font-size: 28px; }

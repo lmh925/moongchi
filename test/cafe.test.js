@@ -90,3 +90,34 @@ test('손님 소개: 둘 다 단골이면 단짝이 되고 💗', () => {
   assert.equal(asks.view(userId).hearts, h0 + CAFE.pairHearts);
   assert.throws(() => cafe.introduce(userId, 'bunny', 'cat'), /벌써/);
 });
+
+test('친구 강아지를 알바로 부를 수 있고, 끝까지 영업하면 알바비 편지 (하루 한 번)', () => {
+  const { db, cafe, asks, village, game, userId, clock } = setup();
+  const auth = new Auth(db, { now: clock.now });
+  const friends = cafe.friends;
+  const { userId: fid } = auth.signup('알바친구', '1234');
+  game.createDog(fid, { name: '보리', breed: 'shiba', personality: 'sweet' });
+  const { userId: stranger } = auth.signup('모르는애', '1234');
+  game.createDog(stranger, { name: '남', breed: 'shiba', personality: 'sweet' });
+  asks.addHearts(userId, PLACES.cafe.hearts);
+  village.open(userId, 'cafe');
+  assert.throws(() => cafe.setStaff(userId, 'host', `f:${fid}`), /친구만/);
+  friends.request(userId, game.getUser(fid).friendCode);
+  friends.respond(fid, friends.list(fid).incoming[0].id, true);
+  assert.deepEqual(cafe.view(userId).helpers.map((h) => h.dog.name), ['보리']);
+  assert.throws(() => cafe.setStaff(userId, 'host', `f:${stranger}`), /친구만/);
+  const dog = game.loadDog(userId);
+  cafe.setStaff(userId, 'cook', dog.id);
+  cafe.setStaff(userId, 'host', `f:${fid}`);
+  cafe.setStaff(userId, 'serve', `f:${fid}`);
+  assert.deepEqual(cafe.view(userId).staff, { cook: dog.id, serve: `f:${fid}` }, '친구 알바도 한 가지 일만');
+  const mails = () => game.progress.listMail(fid).filter((m) => m.kind === 'cafeHelp').length;
+  cafe.open(userId, ['cookie'], 'short');
+  clock.advance(30 * 60_000);
+  cafe.collect(userId);
+  assert.equal(mails(), 1);
+  cafe.open(userId, ['cookie'], 'short');
+  clock.advance(30 * 60_000);
+  cafe.collect(userId);
+  assert.equal(mails(), 1, '같은 날은 한 번만');
+});
