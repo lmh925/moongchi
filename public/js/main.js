@@ -2952,7 +2952,7 @@ async function startGame(type, { map = 'meadow', boosters = [] } = {}) {
         map, best: prevBest.best, bestDist: prevBest.bestDist, boosters: start.boosters ?? [],
         revive: {
           max: RUN_REVIVE.max,
-          price: (n) => (n === 0 && wing ? 0 : RUN_REVIVE.prices[n]),
+          price: (n) => (n === 0 && (wing || state.me.dog.effects?.runnerFreeRevive) ? 0 : RUN_REVIVE.prices[n]),
           buy: async () => {
             try {
               const r = await post('/minigame/revive', { gameId: start.gameId });

@@ -221,6 +221,8 @@ const ACCESSORIES = {
     map: ['....ooooooo....', '...okkkkkkko...', '...okkkkkkko...', '...obbbbbbbo...', 'ooodkkkkkkkdooo', 'okkkkkkkkkkkkko', 'ooooooooooooooo'] },
   sp_captain_cap: { anchor: 'head', dx: -6, dy: -6, colors: { o: '#1e1e28', n: '#2f4f9f', l: '#5b7fd6', y: '#ffd23f', w: '#ffffff' },
     map: ['..ooooooooo..', '.onnnnnnnnno.', '.onnnyyynnno.', '.onnnnynnnno.', '.owwwwwwwwwo.', 'ooooooooooooo', '..........ooo'] },
+  sp_jelly_pin: { anchor: 'head', dx: -4, dy: -7, colors: { o: '#8a4a5a', p: '#ff9fbf', l: '#ffd6e4', w: '#ffffff' },
+    map: ['.o.o.o.', 'opopopo', '.o.o.o.', '.ooooo.', 'oplwppo', 'opppppo', '.ooooo.'] },
   sp_propeller_hat: { anchor: 'head', dx: -5, dy: -9, colors: { o: '#4a3330', r: '#ff5d7a', y: '#ffe066', b: '#5bc0ff', g: '#6cc070' },
     map: ['rrrr.o.bbbb', '....ooo....', '.....o.....', '...ooooo...', '..oryrbgo..', '.orrybbggo.', 'ooooooooooo'] },
   // 훈련 마스터 자격증 선물

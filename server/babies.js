@@ -69,7 +69,7 @@ export class Babies {
   // 두 부모를 반씩 닮은 아기: 같은 견종이면 그 견종, 다르면 털색·모양을 한쪽씩
   makeBaby(a, b) {
     // 스페셜 모습은 물려주지 않아요: 원래 견종(없으면 닮은 보통 견종)으로
-    const NORMAL = { mini_bichon: 'bichon', big_maltese: 'maltese' };
+    const NORMAL = { mini_bichon: 'bichon', big_maltese: 'maltese', bipoo_kiki: 'bichon' };
     const base = (d) => {
       let id = d.special ? d.baseBreed ?? d.breed : d.breed;
       if (id.startsWith('mix:')) id = id.split(':')[1 + Math.floor(this.rng() * 2)];

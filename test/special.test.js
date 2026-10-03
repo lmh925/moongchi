@@ -131,3 +131,22 @@ test('스페셜 친구 혜택: 시작 선물(경험치·코인·전용 소품)�
   assert.equal(game.loadDog(m.userId).exp - e0, 12);
   assert.equal(ITEMS.sp_cloud_pin.gacha, false);
 });
+
+test('키키: 이름으로 변신, 참을성 +3, 멍뭉런 첫 이어 달리기 공짜', () => {
+  assert.equal(specialForName('키키'), 'kiki');
+  const { game, auth } = setup();
+  const k = make(game, auth, '키키네', '키키');
+  const dog = game.loadDog(k.userId);
+  assert.equal(dog.breed, 'bipoo_kiki');
+  game.specialGifts(k.userId);
+  assert.ok(game.getUser(k.userId).owned.includes('sp_jelly_pin'));
+  const n = make(game, auth, '보통네', '보통');
+  assert.equal(game.patience(dog).cap, game.patience(game.loadDog(n.userId)).cap + 3);
+  assert.equal(talentEffects({}, 'kiki').runnerFreeRevive, true);
+  game.addCoins(k.userId, 100);
+  const s = game.startMinigame(k.userId, 'run', {});
+  const coins = game.getUser(k.userId).coins;
+  assert.equal(game.reviveRun(k.userId, s.gameId).cost, 0);
+  assert.ok(game.reviveRun(k.userId, s.gameId).cost > 0, '두 번째부터는 코인');
+  assert.ok(game.getUser(k.userId).coins < coins);
+});

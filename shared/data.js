@@ -88,6 +88,7 @@ export const TITLES = {
   sp_kiriku: { name: '모험가 키리쿠', special: 'kiriku' },
   sp_gun: { name: '씩씩한 대장 건', special: 'gun' },
   sp_pichu: { name: '애교 막내 피츄', special: 'pichu' },
+  sp_kiki: { name: '말랑 젤리 키키', special: 'kiki' },
   parent: { name: '다정한 엄마아빠 멍', parent: true },
   tr_command: { name: '명령 훈련 마스터', cert: 'command' },
   tr_agility: { name: '어질리티 마스터', cert: 'agility' },
@@ -229,6 +230,12 @@ export const BREEDS = {
     desc: '은빛 푸른 털과 황금빛 얼굴의 애교 막내 요키. 분홍 리본이 트레이드마크!',
     fur: '#717e92', furShade: '#5a6679', furLight: '#93a0b4', accent: '#e0a868',
     ear: 'pointySmall', coat: 'silky', tail: 'short', legs: 'normal', snout: 'short', headFluff: 0, tanHead: true, topknot: '#ff6f9c', geo: 'small',
+  },
+  bipoo_kiki: {
+    name: '비숑 푸들 믹스', special: true,
+    desc: '비숑의 몽실한 얼굴에 푸들의 곱슬 귀! 살구빛 수염과 말랑한 젤리 발바닥이 매력이에요.',
+    fur: '#fcf9f2', furShade: '#e8decd', furLight: '#ffffff', accent: '#f4dbbd', earColor: '#f7f1e6',
+    ear: 'longCurly', earLen: 4.5, coat: 'curly', tail: 'plume', legs: 'normal', snout: 'short', headFluff: 2,
   },
 };
 
@@ -503,6 +510,7 @@ export const ITEMS = {
   sp_explorer_hat: { name: '키리쿠의 탐험가 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'kiriku' },
   sp_captain_cap: { name: '건의 대장 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'gun' },
   sp_propeller_hat: { name: '피츄의 프로펠러 모자', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'pichu' },
+  sp_jelly_pin: { name: '키키의 젤리 발바닥 머리핀', slot: 'head', stage: 0, price: null, rarity: 'epic', shop: false, gacha: false, reward: true, special: 'kiki' },
 };
 
 export const RARITY = {
@@ -944,11 +952,13 @@ export const LETTERS = {
     '{owner}, 소문 들었어? 구름보다 작은 비숑이 있대… 이름이 "ㅁㅊ"래!',
     '놀이터에서 요크셔테리어 삼형제 소문을 들었어. ㅋㄹㅋ, ㄱ, ㅍㅊ… 누구일까?',
     '{owner}, 엄청 커다란 말티즈가 있다는 소문이 있어. 이름이 "ㅃㅅㅇ"래. 만나 보고 싶다!',
+    '{owner}, 소파에서 젤리 발바닥을 쭉 내미는 곱슬 강아지가 있대. 이름이 "ㅋㅋ"래. 웃는 거 아니야!',
   ],
   sp_mungchi: ['{owner}, 나 오늘도 안 컸어! 헤헤. 작아서 침대 밑 탐험은 내가 최고야. 구름 뭉치 뭉치가.', '바람이 불어서 데굴데굴 굴러갔어. 나 진짜 구름인가 봐, {owner}!'],
   sp_bbosik: ['{owner}… 나 또 커졌어. 문에 머리 쿵 했어 헤헤. 그래도 안아 줄 거지?', '오늘 작은 친구들을 등에 태워 줬어. 다정한 거인 뽀식이는 힘이 세!'],
   sp_kiriku: ['{owner}, 오늘 마당 끝까지 탐험했어! 보물 냄새가 났는데… 내일 같이 찾으러 가자!', '형제들이랑 숨바꼭질했는데 내가 다 찾았어. 모험가 키리쿠의 코는 최고야!'],
   sp_gun: ['{owner}! 오늘도 집을 씩씩하게 지켰어. 대장 건에게 맡겨! 경례!', '막내가 울길래 내가 달래 줬어. 대장은 멋있어야 하거든, {owner}.'],
+  sp_kiki: ['{owner}, 소파 제일 폭신한 자리는 내 거야. 옆에 누우면 젤리 발바닥 만지게 해 줄게!', '오늘은 하루 종일 뒹굴뒹굴했어. 곱슬 귀가 베개라서 어디서든 잘 수 있어, {owner}!'],
   sp_pichu: ['{owner}~ 형아들이 나만 귀여워해 헤헤. 너도 나 귀엽지? 꼬리 프로펠러 빙글빙글!', '피츄는 {owner}가 세상에서 제일 좋아! 쓰다듬어 주면 하트가 퐁퐁 나와!'],
   sleepy: ['{owner}… 쿨쿨… 꿈에서 너랑 산책했어… 일어나면 진짜로 가자… 쿨…', '베개가 너무 폭신해서 {owner} 기다리다 잠들었어. 미안해 헤헤.'],
   hyper: ['{owner}!!! 방을 100바퀴 뛰었어!!! 너 오면 101바퀴 같이 뛰자!!!', '오늘 내 꼬리 잡기 신기록 세웠어! {owner}도 봤어야 했는데!'],
@@ -1000,6 +1010,11 @@ export const SPECIALS = {
     perk: '쓰다듬으면 하트가 두 배로 퐁퐁',
     games: ['멍뭉런: 꼬리 프로펠러로 3단 점프!', '간식 받기: 발이 빨라요'], item: 'sp_propeller_hat',
   },
+  kiki: {
+    name: '키키', breed: 'bipoo_kiki', label: '비숑 푸들 믹스 · 느긋한 곱슬이', title: '말랑 젤리 키키', trick: 'jellypaw', hint: 'ㅋㅋ',
+    perk: '느긋해서 쓰다듬기·빗질을 훨씬 오래 좋아해요 (참을성 +3)',
+    games: ['멍뭉런: 첫 번째 이어 달리기는 공짜예요', '간식 받기: 곱슬 귀로 조금 더 넓게 받아요'], item: 'sp_jelly_pin',
+  },
 };
 // 스페셜 친구 혜택 (누구나 받아요, 강아지 한 마리당 시작 선물은 한 번)
 export const SPECIAL_PERKS = {
@@ -1013,6 +1028,7 @@ export const SPECIAL_TRICKS = {
   sniff: { name: '킁킁 탐험', desc: '킁킁… 여기다! 보물 냄새를 찾아요.' },
   salute: { name: '멋진 경례', desc: '앞발을 척! 씩씩하게 경례해요.' },
   propeller: { name: '꼬리 프로펠러', desc: '꼬리를 빙글빙글 돌려서 날아오를 것 같아요!' },
+  jellypaw: { name: '젤리 발바닥', desc: '벌러덩 누워서 말랑말랑 젤리 발바닥을 쭉~ 내밀어요.' },
 };
 export const RENAME_PRICE = 30; // 이름표 바꾸기
 

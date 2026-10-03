@@ -437,7 +437,7 @@ export class Game {
   patience(dog, spend = false) {
     const P = RULES.patience;
     const R = P.refillSec * 1000;
-    const cap = P.cap[dog.personality] ?? 4;
+    const cap = (P.cap[dog.personality] ?? 4) + (dog.special === 'kiki' ? 3 : 0); // 키키는 느긋해서 오래 참아요
     this.patienceMap ??= new Map();
     const now = this.now();
     const s = this.patienceMap.get(dog.id) ?? { n: cap, t: now, refused: 0 };
@@ -952,7 +952,7 @@ export class Game {
       if (!game || game.finished) throw new GameError('이미 끝난 놀이예요.');
       const n = game.revives ?? 0;
       if (n >= RUN_REVIVE.max) throw new GameError('이번 판은 더 이어 달릴 수 없어요.');
-      const wing = n === 0 && JSON.parse(game.boosters || '[]').includes('revive');
+      const wing = n === 0 && (JSON.parse(game.boosters || '[]').includes('revive') || this.loadDog(userId)?.special === 'kiki');
       const cost = wing ? 0 : RUN_REVIVE.prices[n];
       if (cost > this.getUser(userId).coins) throw new GameError('뼈다귀 코인이 부족해요.');
       if (cost) this.addCoins(userId, -cost);
