@@ -233,8 +233,8 @@ export const BREEDS = {
   },
   bipoo_kiki: {
     name: '비숑 푸들', special: true,
-    desc: '비숑의 몽실한 얼굴에 푸들의 곱슬 귀! 살구빛 수염과 말랑한 젤리 발바닥이 매력이에요.',
-    fur: '#fcf9f2', furShade: '#e8decd', furLight: '#ffffff', accent: '#f4dbbd', earColor: '#f7f1e6',
+    desc: '비숑의 몽실한 얼굴에 푸들의 곱슬 귀! 말랑한 젤리 발바닥이 매력이에요.',
+    fur: '#fcf9f2', furShade: '#e8decd', furLight: '#ffffff', accent: null, earColor: '#f7f1e6',
     ear: 'longCurly', earLen: 4.5, coat: 'curly', tail: 'plume', legs: 'normal', snout: 'short', headFluff: 2,
   },
 };
