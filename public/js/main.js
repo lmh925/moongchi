@@ -1170,7 +1170,7 @@ async function handleEvents(events = []) {
     if (ev.type === 'badge') { sfx.star(); await waitModal({ title: '새 배지를 얻었어요!', className: 'celebrate', body: badgeBody(ev) }); }
     if (ev.type === 'mail') { sfx.notify(); toast(`💌 ${ev.from}(이)가 편지를 남겼어요! 우편함을 열어 보세요.`, 'good'); }
     if (ev.type === 'dex') toast(`견종 도감에 ${ev.name} 등록!`, 'good');
-    if (ev.type === 'special') await playSpecialReveal(state.me.dog, ev);
+    if (ev.type === 'special') await playSpecialReveal(ev.dog ?? state.me.dog, ev);
     if (ev.type === 'specialGift') { sfx.levelUp(); await waitModal({ title: '🎁 스페셜 친구 선물!', className: 'celebrate', body: specialGiftBody(ev) }); }
     if (ev.type === 'specialLost') toast(`${SPECIALS[ev.key]?.name ?? '스페셜'} 모습에서 원래 모습으로 돌아왔어요.`);
     if (ev.type === 'grew') await showGrew(ev);

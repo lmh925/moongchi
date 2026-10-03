@@ -154,7 +154,8 @@ export function createServer({ dbFile = process.env.DB_FILE ?? path.join(root, '
   }));
 
   const me = (userId, extra = {}) => {
-    const gifts = game.specialGifts(userId);
+    const woke = game.wakeSpecials(userId);
+    const gifts = [...woke, ...game.specialGifts(userId)];
     const { dog, events } = game.refreshDog(userId);
     events.unshift(...gifts);
     asks.check(userId, dog);

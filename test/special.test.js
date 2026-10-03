@@ -150,3 +150,20 @@ test('키키: 이름으로 변신, 참을성 +3, 멍뭉런 첫 이어 달리기 
   assert.ok(game.reviveRun(k.userId, s.gameId).cost > 0, '두 번째부터는 코인');
   assert.ok(game.getUser(k.userId).coins < coins);
 });
+
+test('스페셜이 생기기 전에 그 이름으로 만든 강아지는 접속할 때 변신해요', () => {
+  const { db, game, auth } = setup();
+  const k = make(game, auth, '예전키키', '키 키');
+  db.prepare("UPDATE dogs SET special = NULL, breed = 'bichon', title = NULL WHERE id = ?").run(k.dog.id);
+  const evs = game.wakeSpecials(k.userId);
+  assert.equal(evs.length, 1);
+  assert.equal(evs[0].key, 'kiki');
+  assert.equal(evs[0].dog.name, '키 키');
+  const dog = game.loadDog(k.userId);
+  assert.equal(dog.breed, 'bipoo_kiki');
+  assert.equal(dog.baseBreed, 'bichon');
+  assert.equal(game.wakeSpecials(k.userId).length, 0, '한 번만');
+  assert.ok(game.specialGifts(k.userId).length >= 1);
+  const n = make(game, auth, '보통이네', '초코');
+  assert.equal(game.wakeSpecials(n.userId).length, 0);
+});

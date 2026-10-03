@@ -242,6 +242,21 @@ export class Game {
     return { type: 'specialLost', key: from };
   }
 
+  // 스페셜 이름인데 아직 변신하지 않은 강아지 (새 스페셜 친구가 나오기 전에 지은 이름) → 접속할 때 변신
+  wakeSpecials(userId) {
+    const names = Object.values(SPECIALS).map((sp) => sp.name);
+    const rows = this.db.prepare(`SELECT id FROM dogs WHERE user_id = ? AND special IS NULL AND REPLACE(name, ' ', '') IN (${names.map(() => '?').join(',')})`).all(userId, ...names);
+    const events = [];
+    for (const { id } of rows) {
+      const dog = this.loadDogById(id);
+      const ev = dog && this.applySpecial(dog, specialForName(dog.name));
+      if (!ev) continue;
+      this.saveDog(dog);
+      events.push({ ...ev, dog: { id: dog.id, name: dog.name, breed: dog.breed, stage: dog.stage, equip: dog.equip } });
+    }
+    return events;
+  }
+
   // 스페셜 친구 시작 선물: 강아지 한 마리당 한 번 (경험치 + 코인 + 전용 소품)
   specialGifts(userId) {
     const rows = this.db.prepare('SELECT id FROM dogs WHERE user_id = ? AND special IS NOT NULL AND special_gift = 0').all(userId);
