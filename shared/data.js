@@ -232,7 +232,7 @@ export const BREEDS = {
     ear: 'pointySmall', coat: 'silky', tail: 'short', legs: 'normal', snout: 'short', headFluff: 0, tanHead: true, topknot: '#ff6f9c', geo: 'small',
   },
   bipoo_kiki: {
-    name: '비숑 푸들 믹스', special: true,
+    name: '비숑 푸들', special: true,
     desc: '비숑의 몽실한 얼굴에 푸들의 곱슬 귀! 살구빛 수염과 말랑한 젤리 발바닥이 매력이에요.',
     fur: '#fcf9f2', furShade: '#e8decd', furLight: '#ffffff', accent: '#f4dbbd', earColor: '#f7f1e6',
     ear: 'longCurly', earLen: 4.5, coat: 'curly', tail: 'plume', legs: 'normal', snout: 'short', headFluff: 2,
@@ -1011,7 +1011,7 @@ export const SPECIALS = {
     games: ['멍뭉런: 꼬리 프로펠러로 3단 점프!', '간식 받기: 발이 빨라요'], item: 'sp_propeller_hat',
   },
   kiki: {
-    name: '키키', breed: 'bipoo_kiki', label: '비숑 푸들 믹스 · 느긋한 곱슬이', title: '말랑 젤리 키키', trick: 'jellypaw', hint: 'ㅋㅋ',
+    name: '키키', breed: 'bipoo_kiki', label: '비숑 푸들 · 느긋한 곱슬이', title: '말랑 젤리 키키', trick: 'jellypaw', hint: 'ㅋㅋ',
     perk: '느긋해서 쓰다듬기·빗질을 훨씬 오래 좋아해요 (참을성 +3)',
     games: ['멍뭉런: 첫 번째 이어 달리기는 공짜예요', '간식 받기: 곱슬 귀로 조금 더 넓게 받아요'], item: 'sp_jelly_pin',
   },
