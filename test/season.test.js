@@ -15,6 +15,10 @@ test('할로윈 기간: 10월 15일 ~ 11월 7일 (한국 시간)', () => {
   assert.equal(seasonActive('halloween', kst(11, 7)), true);
   assert.equal(seasonActive('halloween', kst(11, 8)), false);
   assert.equal(seasonActive('nope', kst(10, 31)), false);
+  assert.equal(seasonActive('christmas', kst(11, 30)), false);
+  assert.equal(seasonActive('christmas', kst(12, 1)), true);
+  assert.equal(seasonActive('christmas', kst(12, 25)), true);
+  assert.equal(seasonActive('christmas', kst(10, 31)), false);
 });
 
 test('패션쇼 주제: 최근 주제는 다시 안 나오고, 할로윈 주제는 기간에만', () => {
@@ -30,6 +34,10 @@ test('패션쇼 주제: 최근 주제는 다시 안 나오고, 할로윈 주제�
   const seen = new Set();
   for (let i = 0; i < 40; i++) seen.add(pickShowTheme([], kst(10, 31), rng).key);
   assert.ok(seen.has('halloween'));
+  assert.ok(!seen.has('christmas'), '크리스마스 주제는 12월에만');
+  const dec = new Set();
+  for (let i = 0; i < 40; i++) dec.add(pickShowTheme([], kst(12, 20), rng).key);
+  assert.ok(dec.has('christmas') && !dec.has('halloween'));
   // 모든 주제에 무대 의상이 2개 이상
   for (const t of FASHION.themes) assert.ok(Object.values(SHOW_WARDROBE).filter((w) => w.theme === t.key).length >= 2, t.key);
 });
@@ -45,6 +53,10 @@ test('할로윈 옷은 기간에만 살 수 있고, 산 옷은 계속 가져요'
   assert.ok(game.getUser(userId).owned.includes('hw_ghost'));
   now = kst(12, 1);
   assert.throws(() => game.buy(userId, 'hw_bat'), /계절 한정/);
+  game.buy(userId, 'xm_santa_hat');
+  now = kst(10, 20);
+  assert.throws(() => game.buy(userId, 'xm_tree'), /계절 한정/);
+  assert.ok(game.getUser(userId).owned.includes('xm_santa_hat'));
   assert.ok(game.getUser(userId).owned.includes('hw_ghost'));
   assert.ok(Object.values(ITEMS).filter((i) => i.season === 'halloween').every((i) => i.gacha === false));
 });

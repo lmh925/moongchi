@@ -212,6 +212,10 @@ const ACCESSORIES = {
     map: ['......gg.....', '.....ogo.....', '...ooooooo...', '..oaldaadaao.', '.oaaadaadaaao', 'oaaadaaadaaao', 'oaaadaaadaaao', '.ooooooooooo.'] },
   hw_witch_hat: { anchor: 'head', dx: -6, dy: -11, colors: { o: '#2b2340', p: '#6a4fb1', l: '#8a6fd1', y: '#ffe066' },
     map: ['........oo...', '.......opo...', '......oppo...', '.....olppo...', '....oppppo...', '....opppppo..', '...oyyyyyyo..', '...opppppppo.', 'oopppppppppoo', 'ooooooooooooo'] },
+  xm_santa_hat: { anchor: 'head', dx: -6, dy: -11, colors: { o: '#4a3330', r: '#e84a5f', w: '#ffffff', l: '#e3e9f2' },
+    map: ['.....ooo.....', '....owwwo....', '.....ooo.....', '....orrro....', '...orrrrro...', '..orrrrrrro..', '.orrrrrrrrro.', 'owwwwwwwwwwwo', 'owlwwwlwwwlwo', 'ooooooooooooo'] },
+  xm_antlers: { anchor: 'head', dx: -5, dy: -7, colors: { b: '#8a5a2b', r: '#e84a5f', o: '#4a3330' },
+    map: ['b.b.....b.b', 'bbb.....bbb', '.b.......b.', '.bb.....bb.', '..b.....b..', 'ooooooooooo', 'orrrrrrrrro', 'ooooooooooo'] },
   sw_muffler: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', r: '#e84a5f', y: '#ffe066' },
     map: ['orrrrrro', 'oryryryo', 'orrrrrro', '....orro', '....oyro', '....orro', '....oyro', '....orro', '.....oo.'] },
   sw_whistle: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', s: '#c8d0dc', l: '#ffffff', r: '#e84a5f' },
@@ -224,6 +228,10 @@ const ACCESSORIES = {
     map: ['o.....o', '.o...o.', '..o.o..', 'ooooooo', 'okkokko', 'ockocko', 'ooo.ooo'] },
   hw_bat_bow: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#2b2340', k: '#4a3a6a', r: '#e84a5f' },
     map: ['oo.....oo', 'okoo.ooko', 'okkkrkkko', '.okkokko.', '..o...o..'] },
+  xm_holly: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#2f6b2a', g: '#3fa34d', r: '#e84a5f' },
+    map: ['ogg.r.ggo', '.ggrrrgg.', '..o.r.o..'] },
+  xm_bell: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#8a5a00', r: '#e84a5f', y: '#ffd23f', l: '#fff3a0' },
+    map: ['rrrrrrr', '...r...', '..ooo..', '.oyyyo.', '.oylyo.', 'oyyyyyo', 'ooooooo', '...o...'] },
   sw_lei: { anchor: 'neck', dx: -3, dy: -1, colors: { o: '#4a3330', p: '#ff7fa8', y: '#ffe066', b: '#6ecbff', r: '#ff9f43' },
     map: ['opoyobo', 'oyoroyo', '.opobo.', '..oro..'] },
   sw_jewel: { anchor: 'neck', dx: -4, dy: -1, colors: { o: '#4a3330', y: '#ffd23f', r: '#e8264a', l: '#ff8fa3' },
@@ -325,6 +333,12 @@ export const OUTFITS = {
   hw_vampire: { base: '#2b2b3a', pat: 'tux', pc: '#ffffff', cape: '#b0303c', emblem: '#e84a5f' },
   hw_skeleton: { base: '#2b2b3a', pat: 'stripe', pc: '#f4f0e6' },
   hw_bat: { base: '#4a3a6a', pat: 'plain', wings: '#3a2f4a', belly: '#8a7aa8' },
+  // 🎄 크리스마스
+  xm_elf: { base: '#3fa34d', pat: 'plain', trim: '#e84a5f', belt: '#2b2b3a', buttons: '#ffd23f' },
+  xm_tree: { base: '#2f8f4a', pat: 'dots', pc: '#ff5d7a', trim: '#ffd23f', emblem: '#ffe066' },
+  xm_rudolph: { base: '#a0683a', pat: 'plain', belly: '#e8c8a0', emblem: '#e84a5f' },
+  xm_snowman: { base: '#ffffff', pat: 'plain', buttons: '#2b2b3a', belt: '#e84a5f' },
+  xm_sweater: { base: '#d93a4a', pat: 'knit', pc: '#ffffff', trim: '#3fa34d' },
 };
 const SAEKDONG = ['#e84a5f', '#ffd23f', '#6cc070', '#5b8cff', '#ffffff', '#ff9fc4'];
 

@@ -437,6 +437,16 @@ export const ITEMS = {
   hw_vampire: { name: '드라큘라 망토', slot: 'body', stage: 0, price: 110, rarity: 'epic', gacha: false, season: 'halloween', theme: 'halloween' },
   hw_skeleton: { name: '뼈다귀 해골 옷', slot: 'body', stage: 0, price: 90, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
   hw_bat: { name: '박쥐 옷', slot: 'body', stage: 0, price: 100, rarity: 'epic', gacha: false, season: 'halloween', theme: 'halloween' },
+  // 🎄 크리스마스 한정 (12월에만 상점에 나와요. 산 옷은 계속 가져요)
+  xm_santa_hat: { name: '산타 모자', slot: 'head', stage: 0, price: 50, rarity: 'rare', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_antlers: { name: '루돌프 뿔 머리띠', slot: 'head', stage: 0, price: 60, rarity: 'rare', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_holly: { name: '호랑가시 목걸이', slot: 'neck', stage: 0, price: 40, rarity: 'common', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_bell: { name: '징글벨 목걸이', slot: 'neck', stage: 0, price: 45, rarity: 'common', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_elf: { name: '꼬마 요정 옷', slot: 'body', stage: 0, price: 90, rarity: 'rare', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_tree: { name: '크리스마스트리 옷', slot: 'body', stage: 0, price: 110, rarity: 'epic', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_rudolph: { name: '루돌프 옷', slot: 'body', stage: 0, price: 100, rarity: 'epic', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_snowman: { name: '눈사람 옷', slot: 'body', stage: 0, price: 80, rarity: 'rare', gacha: false, season: 'christmas', theme: 'christmas' },
+  xm_sweater: { name: '크리스마스 스웨터', slot: 'body', stage: 0, price: 70, rarity: 'common', gacha: false, season: 'christmas', theme: 'christmas' },
   // 방 가구 - 벽지
   wall_wood: { name: '포근한 나무 벽', slot: 'wallpaper', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
   wall_pink: { name: '딸기우유 벽지', slot: 'wallpaper', stage: 0, price: 60, rarity: 'common' },
@@ -717,6 +727,7 @@ export const FASHION = {
     { key: 'chef', name: '꼬마 요리사 🍳' }, { key: 'pirate', name: '해적 모험 🏴‍☠️' },
     { key: 'idol', name: '반짝 아이돌 무대 🎤' }, { key: 'jungle', name: '정글 탐험 🌴' },
     { key: 'halloween', name: '할로윈 파티 🎃', season: 'halloween' }, // 할로윈 기간에만 나와요
+    { key: 'christmas', name: '메리 크리스마스 🎄', season: 'christmas' }, // 12월에만 나와요
   ],
   noRepeat: 6, // 최근에 나온 주제는 한동안 다시 안 나와요
   seasonChance: 0.4, // 계절 주제가 열려 있으면 이 확률로 먼저 나와요
@@ -778,11 +789,22 @@ export const SHOW_WARDROBE = {
   hw_vampire: { name: '드라큘라 망토', slot: 'body', theme: 'halloween', season: 'halloween' },
   hw_skeleton: { name: '뼈다귀 해골 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
   hw_bat: { name: '박쥐 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
+  // 🎄 크리스마스 (12월에만 의상실에 나와요. 같은 옷을 상점에서 살 수도 있어요)
+  xm_santa_hat: { name: '산타 모자', slot: 'head', theme: 'christmas', season: 'christmas' },
+  xm_antlers: { name: '루돌프 뿔 머리띠', slot: 'head', theme: 'christmas', season: 'christmas' },
+  xm_holly: { name: '호랑가시 목걸이', slot: 'neck', theme: 'christmas', season: 'christmas' },
+  xm_bell: { name: '징글벨 목걸이', slot: 'neck', theme: 'christmas', season: 'christmas' },
+  xm_elf: { name: '꼬마 요정 옷', slot: 'body', theme: 'christmas', season: 'christmas' },
+  xm_tree: { name: '크리스마스트리 옷', slot: 'body', theme: 'christmas', season: 'christmas' },
+  xm_rudolph: { name: '루돌프 옷', slot: 'body', theme: 'christmas', season: 'christmas' },
+  xm_snowman: { name: '눈사람 옷', slot: 'body', theme: 'christmas', season: 'christmas' },
+  xm_sweater: { name: '크리스마스 스웨터', slot: 'body', theme: 'christmas', season: 'christmas' },
 };
 
 // 계절 한정 (한국 시간 기준 [월, 일] ~ [월, 일])
 export const SEASONS = {
   halloween: { name: '🎃 할로윈', from: [10, 15], to: [11, 7] },
+  christmas: { name: '🎄 크리스마스', from: [12, 1], to: [12, 31] },
 };
 
 export const TREASURE = {
