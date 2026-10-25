@@ -1,7 +1,7 @@
 // 멍뭉 놀이터: 누구나 들어오는 공개 광장 (채널당 최대 20마리)
 // 흐름: 클라이언트 입력(plaza:pos, plaza:emote ...) → 서버 상태 갱신 → 같은 채널에 방송 → 각자 화면 그리기
 import { PLAZA, PLAZA_SPOTS, STICKERS, PHRASES, TAG, TREASURE, ITEMS, SOCCER, EMOTES, TALENT_GAINS, PLAY_EXP, FASHION, SHOW_WARDROBE } from '../shared/data.js';
-import { kstDate, levelFromExp } from '../shared/rules.js';
+import { kstDate, levelFromExp, pickShowTheme } from '../shared/rules.js';
 import { REPORT_REASONS } from './safety.js';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Number(v) || 0));
@@ -612,8 +612,10 @@ export class PlazaHub {
 
   // 주제에 맞는 무대 의상을 입으면 응원을 조금 더 받고 시작해요
   themeBonus(ch, userId, themeKey) {
-    const costume = ch.members.get(userId)?.costume ?? {};
-    const matched = Object.values(costume).filter((id) => SHOW_WARDROBE[id]?.theme === themeKey).length;
+    // 무대 의상 + 내가 가진 옷(할로윈 옷처럼 주제가 있는 옷)도 같이 쳐요
+    const m = ch.members.get(userId);
+    const worn = { ...(m?.dog?.equip ?? {}), ...(m?.costume ?? {}) };
+    const matched = Object.values(worn).filter((id) => (SHOW_WARDROBE[id]?.theme ?? ITEMS[id]?.theme) === themeKey).length;
     return Math.min(FASHION.themeBonusMax, matched * FASHION.themeBonus);
   }
 
@@ -661,7 +663,8 @@ export class PlazaHub {
     if (!s) return;
     if (s.status === 'waiting' && s.startsAt && now >= s.startsAt) {
       s.status = 'dress';
-      const theme = FASHION.themes[Math.floor(Math.random() * FASHION.themes.length)];
+      const theme = pickShowTheme(ch.recentThemes ?? [], now);
+      ch.recentThemes = [theme.key, ...(ch.recentThemes ?? [])].slice(0, FASHION.noRepeat);
       s.theme = theme.name; s.themeKey = theme.key;
       s.phaseEnds = now + FASHION.dressMs;
       this.emitShow(ch);

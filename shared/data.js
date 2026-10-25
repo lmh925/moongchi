@@ -428,6 +428,15 @@ export const ITEMS = {
   body_angel: { name: '천사 날개 옷', slot: 'body', stage: 0, price: null, rarity: 'epic', shop: false },
   body_santa: { name: '산타 옷', slot: 'body', stage: 0, price: null, rarity: 'rare', shop: false },
   body_witch: { name: '꼬마 마녀 망토', slot: 'body', stage: 0, price: null, rarity: 'epic', shop: false },
+  // 🎃 할로윈 한정 (할로윈 기간에만 상점에 나와요. 산 옷은 계속 가져요)
+  hw_pumpkin_hat: { name: '호박 모자', slot: 'head', stage: 0, price: 50, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_witch_hat: { name: '마녀 모자', slot: 'head', stage: 0, price: 70, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_bat_bow: { name: '박쥐 나비넥타이', slot: 'neck', stage: 0, price: 40, rarity: 'common', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_ghost: { name: '꼬마 유령 옷', slot: 'body', stage: 0, price: 80, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_pumpkin_suit: { name: '호박 옷', slot: 'body', stage: 0, price: 90, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_vampire: { name: '드라큘라 망토', slot: 'body', stage: 0, price: 110, rarity: 'epic', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_skeleton: { name: '뼈다귀 해골 옷', slot: 'body', stage: 0, price: 90, rarity: 'rare', gacha: false, season: 'halloween', theme: 'halloween' },
+  hw_bat: { name: '박쥐 옷', slot: 'body', stage: 0, price: 100, rarity: 'epic', gacha: false, season: 'halloween', theme: 'halloween' },
   // 방 가구 - 벽지
   wall_wood: { name: '포근한 나무 벽', slot: 'wallpaper', stage: 0, price: 0, rarity: 'common', shop: false, gacha: false },
   wall_pink: { name: '딸기우유 벽지', slot: 'wallpaper', stage: 0, price: 60, rarity: 'common' },
@@ -704,7 +713,13 @@ export const FASHION = {
     { key: 'winter', name: '겨울 눈사람 ⛄' }, { key: 'sea', name: '바다 여행 🏖️' },
     { key: 'royal', name: '왕자님·공주님 👑' }, { key: 'school', name: '학교 가는 날 🎒' },
     { key: 'flower', name: '꽃밭 산책 🌸' }, { key: 'space', name: '우주 탐험 🚀' },
+    { key: 'rain', name: '비 오는 날 ☔' }, { key: 'sports', name: '운동회 날 🏅' },
+    { key: 'chef', name: '꼬마 요리사 🍳' }, { key: 'pirate', name: '해적 모험 🏴‍☠️' },
+    { key: 'idol', name: '반짝 아이돌 무대 🎤' }, { key: 'jungle', name: '정글 탐험 🌴' },
+    { key: 'halloween', name: '할로윈 파티 🎃', season: 'halloween' }, // 할로윈 기간에만 나와요
   ],
+  noRepeat: 6, // 최근에 나온 주제는 한동안 다시 안 나와요
+  seasonChance: 0.4, // 계절 주제가 열려 있으면 이 확률로 먼저 나와요
   themeBonus: 1, // 주제에 맞는 무대 의상 하나마다 응원 +1
   themeBonusMax: 2,
 };
@@ -736,6 +751,38 @@ export const SHOW_WARDROBE = {
   sw_school_uniform: { name: '멍뭉 교복', slot: 'body', theme: 'school' },
   sw_flower_dress: { name: '꽃잎 원피스', slot: 'body', theme: 'flower' },
   sw_space_suit: { name: '우주복', slot: 'body', theme: 'space' },
+  // 새 주제
+  sw_rain_hat: { name: '노란 비옷 모자', slot: 'head', theme: 'rain' },
+  sw_rain_frog: { name: '개구리 우비', slot: 'body', theme: 'rain' },
+  sw_headband: { name: '빨간 머리띠', slot: 'head', theme: 'sports' },
+  sw_whistle: { name: '심판 호루라기', slot: 'neck', theme: 'sports' },
+  sw_jersey: { name: '운동회 조끼', slot: 'body', theme: 'sports' },
+  sw_chef_hat: { name: '요리사 모자', slot: 'head', theme: 'chef' },
+  sw_chef_scarf: { name: '요리사 스카프', slot: 'neck', theme: 'chef' },
+  sw_apron: { name: '앞치마', slot: 'body', theme: 'chef' },
+  sw_pirate_bandana: { name: '해적 두건', slot: 'head', theme: 'pirate' },
+  sw_eyepatch: { name: '해적 안대', slot: 'face', theme: 'pirate' },
+  sw_pirate_coat: { name: '선장 코트', slot: 'body', theme: 'pirate' },
+  sw_idol_bow: { name: '왕리본 머리핀', slot: 'head', theme: 'idol' },
+  sw_star_necklace: { name: '반짝 별 목걸이', slot: 'neck', theme: 'idol' },
+  sw_idol_dress: { name: '무대 의상', slot: 'body', theme: 'idol' },
+  sw_safari_hat: { name: '탐험 모자', slot: 'head', theme: 'jungle' },
+  sw_binoculars: { name: '쌍안경', slot: 'neck', theme: 'jungle' },
+  sw_safari_vest: { name: '탐험 조끼', slot: 'body', theme: 'jungle' },
+  // 🎃 할로윈 (할로윈 기간에만 의상실에 나와요. 같은 옷을 상점에서 살 수도 있어요)
+  hw_pumpkin_hat: { name: '호박 모자', slot: 'head', theme: 'halloween', season: 'halloween' },
+  hw_witch_hat: { name: '마녀 모자', slot: 'head', theme: 'halloween', season: 'halloween' },
+  hw_bat_bow: { name: '박쥐 나비넥타이', slot: 'neck', theme: 'halloween', season: 'halloween' },
+  hw_ghost: { name: '꼬마 유령 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
+  hw_pumpkin_suit: { name: '호박 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
+  hw_vampire: { name: '드라큘라 망토', slot: 'body', theme: 'halloween', season: 'halloween' },
+  hw_skeleton: { name: '뼈다귀 해골 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
+  hw_bat: { name: '박쥐 옷', slot: 'body', theme: 'halloween', season: 'halloween' },
+};
+
+// 계절 한정 (한국 시간 기준 [월, 일] ~ [월, 일])
+export const SEASONS = {
+  halloween: { name: '🎃 할로윈', from: [10, 15], to: [11, 7] },
 };
 
 export const TREASURE = {

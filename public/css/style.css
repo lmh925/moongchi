@@ -1565,3 +1565,7 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .journal-vis { margin: 6px 0 0; }
 .journal-text { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; font-size: 15px; line-height: 1.6; padding: 8px; border: 3px solid var(--ink); border-radius: 10px; resize: vertical; background: repeating-linear-gradient(#fff 0 23px, #f1e6d6 23px 24px); }
 .journal-count { display: block; text-align: right; font-size: 11px; color: var(--ink-soft); }
+
+/* 🎃 계절 한정 옷장 칸 */
+.season-shop { margin: 8px 0; padding: 4px 8px 8px; border: 3px dashed #ff8a1f; border-radius: 12px; background: #fff3e2; }
+.season-shop .section-title { color: #c25a00; }

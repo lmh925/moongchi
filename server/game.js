@@ -7,7 +7,7 @@ import {
 } from '../shared/data.js';
 import {
   applyDecay, computeStage, applyAction, learnableTricks, schoolDurationMs, kstDate, growthProgress, mood,
-  specialForName, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor, trainLevel, recommendedCourse, examFor,
+  specialForName, seasonActive, levelInfo, levelFromExp, levelRewards, talentStage, talentStages, talentEffects, unlockedTitles, unlockedEmotes, frameTier, runnerLevel, runnerMaps, expFor, trainLevel, recommendedCourse, examFor,
   zodiacOf, birthFlower, daysUntilBirthday,
 } from '../shared/rules.js';
 import { tx } from './db.js';
@@ -758,6 +758,7 @@ export class Game {
     return tx(this.db, () => {
       const user = this.getUser(userId);
       if (item.shop === false) throw new GameError('이건 뽑기에서만 나와요!');
+      if (item.season && !seasonActive(item.season, this.now())) throw new GameError('지금은 살 수 없는 계절 한정 아이템이에요.');
       if (user.owned.includes(itemId)) throw new GameError('이미 가지고 있어요!');
       const dog = this.loadDog(userId);
       if (DOG_SLOTS.includes(item.slot) && (dog?.stage ?? 0) < item.stage) {

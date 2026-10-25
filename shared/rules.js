@@ -2,13 +2,33 @@
 import {
   RUNNER, SPECIAL_PERKS, TRAIN_COURSES, TRAIN_LEVEL,
   STAGES, PERSONALITIES, QUIZ, RULES, TRICKS, SCHOOL_COURSES, BREEDS, BOND_LEVELS,
-  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP, ZODIAC, BIRTH_FLOWERS,
+  LEVEL, EMOTES, TALENTS, TALENT_STEPS, TITLES, TRAINING, TREASURE, BOOST_RULES, SPECIALS, POOP, ZODIAC, BIRTH_FLOWERS, SEASONS, FASHION,
 } from './data.js';
 
 export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 const STATS = ['fullness', 'cleanliness', 'affection'];
+
+// 계절 한정 기간인지 (한국 시간 기준, 해를 넘기는 기간도 돼요)
+export function seasonActive(key, now = Date.now()) {
+  const S = SEASONS[key];
+  if (!S) return false;
+  const d = new Date(now + 9 * 3600_000);
+  const md = (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+  const from = S.from[0] * 100 + S.from[1]; const to = S.to[0] * 100 + S.to[1];
+  return from <= to ? md >= from && md <= to : md >= from || md <= to;
+}
+
+// 패션쇼 주제 고르기: 최근에 나온 주제는 빼고, 계절 주제가 열려 있으면 먼저 나올 때가 많아요
+export function pickShowTheme(recent = [], now = Date.now(), rng = Math.random) {
+  const pool = FASHION.themes.filter((t) => !t.season || seasonActive(t.season, now));
+  let cands = pool.filter((t) => !recent.includes(t.key));
+  if (!cands.length) cands = pool;
+  const seasonal = cands.filter((t) => t.season);
+  const list = seasonal.length && rng() < FASHION.seasonChance ? seasonal : cands;
+  return list[Math.floor(rng() * list.length)];
+}
 
 export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 

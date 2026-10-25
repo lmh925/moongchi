@@ -1,9 +1,9 @@
 // 멍뭉고치 메인 앱
 import {
   BREEDS, PERSONALITIES, QUIZ, STAGES, TRICKS, ITEMS, DOG_SLOTS, ROOM_SLOTS, SCHOOL_COURSES,
-  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, ASK_RULES, JOURNAL, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
+  STICKERS, PHRASES, EMOTES, FASHION, SHOW_WARDROBE, SEASONS, RUNNER, CERTS, TASTES, CAFE_GUESTS, RUN_BOOSTERS, RUN_REVIVE, BIRTHDAY, ASK_RULES, JOURNAL, FOOD, TREATS, POOP, BABY, SCHOOL_BOOSTS, BOOST_RULES, SPECIALS, SPECIAL_TRICKS, RENAME_PRICE, REPORT_SUBJECTS, RULES, BOND_LEVELS, RARITY, GACHA, TRAINING, PLAZA, PLAZA_SPOTS, COOP_GAMES, TAG, TREASURE, SOCCER,
 } from '../shared/data.js';
-import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps, daysUntilBirthday } from '../shared/rules.js';
+import { applyDecay, quizResult, breedOf, runnerLevel, runnerMaps, daysUntilBirthday, seasonActive } from '../shared/rules.js';
 import { api, post, getToken, setToken } from './api.js';
 import { $, el, toast, modal, closeAllModals, pinPad, fmtDuration } from './ui.js';
 import { dogSprite, dogPortrait, iconURL, accessoryURL, DOG_W, DOG_H } from './sprites.js';
@@ -2007,7 +2007,8 @@ function closetPanel() {
     const owned = user.owned.includes(id);
     const on = current(item.slot) === id;
     const locked = dogTab && dog.stage < item.stage;
-    const thumb = item.slot === 'body' ? dogPortrait(dog.breed, dog.stage, { equip: { ...dog.equip, body: id } }) : dogTab ? accessoryURL(id, 5) : roomThumb(id);
+    // 옷 그림은 아기 강아지면 털에 가려 잘 안 보여서, 다 큰 모습으로 보여 줘요
+    const thumb = item.slot === 'body' ? dogPortrait(dog.breed, Math.max(2, dog.stage), { equip: { body: id } }) : dogTab ? accessoryURL(id, 5) : roomThumb(id);
     const gachaOnly = item.shop === false && !owned;
     return el('button', {
       class: `item r-${item.rarity} ${on ? 'equipped' : ''} ${locked ? 'locked' : ''} ${gachaOnly ? 'mystery' : ''}`,
@@ -2039,8 +2040,12 @@ function closetPanel() {
       el('button', { class: dogTab ? 'on' : '', onclick: () => { state.closetTab = 'dog'; renderPanel(); } }, '강아지 꾸미기'),
       el('button', { class: !dogTab ? 'on' : '', onclick: () => { state.closetTab = 'room'; renderPanel(); } }, '방 꾸미기')),
     preview,
+    // 🎃 계절 한정: 기간 동안 맨 위에 모아서 보여 줘요 (산 옷은 기간이 지나도 아래 칸에 남아요)
+    ...(dogTab ? Object.entries(SEASONS).filter(([key]) => seasonActive(key, serverNow())).map(([key, S]) => el('div', { class: 'season-shop' },
+      el('div', { class: 'section-title' }, `${S.name} 한정 · ${S.to[0]}월 ${S.to[1]}일까지`),
+      el('div', { class: 'items' }, Object.keys(ITEMS).filter((k) => ITEMS[k].season === key).map(itemNode)))) : []),
     ...slots.map((slot) => {
-      const ids = Object.keys(ITEMS).filter((k) => ITEMS[k].slot === slot);
+      const ids = Object.keys(ITEMS).filter((k) => ITEMS[k].slot === slot && (!ITEMS[k].season || user.owned.includes(k)));
       const label = { head: '머리', neck: '목', face: '얼굴', body: '옷 · 코스튬', wallpaper: '벽지', floor: '바닥', deco: '벽 장식', rug: '러그', bed: '침대', furni: '가구', toy: '장난감' }[slot];
       return el('div', {}, el('div', { class: 'section-title' }, label), el('div', { class: 'items' }, ids.map(itemNode)));
     }));
@@ -2672,7 +2677,8 @@ function openShowWardrobe() {
   const render = () => {
     const { dog } = state.me;
     const equip = { ...dog.equip, ...costume() };
-    const picks = Object.keys(SHOW_WARDROBE).sort((a, b) => (SHOW_WARDROBE[b].theme === themeKey) - (SHOW_WARDROBE[a].theme === themeKey));
+    const picks = Object.keys(SHOW_WARDROBE).filter((id) => !SHOW_WARDROBE[id].season || seasonActive(SHOW_WARDROBE[id].season, serverNow()))
+      .sort((a, b) => (SHOW_WARDROBE[b].theme === themeKey) - (SHOW_WARDROBE[a].theme === themeKey));
     return el('div', { class: 'quick-closet wardrobe' },
       el('img', { class: 'pixel wardrobe-preview', src: dogPortrait(dog.breed, dog.stage, { equip }), alt: '' }),
       el('p', { class: 'hint center' }, '무대에서만 빌려 입는 옷이에요. ✨ 주제에 맞는 옷을 입으면 응원을 하나 더 받고 시작해요! (최대 2개)'),
