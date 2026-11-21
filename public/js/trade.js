@@ -130,7 +130,7 @@ export function openReview(t, { post, thumb, onDone }) {
     try {
       const res = await post(`/trades/${t.id}/respond`, { accept });
       close();
-      if (accept) { sfx.levelUp(); toast(`${t.with.nickname}와(과) 거래 완료! 꾸미기에서 써 보세요.`, 'good'); } else toast('거래를 거절했어요.');
+      if (accept) { sfx.cheer(); toast(`${t.with.nickname}와(과) 거래 완료! 꾸미기에서 써 보세요.`, 'good'); } else toast('거래를 거절했어요.');
       onDone?.(res);
     } catch (err) { toast(err.message, 'bad'); }
   };

@@ -145,7 +145,7 @@ export async function openMailbox({ api, post, onOpened, playCapsule, itemName, 
     if (m.kind === 'baby') { box.close(); onBaby?.(m); return; }
     if (m.kind === 'capsule' && res.result.capsule) {
       box.close();
-      sfx.levelUp();
+      sfx.cheer();
       await playCapsule(res.result.capsule);
       return;
     }

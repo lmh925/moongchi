@@ -112,7 +112,7 @@ function playCommand(dog, info) {
     scene.showBowl = false;
     scene.upsert('teacher', { dog: TEACHER, nickname: '선생님', x: 0.1, y: 0.15, auto: false });
     scene.upsert('me', { dog, nickname: dog.name, x: 0.62, y: 0.55, auto: false, mine: true });
-    playBgm('play');
+    playBgm('school');
 
     // 이번 수업의 명령 순서 만들기
     const known = [...new Set([...dog.tricks, ...(info.target ? [info.target] : [])])];
@@ -173,7 +173,7 @@ function playCommand(dog, info) {
       if (quitted) return;
       if (ok) {
         correct += 1; combo += 1; bestCombo = Math.max(bestCombo, combo);
-        sfx.bark(1.2); sfx.love();
+        sfx.bark(1.2); sfx.success();
         scene.effectAt('me', combo >= 3 ? 'star' : 'heart', combo >= 3 ? 3 : 2);
         scene.bubble('teacher', 'text', text);
       } else {

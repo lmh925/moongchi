@@ -1,4 +1,5 @@
 // 작은 DOM 도우미들
+import { sfx } from './audio.js';
 export const $ = (sel, root = document) => root.querySelector(sel);
 
 export function el(tag, attrs = {}, ...children) {
@@ -30,10 +31,17 @@ export function toast(message, kind = 'info') {
 // 모달: buttons = [{ label, kind, onClick }]  (onClick이 false를 돌려주면 닫지 않아요)
 export function modal({ title, body, buttons = [{ label: '좋아요!' }], className = '', dismissable = true }) {
   const root = $('#modal-root');
-  const close = () => {
+  let closed = false;
+  const close = (byUser = false) => {
+    if (closed) return;
+    closed = true;
+    if (byUser) sfx.close();
     card.classList.add('closing');
-    setTimeout(() => wrap.remove(), 150);
+    wrap.classList.add('closing');
+    setTimeout(() => wrap.remove(), 160);
   };
+  // 축하 창은 저마다 팡파르가 있어서 여는 소리는 빼요
+  if (!/celebrate/.test(className)) sfx.open();
   const card = el('div', { class: `modal-card ${className}`, role: 'dialog', 'aria-modal': 'true' },
     title ? el('h2', { class: 'modal-title' }, title) : null,
     el('div', { class: 'modal-body' }, body),
@@ -41,10 +49,10 @@ export function modal({ title, body, buttons = [{ label: '좋아요!' }], classN
       class: `btn ${b.kind ?? 'primary'}`,
       onclick: async () => {
         const keep = b.onClick ? await b.onClick() : undefined;
-        if (keep !== false) close();
+        if (keep !== false) close(true);
       },
     }, b.label))) : null);
-  const wrap = el('div', { class: 'modal-wrap', onclick: (e) => { if (dismissable && e.target === wrap) close(); } }, card);
+  const wrap = el('div', { class: 'modal-wrap', onclick: (e) => { if (dismissable && e.target === wrap) close(true); } }, card);
   root.append(wrap);
   return { close, card };
 }

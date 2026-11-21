@@ -51,7 +51,7 @@ export function askBirthday(dog, { post, onDone, later = true }) {
   const save = async (date) => {
     try {
       const res = await post('/dog/birthday', { dogId: dog.id, date });
-      sfx.levelUp();
+      sfx.cheer();
       toast(`🎂 ${dog.name}의 생일은 ${mmddText(res.birthday.date)}! ${res.birthday.zodiac.emoji} ${res.birthday.zodiac.name}이에요.`, 'good');
       await onDone?.(res);
     } catch (err) { sfx.error(); toast(err.message, 'bad'); return false; }
@@ -100,7 +100,7 @@ export function birthdayParty(ev, dog, { post }) {
       cake,
       el('p', { class: 'hint' }, '촛불을 톡톡 눌러서 꺼 주세요! 🕯️'));
     const showWish = () => {
-      sfx.levelUp();
+      sfx.cheer();
       const picks = [...BIRTHDAY.wishes].sort(() => Math.random() - 0.5).slice(0, 3);
       stage.replaceChildren(
         el('p', { class: 'big' }, '🌠 소원을 빌어요!'),

@@ -162,7 +162,7 @@ export class TidyRenderer {
         this.say(ev.role === this.role ? '쏙!' : '친구가 쏙!', 'good');
       }
       if (ev.type === 'return' && ev.role === this.role) { sfx.error(); this.say(ev.wrong ? '여기가 아니에요~' : '제자리를 찾아 줘요', 'bad'); }
-      if (ev.type === 'clear') { sfx.levelUp(); this.say('다 치웠다!', 'good'); }
+      if (ev.type === 'clear') { sfx.cheer(); this.say('다 치웠다!', 'good'); }
     }
     this.renderCount();
   }

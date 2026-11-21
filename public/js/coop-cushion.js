@@ -118,7 +118,7 @@ export class CushionRenderer {
       if (ev.type === 'jump') sfx.jump();
       if (ev.type === 'collapse') { sfx.hurt(); this.dizzy = 2.2; this.say('와르르! 다시 해 봐요', 'bad'); }
       if (ev.type === 'reset') this.say('다시 시작!');
-      if (ev.type === 'clear') { sfx.levelUp(); this.say('성공!', 'good'); }
+      if (ev.type === 'clear') { sfx.cheer(); this.say('성공!', 'good'); }
     }
   }
 

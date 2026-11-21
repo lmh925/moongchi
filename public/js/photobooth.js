@@ -673,7 +673,7 @@ function decorate(cuts, names) {
 // ---------- 완성 사진 ----------
 function showPolaroid(url, names) {
   return new Promise((resolve) => {
-    sfx.levelUp();
+    sfx.cheer();
     let saved = false;
     const saveBtn = el('button', { class: 'btn primary', type: 'button' }, '앨범에 저장');
     const wrap = el('div', { class: 'modal-wrap' },

@@ -1,7 +1,7 @@
 // 2인 협동 미니게임 클라이언트 공통 틀
 // 서버가 보내 주는 상태(coop:state)를 받아서 그리기만 해요. 내 입력은 coop:input으로 보내요. (입력 → 상태 → 렌더링)
 import { el } from './ui.js';
-import { sfx, playBgm } from './audio.js';
+import { sfx, playBgm, currentBgm } from './audio.js';
 import { dogPortrait, iconURL } from './sprites.js';
 import { ITEMS, COOP_GAMES } from '../shared/data.js';
 import { RibbonRenderer } from './coop-ribbon.js';
@@ -64,6 +64,7 @@ export class CoopClient {
         now: () => this.serverNow(),
       }),
     };
+    this.prevBgm = currentBgm();
     playBgm('play');
     sfx.notify();
     this.hooks.onStart?.();
@@ -79,7 +80,7 @@ export class CoopClient {
     this.session.renderer.destroy();
     this.session.wrap.remove();
     this.session = null;
-    playBgm('home');
+    playBgm(this.prevBgm ?? 'home');
   }
 
   showEnd(p) {
@@ -88,7 +89,7 @@ export class CoopClient {
     const clear = p.status === 'clear';
     setTimeout(() => {
       this.close();
-      if (clear) sfx.levelUp(); else sfx.bell();
+      if (clear) sfx.cheer(); else sfx.bell();
       const wrap = el('div', { class: 'modal-wrap' },
         el('div', { class: 'modal-card center' },
           el('h2', { class: 'modal-title' }, clear ? '대성공!' : p.status === 'left' ? '친구가 먼저 나갔어요' : '다음에 또 해요!'),

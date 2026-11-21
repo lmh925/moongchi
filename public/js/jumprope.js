@@ -167,7 +167,7 @@ export function playJumpRope(me, friend, names) {
           el('div', { class: 'modal-buttons' },
             el('button', { class: 'btn primary', type: 'button', onclick: start }, '다시 하기'),
             el('button', { class: 'btn secondary', type: 'button', onclick: () => close() }, '끝내기')));
-        if (newBest) sfx.levelUp();
+        if (newBest) sfx.cheer();
       }, 900);
     };
 

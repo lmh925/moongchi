@@ -599,7 +599,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
       if (s.y > 0 || s.falling) { s.y = -46; s.vy = 0; s.falling = false; s.jumps = 1; }
       s.countdown = 1.5;
       setBgmTempo(tempoFor(s.stage));
-      sfx.levelUp();
+      sfx.cheer();
       s.banner = { text: '🪽 다시 달려요!', age: 0 };
     };
     const gameOver = (reason) => {
@@ -634,7 +634,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
         // 구간: 달릴수록 빨라지고 어려워져요 (무한의 계단처럼)
         const stage = 1 + Math.floor(s.dist / 10 / STAGE_M);
         if (stage > s.stage) {
-          s.stage = stage; s.banner = { text: `구간 ${stage}! 더 빨라져요`, age: 0 }; sfx.levelUp();
+          s.stage = stage; s.banner = { text: `구간 ${stage}! 더 빨라져요`, age: 0 }; sfx.cheer();
           if (s.feverT <= 0) setBgmTempo(tempoFor(stage));
         }
         const base = Math.min(230, 95 + (s.stage - 1) * 14 + ((s.dist / 10) % STAGE_M) * 0.02);
@@ -722,7 +722,7 @@ export function playRunner(dog, { map = 'meadow', best = 0, bestDist = 0, booste
           if (it.kind === 'heart') { s.hp = Math.min(maxHp, s.hp + HP.heart); sfx.love(); pop('체력 UP', it.y, it.x); }
         }
         // 🔥 피버 타임!
-        if (s.fever >= 100 && s.feverT <= 0) { s.feverT = FEVER.secs; s.banner = { text: '🔥 피버 타임! 🔥', age: 0, fever: true }; sfx.levelUp(); setBgmTempo(tempoFor(s.stage) * 1.12, 2); }
+        if (s.fever >= 100 && s.feverT <= 0) { s.feverT = FEVER.secs; s.banner = { text: '🔥 피버 타임! 🔥', age: 0, fever: true }; sfx.cheer(); setBgmTempo(tempoFor(s.stage) * 1.12, 2); }
         if (!s.newBest && best > 0 && s.score > best) { s.newBest = true; s.banner = { text: '🎉 최고 기록 경신!', age: 0 }; sfx.star(); }
         if (s.hurtT <= 0 && !invincible()) {
           for (const o of s.obs) {

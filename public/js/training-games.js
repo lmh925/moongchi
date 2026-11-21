@@ -45,7 +45,7 @@ export function trainShell(course, info, { hint }) {
       controls,
       el('div', { class: 'train-foot' }, el('p', { class: 'hint' }, hint), quit)));
   document.getElementById('modal-root').append(wrap);
-  playBgm('play');
+  playBgm('school');
   Object.assign(shell, {
     wrap, stage, controls, rounds: C.rounds,
     say: (t) => { say.textContent = t; say.classList.remove('pop'); void say.offsetWidth; say.classList.add('pop'); },

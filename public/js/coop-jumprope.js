@@ -97,7 +97,7 @@ export class JumpRopeRenderer {
         this.combo.textContent = '';
       }
       if (ev.type === 'speedup') this.say('줄이 빨라진다!', 'good');
-      if (ev.type === 'clear') { this.say('대성공!', 'good'); sfx.levelUp(); }
+      if (ev.type === 'clear') { this.say('대성공!', 'good'); sfx.cheer(); }
     }
     this.renderHud();
   }

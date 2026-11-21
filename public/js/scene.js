@@ -2,6 +2,7 @@
 import { dogSprite, iconCanvas, DOG_W } from './sprites.js';
 import { PERSONALITIES } from '../shared/data.js';
 import { el } from './ui.js';
+import { envAt, mix } from './ambience.js';
 
 export const SCENE_W = 192;
 export const SCENE_H = 144;
@@ -104,27 +105,42 @@ function drawWall(ctx, id) {
   rect(ctx, 0, FLOOR_TOP - 5, SCENE_W, 1, '#a86b3a');
 }
 
-function drawWindow(ctx) {
-  const x = 74; const y = 10; const w = 48; const h = 36;
+export const WIN = { x: 74, y: 10, w: 48, h: 36 };
+// 계절마다 나무 색
+const TREE = {
+  spring: ['#f3a9c4', '#ffd0e0'], summer: ['#2f7a33', '#4f9e44'], autumn: ['#d9772e', '#f2a541'], winter: ['#6b7f6a', '#8fa08c'],
+};
+function drawWindow(ctx, env = null) {
+  const { x, y, w, h } = WIN;
+  const night = env ? env.dark : 0;
+  const snowy = env?.weather === 'snow';
   rect(ctx, x - 3, y - 3, w + 6, h + 6, OUT);
   rect(ctx, x - 2, y - 2, w + 4, h + 4, '#9c6b3f');
-  // 하늘
-  const sky = ['#a9dcff', '#b8e3ff', '#c8eaff', '#d8f1ff'];
+  // 하늘 (시간에 따라 새벽 → 낮 → 노을 → 밤)
+  const sky = env?.sky ?? ['#a9dcff', '#b8e3ff', '#c8eaff', '#d8f1ff'];
   sky.forEach((c, i) => rect(ctx, x, y + i * 5, w, 5, c));
-  rect(ctx, x, y + 20, w, 4, '#d8f1ff');
-  // 구름
-  ellipse(ctx, x + 12, y + 7, 6, 2.5, '#ffffff'); ellipse(ctx, x + 16, y + 5, 4, 2.5, '#ffffff');
-  ellipse(ctx, x + 36, y + 12, 5, 2, '#ffffff');
-  // 짙은 초록 잔디밭과 나무
-  rect(ctx, x, y + 24, w, h - 24, '#3f8f3a');
-  for (let i = 0; i < w; i += 3) rect(ctx, x + i, y + 24 - (i % 2), 2, 1, '#57a84b');
-  rect(ctx, x, y + h - 4, w, 4, '#2f6f2c');
-  rect(ctx, x + 36, y + 14, 3, 12, '#7a4b2a');
-  ellipse(ctx, x + 37, y + 12, 7, 6, '#2f7a33'); ellipse(ctx, x + 35, y + 10, 4, 3, '#4f9e44');
-  ellipse(ctx, x + 10, y + 27, 3, 1.5, '#ff9fb8'); rect(ctx, x + 10, y + 27, 1, 1, '#ffe066');
+  rect(ctx, x, y + 20, w, 4, sky[3]);
+  // 해 / 구름 (밤에는 구름이 어둑해요)
+  if (env?.sun) { ellipse(ctx, x + 40, y + 6, 3.5, 3.5, '#fff3a6'); rect(ctx, x + 39, y + 5, 2, 2, '#ffffff'); }
+  if (!env || night < 0.85) {
+    const cloud = env?.weather === 'rain' ? mix('#b7bfcc', '#4a5470', night) : mix('#ffffff', '#5a6290', night);
+    ellipse(ctx, x + 12, y + 7, 6, 2.5, cloud); ellipse(ctx, x + 16, y + 5, 4, 2.5, cloud);
+    ellipse(ctx, x + 36, y + 12, 5, 2, cloud);
+    if (env?.weather === 'rain') { ellipse(ctx, x + 28, y + 4, 8, 3, cloud); ellipse(ctx, x + 6, y + 13, 5, 2, cloud); }
+  }
+  // 잔디밭과 나무 (밤엔 어둡게, 눈 오는 날엔 하얗게)
+  const shade = (c) => mix(c, '#16203e', night * 0.7);
+  const ground = snowy ? ['#eef3fb', '#ffffff', '#cfd9ea'] : ['#3f8f3a', '#57a84b', '#2f6f2c'];
+  rect(ctx, x, y + 24, w, h - 24, shade(ground[0]));
+  for (let i = 0; i < w; i += 3) rect(ctx, x + i, y + 24 - (i % 2), 2, 1, shade(ground[1]));
+  rect(ctx, x, y + h - 4, w, 4, shade(ground[2]));
+  const tree = TREE[env?.season ?? 'summer'];
+  rect(ctx, x + 36, y + 14, 3, 12, shade('#7a4b2a'));
+  ellipse(ctx, x + 37, y + 12, 7, 6, shade(tree[0])); ellipse(ctx, x + 35, y + 10, 4, 3, shade(tree[1]));
+  if (snowy) { ellipse(ctx, x + 37, y + 7, 6, 2, shade('#ffffff')); }
+  if (!snowy) { ellipse(ctx, x + 10, y + 27, 3, 1.5, shade('#ff9fb8')); rect(ctx, x + 10, y + 27, 1, 1, shade('#ffe066')); }
   // 창틀 십자
-  rect(ctx, x + w / 2 - 1, y, 2, h, '#9c6b3f');
-  rect(ctx, x, y + h / 2 - 1, w, 2, '#9c6b3f');
+  drawWindowFrame(ctx);
   // 커튼
   for (const cx of [x - 8, x + w + 2]) {
     rect(ctx, cx, y - 5, 6, h + 12, OUT);
@@ -134,6 +150,13 @@ function drawWindow(ctx) {
   }
   rect(ctx, x - 10, y - 6, w + 20, 2, '#8a5429');
 }
+function drawWindowFrame(ctx) {
+  const { x, y, w, h } = WIN;
+  rect(ctx, x + w / 2 - 1, y, 2, h, '#9c6b3f');
+  rect(ctx, x, y + h / 2 - 1, w, 2, '#9c6b3f');
+}
+// 밤하늘 별 자리 (창문 안 좌표)
+const STARS = [[5, 4], [14, 9], [21, 3], [30, 7], [42, 4], [9, 15], [38, 15], [26, 13], [45, 10], [3, 20]];
 
 // 벽 장식 (왼쪽 벽)
 function drawDeco(ctx, id) {
@@ -479,12 +502,13 @@ function drawBowl(ctx, full) {
   if (full) for (let i = -6; i < 7; i += 3) rect(ctx, x + i, y - 1 - (i % 2 ? 1 : 0), 2, 2, i % 2 ? '#e0a45a' : '#a86b2d');
 }
 
-export function renderRoom(decor = {}) {
+// env: 지금 시간·날씨 (없으면 맑은 낮)
+export function renderRoom(decor = {}, env = null) {
   const c = document.createElement('canvas');
   c.width = SCENE_W; c.height = SCENE_H;
   const ctx = c.getContext('2d');
   drawWall(ctx, decor.wallpaper);
-  drawWindow(ctx);
+  drawWindow(ctx, env);
   drawShelf(ctx);
   drawDeco(ctx, decor.deco === undefined ? 'deco_frame' : decor.deco);
   drawFloor(ctx, decor.floor);
@@ -501,6 +525,21 @@ const TRICK_TIME = {
   cloudroll: 2.2, bighug: 2.2, sniff: 2.2, salute: 1.8, propeller: 2.2, jellypaw: 2.4, // 스페셜 개인기
 };
 
+// 🐾 혼자 노는 몸짓 (초)
+const ACT_TIME = { yawn: 1.9, stretch: 1.6, chase: 1.8, sniff: 2.4, scratch: 1.5, sit: 3.2, roll: 1.8 };
+// 성격마다 자주 하는 몸짓
+const ACT_BIAS = {
+  sleepy: ['yawn', 'yawn', 'stretch', 'sit'],
+  hyper: ['chase', 'chase', 'roll', 'scratch'],
+  foodie: ['sniff', 'sniff', 'sit', 'yawn'],
+  sweet: ['roll', 'sit', 'stretch', 'chase'],
+  shy: ['sniff', 'sit', 'scratch', 'yawn'],
+  smart: ['sit', 'sit', 'stretch', 'sniff'],
+};
+const ALL_ACTS = Object.keys(ACT_TIME);
+// 욕구 말풍선이 뜨는 기준 (수치는 20 아래로 안 떨어져요)
+const NEED_AT = 38;
+
 export class Scene {
   constructor(canvas, overlay, handlers = {}) {
     this.canvas = canvas;
@@ -511,7 +550,11 @@ export class Scene {
     this.handlers = handlers;
     this.entities = new Map();
     this.particles = [];
-    this.bg = renderRoom({});
+    this.decor = {};
+    this.env = envAt();
+    this.envT = performance.now();
+    this.bg = renderRoom({}, this.env);
+    this.weatherFx = [];
     this.bowlFull = 0;
     this.showNames = false;
     this.showBowl = true;
@@ -549,7 +592,31 @@ export class Scene {
     this.overlay.replaceChildren();
   }
 
-  setDecor(decor) { this.bg = renderRoom(decor ?? {}); }
+  setDecor(decor) { this.decor = decor ?? {}; this.bg = renderRoom(this.decor, this.env); }
+
+  // 30초마다 시간·날씨를 다시 보고 창밖을 새로 그려요
+  refreshEnv(force = false) {
+    const now = performance.now();
+    if (!force && now - this.envT < 30_000) return;
+    this.envT = now;
+    const prev = this.env;
+    this.env = envAt();
+    if (force || prev.weather !== this.env.weather || prev.sky[0] !== this.env.sky[0] || prev.season !== this.env.season) {
+      this.bg = renderRoom(this.decor, this.env);
+    }
+  }
+
+  // 내 강아지 수치 (0~100): 배고프면 🍖, 지저분하면 냄새, 심심하면 💗 말풍선
+  setNeeds(id, needs) {
+    const e = this.entities.get(id);
+    if (e) e.needs = needs;
+  }
+
+  act(e, name) {
+    e.state = 'act'; e.act = name; e.stateT = 0; e.tx = e.x; e.ty = e.y;
+    if (name === 'sniff') e.facing = -e.facing || 1;
+    this.handlers.onAct?.(e, name);
+  }
 
   // info: { dog, nickname, x, y (0~1), mine, home, auto }
   upsert(id, info) {
@@ -845,14 +912,26 @@ export class Scene {
         e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3;
       } else if (e.state === 'care' && e.stateT > 1.8) {
         e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3;
+      } else if (e.state === 'act') {
+        if (e.act === 'sniff' && Math.floor(e.stateT * 3) !== Math.floor((e.stateT - dt) * 3)) {
+          this.particles.push({ dust: true, x: e.x + e.facing * 12, y: e.y - 1, vx: e.facing * 5, vy: -5, life: 0.4, age: 0 });
+        }
+        if (e.stateT > (ACT_TIME[e.act] ?? 1.5)) { e.state = 'idle'; e.stateT = 0; e.idleFor = 2 + Math.random() * 3; }
       } else if (e.state === 'sleep') {
         if (Math.random() < dt * 0.6) this.particles.push({ icon: 'sleepy', x: e.x + 8, y: e.y - 24, vx: 4, vy: -8, life: 1.6, age: 0, small: true });
         if (e.stateT > (e.sleepFor ?? 6)) { e.state = 'idle'; e.stateT = 0; e.idleFor = 2; }
       } else if (e.state === 'idle' && e.auto && !(this.partyMode && e.mine) && e.stateT > e.idleFor) {
-        // 혼자 놀기: 가끔 산책하고, 잠꾸러기는 침대로 가서 낮잠을 자요.
-        const nap = PERSONALITIES[e.dog.personality]?.napChance ?? 0.1;
-        if (Math.random() < nap) this.sleep(e.id, 5 + Math.random() * 6);
-        else {
+        // 혼자 놀기: 가끔 산책하고, 혼자 노는 몸짓도 하고, 잠꾸러기는 침대로 가서 낮잠을 자요.
+        // 밤(10시~아침 7시)에는 졸려서 침대에서 오래 자요.
+        const sleepy = this.env?.sleepy && !this.partyMode;
+        const nap = sleepy ? Math.max(0.6, PERSONALITIES[e.dog.personality]?.napChance ?? 0.1) : (PERSONALITIES[e.dog.personality]?.napChance ?? 0.1);
+        const r = Math.random();
+        if (r < nap) this.sleep(e.id, sleepy ? 14 + Math.random() * 16 : 5 + Math.random() * 6);
+        else if (r < nap + 0.32 && !this.partyMode) {
+          const bias = ACT_BIAS[e.dog.personality] ?? ALL_ACTS;
+          const pool = sleepy ? ['yawn', 'yawn', 'stretch', ...bias] : [...bias, ...ALL_ACTS];
+          this.act(e, pool[Math.floor(Math.random() * pool.length)]);
+        } else {
           const nx = Math.random(); const ny = Math.random();
           this.moveTo(e.id, nx, ny);
           if (e.mine) this.handlers.onMove?.({ x: nx, y: ny });
@@ -877,12 +956,116 @@ export class Scene {
         }
       }
     }
+    this.updateWeather(dt);
     for (const p of this.particles) {
       p.age += dt;
       if (p.age < 0) continue;
       p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 4 * dt;
     }
     this.particles = this.particles.filter((p) => p.age < p.life);
+  }
+
+  // 창밖 날씨 입자 (창문 안 좌표)
+  updateWeather(dt) {
+    const kind = this.env?.weather;
+    const want = { snow: 16, rain: 22, petals: 7, leaves: 6 }[kind] ?? 0;
+    if (this.weatherKind !== kind) { this.weatherKind = kind; this.weatherFx = []; }
+    while (this.weatherFx.length < want) {
+      this.weatherFx.push({ x: Math.random() * WIN.w, y: Math.random() * WIN.h, s: 0.6 + Math.random() * 0.8, ph: Math.random() * 6.28, c: Math.random() });
+    }
+    const speed = { snow: 7, rain: 70, petals: 9, leaves: 10 }[kind] ?? 0;
+    for (const f of this.weatherFx) {
+      f.ph += dt * 2;
+      f.y += speed * f.s * dt;
+      f.x += kind === 'rain' ? -speed * 0.25 * dt : Math.sin(f.ph) * (kind === 'snow' ? 4 : 9) * dt + (kind === 'snow' ? 0 : 3 * dt);
+      if (f.y > WIN.h) { f.y = -2; f.x = Math.random() * WIN.w; }
+      if (f.x < -2) f.x += WIN.w + 2; else if (f.x > WIN.w + 2) f.x -= WIN.w + 2;
+    }
+  }
+
+  // 창밖: 별 · 달 · 눈 · 비 · 꽃잎 · 낙엽 (방 조명 위에 그려서 또렷하게)
+  drawWindowFx(ctx) {
+    const env = this.env;
+    if (!env) return;
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WIN.x, WIN.y, WIN.w, WIN.h); ctx.clip();
+    if (env.stars) {
+      const a = Math.min(1, (env.dark - 0.55) / 0.3);
+      STARS.forEach(([sx, sy], i) => {
+        ctx.globalAlpha = a * (0.45 + 0.55 * Math.abs(Math.sin(t * 1.3 + i * 1.7)));
+        rect(ctx, WIN.x + sx, WIN.y + sy, 1, 1, '#fff7d6');
+      });
+      // 초승달
+      ctx.globalAlpha = a;
+      ellipse(ctx, WIN.x + 38, WIN.y + 7, 4, 4, '#fff1b8');
+      ellipse(ctx, WIN.x + 40, WIN.y + 6, 3.5, 3.5, env.sky[0]);
+      ctx.globalAlpha = 1;
+    }
+    const kind = this.weatherKind;
+    for (const f of this.weatherFx) {
+      const px = Math.round(WIN.x + f.x); const py = Math.round(WIN.y + f.y);
+      if (kind === 'snow') { rect(ctx, px, py, f.s > 1.1 ? 2 : 1, f.s > 1.1 ? 2 : 1, '#ffffff'); }
+      else if (kind === 'rain') { ctx.globalAlpha = 0.75; rect(ctx, px, py, 1, 3, '#d6e6ff'); ctx.globalAlpha = 1; }
+      else if (kind === 'petals') { rect(ctx, px, py, 2, 1, f.c > 0.5 ? '#ffc2d6' : '#ffe0ea'); }
+      else if (kind === 'leaves') { rect(ctx, px, py, 2, 2, f.c > 0.6 ? '#e07b2e' : f.c > 0.3 ? '#f2a541' : '#b8572a'); }
+    }
+    ctx.restore();
+    if (kind) drawWindowFrame(ctx);
+  }
+
+  // 방 조명: 노을엔 따뜻하게, 밤엔 어둑하고 가운데만 은은하게
+  drawLighting(ctx) {
+    const env = this.env;
+    if (!env || env.light === '#ffffff') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = env.light;
+    ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+    if (env.dark > 0.3) {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(96, 104, 8, 96, 104, 110);
+      g.addColorStop(0, `rgba(255,196,128,${0.2 * env.dark})`);
+      g.addColorStop(1, 'rgba(255,196,128,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+    }
+    ctx.restore();
+  }
+
+  // 💭 욕구 말풍선 / 냄새 / 반짝 (내 강아지만)
+  drawNeeds(ctx, e, x, headY) {
+    const n = e.needs;
+    if (!n || e.state === 'sleep' || e.state === 'toBed') return;
+    const t = e.t;
+    // 지저분해요: 냄새 선이 꼬물꼬물 + 파리 한 마리
+    if (n.cleanliness < NEED_AT) {
+      const w = Math.floor(t * 3) % 2;
+      ctx.fillStyle = 'rgba(122,154,74,0.85)';
+      for (const dx of [-7, 0, 7]) {
+        ctx.fillRect(x + dx + w, headY + 6, 1, 2); ctx.fillRect(x + dx + 1 - w, headY + 3, 1, 2);
+      }
+      const fx = Math.round(x + Math.cos(t * 4) * 12); const fy = Math.round(headY + 4 + Math.sin(t * 7) * 4);
+      rect(ctx, fx, fy, 2, 1, '#2c2a33'); rect(ctx, fx, fy - 1, 1, 1, Math.floor(t * 20) % 2 ? '#cfe6ff' : '#2c2a33');
+    }
+    if (e.bubble || e.state === 'care' || e.state === 'trick') return;
+    const icon = n.fullness < NEED_AT ? 'food' : n.affection < NEED_AT ? 'heart' : null;
+    if (icon && Math.floor((t + 1) / 4) % 2 === 0) {
+      // 생각 풍선 (소원 말풍선이 오른쪽에 있으면 왼쪽에 띄워요)
+      const left = !!e.ask || x > SCENE_W - 24;
+      const bx = left ? Math.max(1, x - 21) : x + 7;
+      const by = Math.max(1, Math.round(headY - 12 + Math.sin(t * 3)));
+      rect(ctx, bx - 1, by - 1, 15, 13, OUT);
+      rect(ctx, bx, by, 13, 11, '#ffffff');
+      const tx = left ? bx + 14 : bx - 3;
+      rect(ctx, tx, by + 12, 2, 2, OUT); rect(ctx, tx + (left ? 1 : 0), by + 12, 1, 1, '#ffffff');
+      const ic = iconCanvas(icon);
+      ctx.drawImage(ic, bx + 2, by + 1, 9, 9);
+    }
+    // 기분 최고: 반짝반짝
+    if (n.fullness >= 80 && n.cleanliness >= 80 && n.affection >= 80 && Math.random() < 0.012) {
+      this.particles.push({ icon: 'sparkle', x: x + (Math.random() - 0.5) * 22, y: headY + 6, vx: (Math.random() - 0.5) * 6, vy: -10, life: 1.1, age: 0, small: true });
+    }
   }
 
   startFrolic(a) {
@@ -947,6 +1130,26 @@ export class Scene {
         }
         break;
       }
+      case 'act': {
+        const s = e.stateT;
+        opts = { ...base, eyes: 'open', tail: Math.floor(s * 6) % 2 };
+        switch (e.act) {
+          case 'yawn':
+            pose = 'sit';
+            opts.eyes = 'closed';
+            opts.mouth = s > 0.35 && s < 1.3 ? 'open' : 'closed';
+            opts.headDy = s > 0.35 && s < 1.3 ? -1 : 0;
+            break;
+          case 'stretch': pose = s < 1.25 ? 'bow' : 'stand'; opts.eyes = s < 1.25 ? 'closed' : 'happy'; opts.mouth = s > 0.3 && s < 1.1 ? 'open' : 'closed'; break;
+          case 'chase': facing = Math.floor(s * 7) % 2 ? 1 : -1; dy = -Math.round(Math.abs(Math.sin(s * 9)) * 3); opts.eyes = 'happy'; opts.mouth = 'tongue'; opts.tail = Math.floor(s * 16) % 2; break;
+          case 'sniff': pose = Math.floor(s * 3) % 3 === 2 ? 'stand' : 'bow'; facing = Math.floor(s / 1.2) % 2 ? -e.facing : e.facing; break;
+          case 'scratch': pose = 'sit'; dy = Math.floor(s * 12) % 2 ? -1 : 0; opts.eyes = 'happy'; break;
+          case 'sit': pose = Math.floor(s / 1.6) % 2 ? 'front' : 'sit'; opts.tail = Math.floor(s * 5) % 2; if (s % 3 < 0.12) opts.eyes = 'closed'; break;
+          case 'roll': if (s > 0.2 && s < 1.5) { pose = 'lie'; rot = Math.floor(s * 5) % 4; } opts.eyes = 'happy'; opts.mouth = 'tongue'; break;
+          default: break;
+        }
+        break;
+      }
       case 'rush':
         pose = Math.floor(e.t * 10) % 2 ? 'walk1' : 'walk2';
         dy = Math.floor(e.t * 10) % 2 ? -2 : 0;
@@ -973,6 +1176,7 @@ export class Scene {
 
   draw() {
     const { ctx } = this;
+    this.refreshEnv();
     ctx.drawImage(this.bg, 0, 0);
     if (this.showBowl) drawBowl(ctx, this.bowlFull > 0);
     // 똥 (냄새 선이 살랑살랑)
@@ -994,6 +1198,7 @@ export class Scene {
       ctx.drawImage(ic, Math.round(t.lx - ic.width / 2), Math.round(t.ly - ic.height - t.fall + Math.sin(age / 150)));
     }
     const list = [...this.entities.values()].filter((e) => e.dog && !e.dog.atSchool).sort((a, b) => a.y - b.y);
+    const needs = [];
     const rect = this.canvas.getBoundingClientRect();
     const sx = rect.width / SCENE_W;
     for (const e of list) {
@@ -1023,6 +1228,7 @@ export class Scene {
       ctx.restore();
       // 이름표와 말풍선 (DOM, 선명한 글씨)
       const headY = y + dy - 38 + (e.dog.stage === 0 ? 8 : e.dog.stage === 1 ? 4 : 0);
+      if (e.mine && e.needs) needs.push([e, x, headY]);
       e.tag.style.display = this.showNames || e.bubble ? 'block' : 'none';
       e.tag.style.transform = `translate(${x * sx}px, ${(y + 4) * sx}px) translate(-50%, 0)`;
       if (e.bubble) e.bubble.node.style.transform = `translate(${x * sx}px, ${headY * sx}px) translate(-50%, -100%)`;
@@ -1035,6 +1241,9 @@ export class Scene {
     for (const e of this.entities.values()) {
       if (!e.dog || e.dog.atSchool) e.tag.style.display = 'none';
     }
+    this.drawLighting(ctx);
+    this.drawWindowFx(ctx);
+    for (const [e, x, headY] of needs) this.drawNeeds(ctx, e, x, headY);
     for (const p of this.particles) {
       if (p.age < 0) continue;
       const alpha = Math.min(1, (p.life - p.age) * 2);

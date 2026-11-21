@@ -179,7 +179,7 @@ export function openCafe(ctx) {
 
 // 영업 보고서
 export function showReport(r) {
-  sfx.levelUp();
+  sfx.cheer();
   modal({
     title: r.early ? '영업 보고서 (일찍 닫음)' : '📋 영업 보고서',
     className: 'celebrate cafe-report',

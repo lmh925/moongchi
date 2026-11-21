@@ -44,7 +44,7 @@ export function openJournalEditor({ post, dog, entry = null, onSaved }) {
         onClick: async () => {
           try {
             const res = await post('/journal', { weather, mood, title: title.value, body: body.value, isPublic });
-            sfx.levelUp();
+            sfx.cheer();
             const r = res.result;
             toast(r.reward ? `📔 오늘의 일기 완성! 코인 +${r.reward.coins} · 💗+${r.reward.hearts} · 🔥 ${r.streak}일째` : '📔 일기를 고쳤어요!', 'good');
             await onSaved?.(res);
