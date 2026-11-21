@@ -10,21 +10,12 @@
 
 ---
 
-## 1단계 — 스타일 시안 3종 (하나 고르기)
+## 1단계 — 스타일 시안 2종 (하나 고르기)
 
-같은 웰시코기를 세 가지 그림체로 그려 보고 비교해요. 각각 따로 요청하세요.
+같은 웰시코기를 두 가지 그림체로 그려 보고 비교해요. 도트(픽셀)는 빼고, **아이들에게 친숙하고 개발하기 쉬운 둥근 일러스트**를 기본으로 해요.
+각각 따로 요청하세요. (ChatGPT로 그림체가 들쭉날쭉하면 Gemini 이미지 생성으로 같은 프롬프트를 써 봐도 좋아요. 같은 캐릭터를 유지하며 고치는 데 강해요.)
 
-### 시안 A: 고급 픽셀 아트
-```
-Game character design: a cute Welsh Corgi puppy mascot for a cozy pet-raising mobile game.
-Show the SAME corgi in three growth stages side by side, left to right: baby (tiny, round, oversized head), kid (slightly taller), adult (full size but still cute).
-Each in a happy sitting pose, three-quarter view facing right.
-Style: high-quality 2D pixel art, each character about 64 pixels tall, clean 1-pixel dark brown outline, soft limited warm palette, gentle pixel shading, chibi proportions with a big head and big shiny eyes, rosy cheeks.
-Transparent background, PNG, no text, no frame.
-```
-파일명: `style_A_pixel.png`
-
-### 시안 B: 동글동글 2D 일러스트 (추천: 부품 애니메이션에 가장 잘 맞아요)
+### 시안 1 (추천): 동글동글 2D 일러스트 — 부품 애니메이션에 가장 잘 맞아요
 ```
 Game character design: a cute Welsh Corgi puppy mascot for a cozy pet-raising mobile game.
 Show the SAME corgi in three growth stages side by side, left to right: baby (tiny, round, oversized head), kid (slightly taller), adult (full size but still cute).
@@ -32,9 +23,9 @@ Each in a happy sitting pose, three-quarter view facing right.
 Style: cute chibi 2D illustration, thick rounded dark-brown outlines, flat pastel colors with soft simple cel shading, head about 45% of body height, big glossy eyes, small blush on cheeks, clean vector-like edges, soft and friendly, mobile game character art.
 Transparent background, PNG, no text, no frame.
 ```
-파일명: `style_B_chibi.png`
+파일명: `style_1_chibi.png`
 
-### 시안 C: 파스텔 동화책 그림
+### 시안 2: 파스텔 동화책 그림
 ```
 Game character design: a cute Welsh Corgi puppy mascot for a cozy pet-raising mobile game.
 Show the SAME corgi in three growth stages side by side, left to right: baby (tiny, round, oversized head), kid (slightly taller), adult (full size but still cute).
@@ -42,9 +33,9 @@ Each in a happy sitting pose, three-quarter view facing right.
 Style: soft storybook illustration, gentle watercolor-like texture but clean readable edges, warm pastel palette, thin brown outlines, chibi proportions, big gentle eyes, cozy and heartwarming.
 Transparent background, PNG, no text, no frame.
 ```
-파일명: `style_C_storybook.png`
+파일명: `style_2_storybook.png`
 
-> 세 장을 보내 주시면 게임 화면 크기에서 어떻게 보이는지 제가 합성해서 비교 이미지를 드릴게요.
+> 두 장을 보내 주시면 게임 화면 크기에서 어떻게 보이는지 제가 합성해서 비교 이미지를 드릴게요.
 
 ---
 
@@ -191,6 +182,6 @@ Wide 2:1 ratio.
 ---
 
 ## 진행 순서 요약
-1. 1단계 시안 3장 → 저에게 보내기 → 같이 고르기
+1. 1단계 시안 2장 → 저에게 보내기 → 같이 고르기
 2. 2단계 코기 세트 → 제가 게임에 넣어 움직여 보기 → 보완
 3. 3단계 7종 → 4단계 소품 → 5단계 방 → 6단계 UI/스토어
