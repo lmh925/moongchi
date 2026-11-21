@@ -1,0 +1,8 @@
+{
+  "name": "@thel/platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "게임 공통 기반: 소리 · 저장 · 진동 · 알림 · 광고 · 결제 · 시간/날씨 (프레임워크 없음, TypeScript 원본 그대로 가져다 써요)",
+  "type": "module",
+  "main": "src/index.ts"
+}

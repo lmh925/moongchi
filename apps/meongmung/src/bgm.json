@@ -1,0 +1,46 @@
+{
+ "home_day": {
+  "src": "assets/bgm/bgm_home_day",
+  "loop": 81.70213
+ },
+ "home_night": {
+  "src": "assets/bgm/bgm_home_night",
+  "loop": 116.36363
+ },
+ "minigame": {
+  "src": "assets/bgm/bgm_minigame",
+  "loop": 34.28571
+ },
+ "plaza": {
+  "src": "assets/bgm/bgm_plaza",
+  "loop": 65.08474
+ },
+ "run_beach": {
+  "src": "assets/bgm/bgm_run_beach",
+  "loop": 58.18181
+ },
+ "run_candy": {
+  "src": "assets/bgm/bgm_run_candy",
+  "loop": 50.52633
+ },
+ "run_meadow": {
+  "src": "assets/bgm/bgm_run_meadow",
+  "loop": 53.33333
+ },
+ "run_snow": {
+  "src": "assets/bgm/bgm_run_snow",
+  "loop": 55.65218
+ },
+ "school": {
+  "src": "assets/bgm/bgm_school",
+  "loop": 66.20689
+ },
+ "title": {
+  "src": "assets/bgm/bgm_title",
+  "loop": 60.0
+ },
+ "village": {
+  "src": "assets/bgm/bgm_village",
+  "loop": 71.11111
+ }
+}

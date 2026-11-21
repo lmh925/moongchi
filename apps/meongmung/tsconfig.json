@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"],
+    "paths": { "@platform": ["../../packages/platform/src/index.ts"] }
+  },
+  "include": ["src", "../../packages/platform/src", "vite.config.ts", "capacitor.config.ts"]
+}

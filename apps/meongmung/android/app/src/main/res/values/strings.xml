@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">멍뭉고치</string>
+    <string name="title_activity_main">멍뭉고치</string>
+    <string name="package_name">biz.thel.meongmung</string>
+    <string name="custom_url_scheme">biz.thel.meongmung</string>
+</resources>

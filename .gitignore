@@ -4,3 +4,5 @@ data/
 .DS_Store
 __pycache__/
 tools/music/out/
+apps/*/node_modules/
+apps/*/dist/
